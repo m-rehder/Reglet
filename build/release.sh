@@ -6,8 +6,7 @@
 #
 # Usage:  build/release.sh X.Y.Z
 # Configuration (optional):
-#   REGLET_SIGN_CERT / _SIGN_PASSWORD / _TIMESTAMPER   signing (V01)
-#   REGLET_ALLOW_UNSIGNED=1                            dry run without a signature
+#   REGLET_SIGN_CERT / _SIGN_PASSWORD / _TIMESTAMPER   optional author signature (V01)
 #   REGLET_NUGET_SOURCE / _NUGET_TOKEN                 publication (V02)
 #
 set -euo pipefail
@@ -52,14 +51,11 @@ echo "== Package audit (V04) =="
 build/check-package.sh
 
 echo "== Sign (V01) =="
+# The author signature is optional: nuget.org adds its repository signature to every package anyway.
 if [ -n "${REGLET_SIGN_CERT:-}" ]; then
   build/sign-packages.sh
-elif [ "${REGLET_ALLOW_UNSIGNED:-}" = "1" ]; then
-  echo "WARNING: signing skipped (REGLET_ALLOW_UNSIGNED=1)."
 else
-  echo "ERROR: no signature configured (REGLET_SIGN_CERT);" >&2
-  echo "       for a dry run set REGLET_ALLOW_UNSIGNED=1." >&2
-  exit 1
+  echo "No signing certificate (REGLET_SIGN_CERT): packages stay unsigned."
 fi
 
 echo "== Checksums (L10) =="

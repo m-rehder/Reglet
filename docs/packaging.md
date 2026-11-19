@@ -71,11 +71,11 @@ The steps above are bundled in scripts; details in [versioning.md](versioning.md
 | Version (V03) | `build/set-version.sh X.Y.Z` | sets `Directory.Build.props` and `Smoke.Package` |
 | Changelog (V03) | `build/release-notes.sh X.Y.Z` | extracts the section from `release-notes.md` |
 | Release (V02) | `build/release.sh X.Y.Z` | checks, builds, tests, packs, signs, checksums, optional push |
-| Signing (V01) | `build/sign-packages.sh` | `dotnet nuget sign` (needs `REGLET_SIGN_CERT`) |
+| Signing (V01) | `build/sign-packages.sh` | optional `dotnet nuget sign` (needs `REGLET_SIGN_CERT`) |
 
 `build/release.sh` runs **every** release through the zero-dependency audit
-(`check-zero-dependency.sh` and `check-package.sh`, V04) and aborts without a signing
-certificate (dry run: `REGLET_ALLOW_UNSIGNED=1`). Registry publication happens via
+(`check-zero-dependency.sh` and `check-package.sh`, V04) and signs only when a certificate is
+set (`REGLET_SIGN_CERT`). Registry publication happens via
 `REGLET_NUGET_SOURCE`/`REGLET_NUGET_TOKEN`. The tag workflow
 [.gitea/workflows/release.yml](../.gitea/workflows/release.yml) invokes `build/release.sh`.
 

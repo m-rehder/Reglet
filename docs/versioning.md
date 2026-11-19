@@ -63,8 +63,9 @@ The tag workflow expects the following configuration in the repository:
 
 ## Package signing (V01)
 
-Release packages carry an author signature (`dotnet nuget sign`); checksums alone (L10) do not
-suffice. The signature needs a certificate:
+An author signature (`dotnet nuget sign`) is optional: nuget.org adds its own repository signature
+to every package, which proves the package is unchanged since upload. An author signature
+additionally proves who made it and needs a code-signing certificate:
 
 ```bash
 REGLET_SIGN_CERT=/path/to/certificate.pfx \
@@ -73,8 +74,8 @@ REGLET_TIMESTAMPER=http://timestamp.digicert.com \
   build/sign-packages.sh
 ```
 
-`build/release.sh` invokes signing automatically and **aborts** if no certificate is
-configured. For dry runs without a certificate, `REGLET_ALLOW_UNSIGNED=1` can be set.
+`build/release.sh` signs automatically when `REGLET_SIGN_CERT` is set; without it the packages
+stay unsigned.
 
 ## Zero-dependency audit (V04)
 
