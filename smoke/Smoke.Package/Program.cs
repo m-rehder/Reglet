@@ -2,7 +2,7 @@ using Reglet;
 
 // L09: consumer that references only the packed NuGet (local feed).
 var document = PortableDocument.Create()
-    .Heading("Paket", level: 1)
+    .Heading("Package", level: 1)
     .Paragraph("Produced from the NuGet package.")
     .Build();
 
@@ -17,7 +17,7 @@ if (result.HasWarnings)
 var bytes = File.ReadAllBytes(path);
 if (bytes.Length < 8 || bytes[0] != (byte)'%' || bytes[1] != (byte)'P')
 {
-    throw new InvalidOperationException("Smoke.Package: kein PDF-Header.");
+    throw new InvalidOperationException("Smoke.Package: no PDF header.");
 }
 
 Console.WriteLine($"Smoke.Package OK ({bytes.Length} Bytes).");

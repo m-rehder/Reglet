@@ -46,7 +46,7 @@ internal sealed class TrueTypeFont
     /// <summary>Family name (name ID 16, otherwise 1; failing that the PostScript name).</summary>
     public string FamilyName { get; }
 
-    /// <summary>Schnittname, z. B. „Bold Italic“ (name-ID 17, sonst 2; ersatzweise „Regular“).</summary>
+    /// <summary>The style name, e.g. "Bold Italic" (name ID 17, else 2; "Regular" as fallback).</summary>
     public string SubfamilyName { get; }
 
     /// <summary>Weight per OS/2 <c>usWeightClass</c> (400 = normal, 700 = bold).</summary>

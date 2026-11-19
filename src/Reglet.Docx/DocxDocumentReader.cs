@@ -13,7 +13,7 @@ namespace Reglet;
 /// content controls and tracked insertions are read along, tabs and
 /// line breaks as <c>\t</c>/<c>\n</c>. Layout is not preserved; unmappable
 /// content (e.g. images, footnotes/endnotes, header/footer content, nested lists) is
-/// gemeldet statt verschluckt.
+/// reported instead of dropped silently.
 /// </summary>
 public sealed class DocxDocumentReader : IDocumentReader
 {
@@ -33,7 +33,7 @@ public sealed class DocxDocumentReader : IDocumentReader
 
     /// <summary>Reads a DOCX from the stream into the content model.</summary>
     /// <param name="input">Source stream; it remains open after reading.</param>
-    /// <param name="cancellationToken">Abbruchsignal.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     public ReadResult Read(Stream input, CancellationToken cancellationToken = default)
         => Read(input, DocxReadOptions.Default, cancellationToken);
 
@@ -43,7 +43,7 @@ public sealed class DocxDocumentReader : IDocumentReader
     /// </summary>
     /// <param name="input">Source stream; it remains open after reading.</param>
     /// <param name="options">Reader options (password).</param>
-    /// <param name="cancellationToken">Abbruchsignal.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     /// <exception cref="DocumentValidationException">The password is wrong or the package is damaged.</exception>
     public ReadResult Read(Stream input, DocxReadOptions options, CancellationToken cancellationToken = default)
     {
@@ -657,7 +657,7 @@ public sealed class DocxDocumentReader : IDocumentReader
         if (core is not null)
         {
             // Our writer stores the language as dc:language in core.xml; that is the
-            // bevorzugte Quelle (lesbare Eigenschaft).
+            // preferred source (a readable property).
             language = core.Descendants(Dc + "language").FirstOrDefault()?.Value;
         }
 
@@ -909,7 +909,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             if (child.Name == W + "sectPr")
             {
                 pendingSectionProps = ParseSectionProperties(child);
-                break; // Das body-level sectPr steht am Ende.
+                break; // The body-level sectPr comes last.
             }
 
             if (child.Name == W + "p" && child.Element(W + "pPr")?.Element(W + "sectPr") is { } boundarySectPr)
@@ -1632,7 +1632,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                 case "end" when _fields.TryPop(out var field):
                     if (!field.InResult)
                     {
-                        FinishInstruction(field); // Feld ohne zwischengespeichertes Ergebnis
+                        FinishInstruction(field); // a field without a cached result
                     }
 
                     // A general field gets its collected cached result at the end.

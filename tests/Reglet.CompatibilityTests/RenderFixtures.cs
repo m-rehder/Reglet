@@ -22,9 +22,9 @@ internal static class RenderFixtures
 
     private static PortableDocument ShortText()
         => PortableDocument.Create()
-            .Metadata(title: "Kurz", author: "Reglet")
+            .Metadata(title: "Short", author: "Reglet")
             .Heading("Heading", level: 1)
-            .Paragraph(p => p.Text("Hallo ").Bold("Welt"))
+            .Paragraph(p => p.Text("Hello ").Bold("World"))
             .Build();
 
     private static PortableDocument LongTable()
@@ -32,10 +32,10 @@ internal static class RenderFixtures
             .Heading("Table", level: 2)
             .Table(table =>
             {
-                table.Header("Kennzahl", "Wert", "Unit");
+                table.Header("Metric", "Value", "Unit");
                 for (var index = 1; index <= 20; index++)
                 {
-                    table.Row($"Kennzahl {index}", (index * 1000).ToString(), "Piece");
+                    table.Row($"Metric {index}", (index * 1000).ToString(), "Piece");
                 }
 
                 table.ColumnWidths(Length.FromCentimeters(5), Length.FromCentimeters(4), Length.FromCentimeters(3));
@@ -57,7 +57,7 @@ internal static class RenderFixtures
     private static PortableDocument WithImage()
         => PortableDocument.Create()
             .Heading("Image", level: 1)
-            .Image(CreatePng(32, 16), ImageMediaType.Png, altText: "Quadrat")
+            .Image(CreatePng(32, 16), ImageMediaType.Png, altText: "Square")
             .Paragraph("After the image")
             .Build();
 
@@ -71,14 +71,14 @@ internal static class RenderFixtures
         => new(new DocumentMetadata(), new Section(new Block[] {
             new Chart(ChartKind.Column,
                 new[] { new ChartSeries("2025", new[] { 3.0, 5, 4 }), new ChartSeries("2026", new[] { 4.0, 6, 7 }) },
-                new[] { "Q1", "Q2", "Q3" }) { Title = "Umsatz", Minimum = 0, Maximum = 8 },
-            new Chart(ChartKind.Pie, new[] { new ChartSeries("Anteil", new[] { 1.0, 2, 3 }) }, new[] { "A", "B", "C" }) }));
+                new[] { "Q1", "Q2", "Q3" }) { Title = "Revenue", Minimum = 0, Maximum = 8 },
+            new Chart(ChartKind.Pie, new[] { new ChartSeries("Share", new[] { 1.0, 2, 3 }) }, new[] { "A", "B", "C" }) }));
 
     private static PortableDocument EdgeCases()
         => PortableDocument.Create()
             .Paragraph(string.Empty)
             .Paragraph("leading  and   trailing spaces ")
-            .Heading("Stufe 6", level: 6)
+            .Heading("Level 6", level: 6)
             .BulletList(string.Empty)
             .Build();
 

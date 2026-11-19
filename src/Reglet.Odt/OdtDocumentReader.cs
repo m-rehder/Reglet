@@ -11,7 +11,7 @@ namespace Reglet;
 /// formatting, lists (also nested), tables, page number fields, sections
 /// (page/margins/orientation) and metadata from meta.xml. Layout is not preserved; not
 /// mappable content (e.g. images, tables in headers/footers) is reported instead of
-/// verschluckt.
+/// dropped silently.
 /// </summary>
 public sealed class OdtDocumentReader : IDocumentReader
 {
@@ -42,7 +42,7 @@ public sealed class OdtDocumentReader : IDocumentReader
 
     /// <summary>Reads an ODT from the stream into the content model.</summary>
     /// <param name="input">Source stream; it remains open after reading.</param>
-    /// <param name="cancellationToken">Abbruchsignal.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     public ReadResult Read(Stream input, CancellationToken cancellationToken = default)
         => Read(input, OdtReadOptions.Default, cancellationToken);
 
@@ -52,7 +52,7 @@ public sealed class OdtDocumentReader : IDocumentReader
     /// </summary>
     /// <param name="input">Source stream; it remains open after reading.</param>
     /// <param name="options">Reader options (password).</param>
-    /// <param name="cancellationToken">Abbruchsignal.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     /// <exception cref="DocumentValidationException">The password is missing or wrong, or the package is damaged.</exception>
     public ReadResult Read(Stream input, OdtReadOptions options, CancellationToken cancellationToken = default)
     {

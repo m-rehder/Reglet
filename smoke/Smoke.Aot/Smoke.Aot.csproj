@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <!-- T03: Native-AOT-Publish-Test. Die RID folgt der Host-Plattform der SDK. -->
+    <!-- Native AOT publish test. The RID follows the host platform of the SDK. -->
     <PublishAot>true</PublishAot>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
   </PropertyGroup>

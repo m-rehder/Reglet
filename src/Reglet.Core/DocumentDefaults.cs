@@ -1,6 +1,6 @@
 namespace Reglet;
 
-/// <summary>Dokumentweite Standardwerte (Standardstil).</summary>
+/// <summary>Document-wide defaults (the default style).</summary>
 public sealed record DocumentDefaults
 {
     private string _fontFamily = "Calibri";

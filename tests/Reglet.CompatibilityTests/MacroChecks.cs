@@ -35,7 +35,7 @@ internal static class MacroChecks
     }
 
     private static PortableDocument Doc(MacroProject? project = null)
-        => new(new DocumentMetadata { MacroProject = project }, new Section(new Block[] { new Paragraph(new TextRun("Hallo")) }));
+        => new(new DocumentMetadata { MacroProject = project }, new Section(new Block[] { new Paragraph(new TextRun("Hello")) }));
 
     private static byte[] Write(PortableDocument document)
     {
@@ -112,7 +112,7 @@ internal static class MacroChecks
         Require(Read(unchanged, keep: false).Warnings.All(w => !w.Message.Contains("KeepMacros")), "The result is a plain package.");
 
         // Changed body: the rebuilt package has no project either.
-        var edited = new PortableDocument(result.Document.Metadata, new Section(new Block[] { new Paragraph(new TextRun("Neu")) }));
+        var edited = new PortableDocument(result.Document.Metadata, new Section(new Block[] { new Paragraph(new TextRun("New")) }));
         var rebuilt = Write(edited);
         Require(!Has(rebuilt, "word/vbaProject.bin") && !Part(rebuilt, "[Content_Types].xml").Contains("macroEnabled"), "The rebuilt package has no project.");
     }
@@ -127,7 +127,7 @@ internal static class MacroChecks
         var unchanged = Write(result.Document);
         Require(unchanged.AsSpan().SequenceEqual(source), "An untouched document keeps its package.");
 
-        var edited = new PortableDocument(result.Document.Metadata, new Section(new Block[] { new Paragraph(new TextRun("Neu")) }));
+        var edited = new PortableDocument(result.Document.Metadata, new Section(new Block[] { new Paragraph(new TextRun("New")) }));
         var rebuilt = Write(edited);
         Require(Has(rebuilt, "word/vbaProject.bin") && Part(rebuilt, "[Content_Types].xml").Contains("macroEnabled.main+xml"), "A changed body keeps the project.");
         Require(Read(rebuilt, keep: true).Document.Metadata.MacroProject is { } again && again.Data.Span.SequenceEqual(Project), "It reads back.");

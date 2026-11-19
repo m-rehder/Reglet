@@ -30,7 +30,7 @@ internal static class CharacterFormattingChecks
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine("Zeichenformatierung (W): " + exception);
+            Console.Error.WriteLine("Character formatting: " + exception);
             return 1;
         }
     }
@@ -69,11 +69,11 @@ internal static class CharacterFormattingChecks
         Require(body.Contains("<w:dstrike", StringComparison.Ordinal), "DOCX: double strikethrough.");
         Require(body.Contains("w:vertAlign w:val=\"superscript\"", StringComparison.Ordinal), "DOCX: Superscript.");
         Require(body.Contains("w:position w:val=\"6\"", StringComparison.Ordinal), "DOCX: baseline shift (3 pt = 6).");
-        Require(body.Contains("w:shd", StringComparison.Ordinal) && body.Contains("w:fill=\"FFFF00\"", StringComparison.Ordinal), "DOCX: Hintergrundfarbe.");
-        Require(body.Contains("w:u w:val=\"dash\"", StringComparison.Ordinal), "DOCX: gestrichelte Unterstreichung.");
-        Require(body.Contains("w:u w:val=\"dash\" w:color=\"FF0000\"", StringComparison.Ordinal), "DOCX: Unterstreichungsfarbe.");
-        Require(body.Contains("w:spacing w:val=\"30\"", StringComparison.Ordinal), "DOCX: Zeichenabstand (1,5 pt = 30).");
-        Require(body.Contains("w:w w:val=\"125\"", StringComparison.Ordinal), "DOCX: horizontale Skalierung.");
+        Require(body.Contains("w:shd", StringComparison.Ordinal) && body.Contains("w:fill=\"FFFF00\"", StringComparison.Ordinal), "DOCX: background colour.");
+        Require(body.Contains("w:u w:val=\"dash\"", StringComparison.Ordinal), "DOCX: dashed underline.");
+        Require(body.Contains("w:u w:val=\"dash\" w:color=\"FF0000\"", StringComparison.Ordinal), "DOCX: underline colour.");
+        Require(body.Contains("w:spacing w:val=\"30\"", StringComparison.Ordinal), "DOCX: character spacing (1.5 pt = 30).");
+        Require(body.Contains("w:w w:val=\"125\"", StringComparison.Ordinal), "DOCX: horizontal scaling.");
         Require(body.Contains("w:kern w:val=\"20\"", StringComparison.Ordinal), "DOCX: Kerning (10 pt = 20).");
     }
 
@@ -85,15 +85,15 @@ internal static class CharacterFormattingChecks
         var content = ReadZipEntry(buffer.ToArray(), "content.xml");
         Require(content.Contains("fo:text-transform=\"uppercase\"", StringComparison.Ordinal), "ODT: AllCaps.");
         Require(content.Contains("fo:font-variant=\"small-caps\"", StringComparison.Ordinal), "ODT: SmallCaps.");
-        Require(content.Contains("style:text-line-through-style=\"solid\"", StringComparison.Ordinal), "ODT: Durchstreichung.");
+        Require(content.Contains("style:text-line-through-style=\"solid\"", StringComparison.Ordinal), "ODT: strikethrough.");
         Require(content.Contains("style:text-line-through-type=\"double\"", StringComparison.Ordinal), "ODT: double strikethrough.");
         Require(content.Contains("style:text-position=\"super 58%\"", StringComparison.Ordinal), "ODT: Superscript.");
         Require(content.Contains("style:text-position=\"30%\"", StringComparison.Ordinal), "ODT: baseline shift (3 pt / 10 pt = 30 %).");
-        Require(content.Contains("fo:background-color=\"#FFFF00\"", StringComparison.Ordinal), "ODT: Hintergrundfarbe.");
-        Require(content.Contains("style:text-underline-style=\"dash\"", StringComparison.Ordinal), "ODT: gestrichelte Unterstreichung.");
-        Require(content.Contains("style:text-underline-color=\"#FF0000\"", StringComparison.Ordinal), "ODT: Unterstreichungsfarbe.");
-        Require(content.Contains("fo:letter-spacing=\"1.5pt\"", StringComparison.Ordinal), "ODT: Zeichenabstand.");
-        Require(content.Contains("style:text-scale=\"125%\"", StringComparison.Ordinal), "ODT: horizontale Skalierung.");
+        Require(content.Contains("fo:background-color=\"#FFFF00\"", StringComparison.Ordinal), "ODT: background colour.");
+        Require(content.Contains("style:text-underline-style=\"dash\"", StringComparison.Ordinal), "ODT: dashed underline.");
+        Require(content.Contains("style:text-underline-color=\"#FF0000\"", StringComparison.Ordinal), "ODT: underline colour.");
+        Require(content.Contains("fo:letter-spacing=\"1.5pt\"", StringComparison.Ordinal), "ODT: character spacing.");
+        Require(content.Contains("style:text-scale=\"125%\"", StringComparison.Ordinal), "ODT: horizontal scaling.");
         Require(content.Contains("style:letter-kerning=\"true\"", StringComparison.Ordinal), "ODT: Kerning.");
     }
 
@@ -311,10 +311,10 @@ internal static class CharacterFormattingChecks
         new PdfDocumentWriter().WriteAsync(DecoratedDocument(), buffer).GetAwaiter().GetResult();
 
         var content = PdfStreams.Decompress(buffer.ToArray());
-        Require(content.Contains("125 Tz", StringComparison.Ordinal), "PDF: horizontale Skalierung (Tz).");
-        Require(content.Contains("1.5 Tc", StringComparison.Ordinal), "PDF: Zeichenabstand (Tc).");
-        Require(content.Contains(" re\n", StringComparison.Ordinal) && content.Contains("\nf\n", StringComparison.Ordinal), "PDF: Hintergrundrechteck.");
-        Require(content.Contains(" d\n", StringComparison.Ordinal), "PDF: gestrichelte Linie (Strichmuster).");
+        Require(content.Contains("125 Tz", StringComparison.Ordinal), "PDF: horizontal scaling (Tz).");
+        Require(content.Contains("1.5 Tc", StringComparison.Ordinal), "PDF: character spacing (Tc).");
+        Require(content.Contains(" re\n", StringComparison.Ordinal) && content.Contains("\nf\n", StringComparison.Ordinal), "PDF: background rectangle.");
+        Require(content.Contains(" d\n", StringComparison.Ordinal), "PDF: dashed line (dash pattern).");
     }
 
     private static void RejectsInvalidValues()
@@ -379,7 +379,7 @@ internal static class CharacterFormattingChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

@@ -10,7 +10,7 @@ namespace Reglet;
 /// <remarks>
 /// the shaper replaces the pure <c>cmap</c> mapping only if the font has matching
 /// layout features or the text must be reordered; otherwise the fast
-/// Pfad aktiv.
+/// path stays active.
 /// </remarks>
 internal sealed class TextShaper
 {

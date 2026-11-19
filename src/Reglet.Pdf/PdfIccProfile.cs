@@ -67,7 +67,7 @@ internal static class PdfIccProfile
         BinaryPrimitives.WriteUInt16BigEndian(profile.AsSpan(28, 2), 1);
         Encoding.ASCII.GetBytes("acsp").CopyTo(profile, 36);
 
-        // PCS-Beleuchtung D50 (s15Fixed16).
+        // PCS illuminant D50 (s15Fixed16).
         WriteFixed16(profile.AsSpan(68, 4), 0.9642);
         WriteFixed16(profile.AsSpan(72, 4), 1.0000);
         WriteFixed16(profile.AsSpan(76, 4), 0.8249);

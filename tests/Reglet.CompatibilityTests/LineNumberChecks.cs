@@ -32,7 +32,7 @@ internal static class LineNumberChecks
         var blocks = new List<Block>();
         for (var index = 0; index < paragraphs; index++)
         {
-            blocks.Add(new Paragraph(new TextRun("Zeile")));
+            blocks.Add(new Paragraph(new TextRun("Line")));
         }
 
         var section = new Section(blocks);
@@ -128,7 +128,7 @@ internal static class LineNumberChecks
         var blocks = new List<Block>();
         for (var index = 0; index < 120; index++)
         {
-            blocks.Add(new Paragraph(new TextRun("Absatz")));
+            blocks.Add(new Paragraph(new TextRun("Paragraph")));
         }
 
         var document = new PortableDocument(

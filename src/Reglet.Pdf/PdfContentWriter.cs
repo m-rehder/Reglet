@@ -232,8 +232,7 @@ internal sealed class PdfContentWriter
 
     /// <summary>
     /// draws an underline or strikethrough line between two x positions.
-    /// double lines are drawn as two strokes, dotted/dashed via a dash pattern
-    /// gezeichnet.
+    /// double lines are drawn as two strokes, dotted/dashed via a dash pattern.
     /// </summary>
     public PdfContentWriter Rule(
         Color color,

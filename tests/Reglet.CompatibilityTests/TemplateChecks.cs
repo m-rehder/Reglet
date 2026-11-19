@@ -49,7 +49,7 @@ internal static class TemplateChecks
         var original = DocumentTemplate.FromBytes(new byte[] { 1 })
             .BindText("Title", "Erst");
 
-        var extended = original.BindText("Autor", "Second");
+        var extended = original.BindText("Author", "Second");
 
         Require(original.Placeholders.Count == 1, "The original template remains unchanged.");
         Require(extended.Placeholders.Count == 2, "Bind yields an extended snapshot.");
@@ -59,9 +59,9 @@ internal static class TemplateChecks
             original.Placeholders is IDictionary<string, TemplateContent> { IsReadOnly: true },
             "The placeholders are read-only.");
 
-        var rebound = original.BindText("Title", "Neu");
+        var rebound = original.BindText("Title", "New");
         Require(
-            rebound.Placeholders["Title"].Inlines[0] is TextRun { Text: "Neu" },
+            rebound.Placeholders["Title"].Inlines[0] is TextRun { Text: "New" },
             "A rebind replaces the previous content.");
         Require(
             original.Placeholders["Title"].Inlines[0] is TextRun { Text: "Erst" },
@@ -70,7 +70,7 @@ internal static class TemplateChecks
 
     private static void BindsInlineAndBlockContent()
     {
-        var inline = TemplateContent.FromInline(new TextRun("Hallo"));
+        var inline = TemplateContent.FromInline(new TextRun("Hello"));
         Require(inline.Kind == TemplateContentKind.Inline, "Single inline content has the inline kind.");
         Require(inline.Blocks.Count == 0, "Inline content has no blocks.");
         Require(inline.Inlines.Count == 1, "Inline content contains exactly one element.");
@@ -128,7 +128,7 @@ internal static class TemplateChecks
     {
         var watermark = new Watermark("ENTWURF");
         Require(watermark.Opacity == 0.1, "Standard-Deckkraft.");
-        Require(watermark.Rotation == 45, "Standard-Drehung.");
+        Require(watermark.Rotation == 45, "Default rotation.");
         Require(watermark.FontSize == Length.FromPoints(48), "Default font size.");
 
         Require(new Watermark("x") { Opacity = 0 }.Opacity == 0, "Opacity 0 is allowed.");
@@ -187,7 +187,7 @@ internal static class TemplateChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

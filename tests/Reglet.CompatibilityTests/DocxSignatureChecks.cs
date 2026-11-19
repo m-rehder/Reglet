@@ -52,8 +52,8 @@ internal static class DocxSignatureChecks
 
     private static PortableDocument Document()
         => PortableDocument.Create()
-            .Paragraph("Signierter Inhalt")
-            .Paragraph("Zweiter Absatz")
+            .Paragraph("Signed content")
+            .Paragraph("Second paragraph")
             .Build();
 
     private static byte[] Write(PortableDocument document, DocxWriteOptions options)
@@ -85,7 +85,7 @@ internal static class DocxSignatureChecks
         using var buffer = new MemoryStream(signed);
         var read = new DocxDocumentReader().Read(buffer).Document;
         var text = ((Paragraph)read.Sections[0].Blocks[0]).Inlines.OfType<TextRun>().First().Text;
-        Require(text == "Signierter Inhalt", "The signed package is readable: " + text);
+        Require(text == "Signed content", "The signed package is readable: " + text);
     }
 
     private static void WritesTheSignatureParts()
@@ -131,7 +131,7 @@ internal static class DocxSignatureChecks
         var tampered = ReplaceEntry(signed, "word/document.xml", data =>
         {
             var text = Encoding.UTF8.GetString(data);
-            return Encoding.UTF8.GetBytes(text.Replace("Signierter Inhalt", "Veränderter Inhalt", StringComparison.Ordinal));
+            return Encoding.UTF8.GetBytes(text.Replace("Signed content", "Changed content", StringComparison.Ordinal));
         });
 
         var signature = DocxSignatureReader.Read(tampered).Single();
@@ -227,7 +227,7 @@ internal static class DocxSignatureChecks
 
         // A change outside the signed part does not affect this signature.
         var tampered = ReplaceEntry(signed, "word/document.xml", data =>
-            Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(data).Replace("Zweiter", "Dritter", StringComparison.Ordinal)));
+            Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(data).Replace("Second", "Third", StringComparison.Ordinal)));
         Require(DocxSignatureReader.Read(tampered).Single().IsValid, "A part outside the signature stays unaffected.");
     }
 
@@ -243,11 +243,11 @@ internal static class DocxSignatureChecks
         var encrypted = Write(Document(), new DocxWriteOptions
         {
             Signature = new DocxSignatureOptions(certificate),
-            Encryption = new DocxEncryptionOptions("Geheim123") { SpinCount = 100 },
+            Encryption = new DocxEncryptionOptions("Secret123") { SpinCount = 100 },
         });
 
         using var buffer = new MemoryStream(encrypted);
-        var decrypted = DocxAgileEncryption.Decrypt(encrypted, "Geheim123");
+        var decrypted = DocxAgileEncryption.Decrypt(encrypted, "Secret123");
         Require(buffer.Length > 0 && decrypted.Length > 0, "The encrypted package decrypts.");
 
         var signature = DocxSignatureReader.Read(decrypted).Single();
@@ -300,8 +300,8 @@ internal static class DocxSignatureChecks
     /// <summary>A second signature is added next to the first one, which stays valid.</summary>
     private static void KeepsAnEarlierSignatureValid()
     {
-        using var first = Certificate("CN=Erste Signatur");
-        using var second = Certificate("CN=Zweite Signatur");
+        using var first = Certificate("CN=First signature");
+        using var second = Certificate("CN=Second signature");
 
         var signed = Write(Document(), new DocxWriteOptions { Signature = new DocxSignatureOptions(first) });
         Require(DocxSignatureReader.Read(signed).Single().IsValid, "The first signature is valid.");
@@ -345,7 +345,7 @@ internal static class DocxSignatureChecks
             + string.Join(" | ", trusted.ChainProblems));
         Require(trusted.IsValid && trusted.IsTrusted == true, "The signature is valid and trusted.");
 
-        using var stranger = Certificate("CN=Fremde Wurzel");
+        using var stranger = Certificate("CN=Foreign root");
         var rejected = DocxSignatureReader.Read(signed, new DocxSignatureReadOptions
         {
             TrustedRoots = [X509CertificateLoader.LoadCertificate(stranger.RawData)],
@@ -480,7 +480,7 @@ internal static class DocxSignatureChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

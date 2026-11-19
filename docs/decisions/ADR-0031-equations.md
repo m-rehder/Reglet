@@ -1,6 +1,6 @@
 # ADR-0031: Equations (an `Equation` block of a math tree)
 
-- **Status:** Accepted (2026-11-18, product owner: "danach Gleichungen", details chosen by the implementer: recommended defaults); implemented in .NET
+- **Status:** Accepted (2026-11-18, product owner: "then equations", details chosen by the implementer: recommended defaults); implemented in .NET
 - **Date:** 2026-11-18
 - **Context:** "Equations" row of "Out of scope" (formula model, OMML and MathML/ODF, vector rendering; XL). The model has no
   formulas. A DOCX with `m:oMath` keeps it only through the preserving round trip; a document built from the model cannot

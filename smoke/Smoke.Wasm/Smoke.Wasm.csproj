@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Nur die Smoke-App nutzt Pakete; die ausgelieferte Library bleibt paketfrei. -->
+    <!-- Only the smoke app uses packages; the shipped library stays free of them. -->
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
   </ItemGroup>
 

@@ -31,7 +31,7 @@ internal static class FieldChecks
     private static PortableDocument Document(Field field)
         => new(
             new DocumentMetadata(),
-            new Section(new Block[] { new Paragraph(new Inline[] { new TextRun("Abbildung "), field }) }));
+            new Section(new Block[] { new Paragraph(new Inline[] { new TextRun("Figure "), field }) }));
 
     private static PortableDocument Document(Field[] fields)
         => new(
@@ -83,7 +83,7 @@ internal static class FieldChecks
         buffer.Position = 0;
         var paragraph = (Paragraph)new OdtDocumentReader().Read(buffer).Document.Sections[0].Blocks[0];
         var text = string.Concat(paragraph.Inlines.OfType<TextRun>().Select(run => run.Text));
-        Require(text == "Abbildung yes", "ODT: the cached result is read as text: " + text);
+        Require(text == "Figure yes", "ODT: the cached result is read as text: " + text);
         Require(!paragraph.Inlines.OfType<Field>().Any(), "ODT: the field instruction is not recovered.");
     }
 

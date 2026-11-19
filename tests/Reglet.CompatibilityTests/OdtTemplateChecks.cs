@@ -7,7 +7,7 @@ using Reglet;
 /// <summary>
 /// checks the filling of ODT templates (phase S, S03): inline and block placeholders,
 /// body placeholder, preservation of styles and headers, lists, images and the renaming
-/// kollidierender automatischer Stile.
+/// of colliding automatic styles.
 /// </summary>
 internal static class OdtTemplateChecks
 {
@@ -551,7 +551,7 @@ internal static class OdtTemplateChecks
 
     private static void BindsListInBlockContent()
     {
-        var templateBytes = CreateTemplate(PortableDocument.Create().Paragraph("{{Liste}}").Build());
+        var templateBytes = CreateTemplate(PortableDocument.Create().Paragraph("{{List}}").Build());
 
         var list = TestLists.List(ListKind.Bullet, new ListItem[]
         {
@@ -562,7 +562,7 @@ internal static class OdtTemplateChecks
         Write(
             TestLists.WithList(EmptyDocument(), list),
             templateBytes,
-            new OdtWriteOptions { Template = DocumentTemplate.FromBytes(templateBytes).Bind("Liste", list) },
+            new OdtWriteOptions { Template = DocumentTemplate.FromBytes(templateBytes).Bind("List", list) },
             out var package);
 
         using var zip = Open(package);

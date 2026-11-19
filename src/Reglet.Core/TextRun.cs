@@ -128,7 +128,7 @@ public sealed class TextRun : Inline
     /// <summary>Additional character spacing (positive = wider, negative = tighter).</summary>
     public Length? CharacterSpacing { get; init; }
 
-    /// <summary>Horizontale Skalierung in Prozent (100 = normal).</summary>
+    /// <summary>Horizontal scaling in per cent (100 = normal).</summary>
     public double? HorizontalScaling
     {
         get => _horizontalScaling;

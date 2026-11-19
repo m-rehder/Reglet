@@ -20,7 +20,7 @@ public sealed class SmokeResult : ComponentBase
             var document = PortableDocument.Create()
                 .Metadata(title: "WASM-Smoke", author: "Reglet")
                 .Heading("WASM", level: 1)
-                .Paragraph("Hallo WebAssembly – äöü ß €")
+                .Paragraph("Hello WebAssembly – äöü ß €")
                 .BulletList("a", "b")
                 .Table(table => table.Header("A", "B").Row("1", "2"))
                 .Build();

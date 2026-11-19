@@ -55,18 +55,18 @@ internal static class PdfStructureChecks
         };
         var blocks = new List<Block>
         {
-            new Heading(HeadingLevel.Level1, new TextRun("Haupttitel")),
+            new Heading(HeadingLevel.Level1, new TextRun("Main title")),
             new Paragraph(new TextRun(Long("Alpha"))),
             new Paragraph(new TextRun(Long("Beta"))),
-            new Heading(HeadingLevel.Level2, new TextRun("Unterkapitel")),
-            new ListBlock("bul", [new ListItem(new Paragraph(new TextRun("erster Punkt"))), new ListItem(new Paragraph(new TextRun("zweiter Punkt")))]),
-            new ListBlock("num", [new ListItem(new Paragraph(new TextRun("eins"))), new ListItem(new Paragraph(new TextRun("zwei"))), new ListItem(new Paragraph(new TextRun("drei")))]),
+            new Heading(HeadingLevel.Level2, new TextRun("Subsection")),
+            new ListBlock("bul", [new ListItem(new Paragraph(new TextRun("first item"))), new ListItem(new Paragraph(new TextRun("second item")))]),
+            new ListBlock("num", [new ListItem(new Paragraph(new TextRun("one"))), new ListItem(new Paragraph(new TextRun("two"))), new ListItem(new Paragraph(new TextRun("three")))]),
             new TableBlock([
-                new TableRow(new TableCell("Name"), new TableCell("Wert"), new TableCell("Einheit")),
-                new TableRow(new TableCell("Länge"), new TableCell("12"), new TableCell("cm")),
-                new TableRow(new TableCell("Breite"), new TableCell("7"), new TableCell("cm")),
+                new TableRow(new TableCell("Name"), new TableCell("Value"), new TableCell("Unit")),
+                new TableRow(new TableCell("Length"), new TableCell("12"), new TableCell("cm")),
+                new TableRow(new TableCell("Width"), new TableCell("7"), new TableCell("cm")),
             ]),
-            new Paragraph(new TextRun("Schluss.")),
+            new Paragraph(new TextRun("The end.")),
         };
         return new PortableDocument(new DocumentMetadata(), new Section(blocks)) { Numbering = numbering };
     }
@@ -109,7 +109,7 @@ internal static class PdfStructureChecks
         var blocks = new List<Block>();
         for (var page = 0; page < 4; page++)
         {
-            blocks.Add(new Paragraph(new TextRun("Seite " + page + ": " + Long("Gamma"))));
+            blocks.Add(new Paragraph(new TextRun("Page " + page + ": " + Long("Gamma"))));
             if (page < 3)
             {
                 blocks.Add(new PageBreak());
@@ -118,11 +118,11 @@ internal static class PdfStructureChecks
 
         var document = new PortableDocument(new DocumentMetadata(), new Section(blocks)
         {
-            Footer = new HeaderFooter(new Paragraph(new TextRun("Vertraulich"))),
+            Footer = new HeaderFooter(new Paragraph(new TextRun("Confidential"))),
         });
         var read = new PdfDocumentReader().Read(new MemoryStream(WritePdf(document)), new PdfReadOptions { RecoverStructure = true });
         var text = string.Concat(read.Document.Sections.SelectMany(s => s.Blocks).OfType<Paragraph>().SelectMany(p => p.Inlines.OfType<TextRun>()).Select(r => r.Text));
-        Require(!text.Contains("Vertraulich", StringComparison.Ordinal) && text.Contains("Gamma", StringComparison.Ordinal), "footer dropped");
+        Require(!text.Contains("Confidential", StringComparison.Ordinal) && text.Contains("Gamma", StringComparison.Ordinal), "footer dropped");
         Require(read.Warnings.Any(w => w.Message.Contains("header and footer", StringComparison.Ordinal)), "footer reported");
     }
 
@@ -131,9 +131,9 @@ internal static class PdfStructureChecks
         var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
         var document = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
         {
-            new Paragraph(new TextRun("Vor dem Bild")),
+            new Paragraph(new TextRun("Before the picture")),
             new ImageBlock(png, ImageMediaType.Png) { Width = Length.FromPoints(100), Height = Length.FromPoints(60) },
-            new Paragraph(new TextRun("Nach dem Bild")),
+            new Paragraph(new TextRun("After the picture")),
         }));
         var read = new PdfDocumentReader().Read(new MemoryStream(WritePdf(document)), new PdfReadOptions { RecoverStructure = true });
         var blocks = read.Document.Sections.SelectMany(section => section.Blocks).ToList();
@@ -150,12 +150,12 @@ internal static class PdfStructureChecks
         var bullets = new NumberingDefinition("bul", Enumerable.Range(0, NumberingDefinition.MaxLevels).Select(_ => new NumberingLevel { Kind = ListKind.Bullet }));
         var document = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
         {
-            new ListBlock("bul", [new ListItem(new Paragraph(new TextRun("tief a"))), new ListItem(new Paragraph(new TextRun("tief b")))]) { NestingLevel = 2 },
-            new ListBlock("bul", [new ListItem(new Paragraph(new TextRun("flach c")))]),
+            new ListBlock("bul", [new ListItem(new Paragraph(new TextRun("deep a"))), new ListItem(new Paragraph(new TextRun("deep b")))]) { NestingLevel = 2 },
+            new ListBlock("bul", [new ListItem(new Paragraph(new TextRun("flat c")))]),
         })) { Numbering = [bullets] };
         var read = new PdfDocumentReader().Read(new MemoryStream(WritePdf(document)), new PdfReadOptions { RecoverStructure = true });
         var text = string.Concat(read.Document.Sections.SelectMany(s => s.Blocks).OfType<ListBlock>().SelectMany(Flatten));
-        Require(text.Contains("tief a", StringComparison.Ordinal) && text.Contains("tief b", StringComparison.Ordinal) && text.Contains("flach c", StringComparison.Ordinal), "no list item lost: " + text);
+        Require(text.Contains("deep a", StringComparison.Ordinal) && text.Contains("deep b", StringComparison.Ordinal) && text.Contains("flat c", StringComparison.Ordinal), "no list item lost: " + text);
     }
 
     private static IEnumerable<string> Texts(Block block) => block switch
@@ -180,11 +180,11 @@ internal static class PdfStructureChecks
         var blocks = new List<Block>();
         for (var i = 0; i < 30; i++)
         {
-            blocks.Add(new Heading(HeadingLevel.Level2, new TextRun("Abschnitt " + i)));
-            blocks.Add(new Paragraph(new TextRun(string.Join(' ', Enumerable.Range(0, 140 + i).Select(n => "wort" + (n % 13))) + ".")));
+            blocks.Add(new Heading(HeadingLevel.Level2, new TextRun("Section " + i)));
+            blocks.Add(new Paragraph(new TextRun(string.Join(' ', Enumerable.Range(0, 140 + i).Select(n => "word" + (n % 13))) + ".")));
         }
 
-        blocks.Add(new TableBlock(Enumerable.Range(0, 70).Select(r => new TableRow(new TableCell("Zeile " + r), new TableCell("x"), new TableCell(r.ToString()))).ToList()));
+        blocks.Add(new TableBlock(Enumerable.Range(0, 70).Select(r => new TableRow(new TableCell("Line " + r), new TableCell("x"), new TableCell(r.ToString()))).ToList()));
         var read = new PdfDocumentReader().Read(new MemoryStream(WritePdf(new PortableDocument(new DocumentMetadata(), new Section(blocks)))), new PdfReadOptions { RecoverStructure = true });
         var recovered = read.Document.Sections.SelectMany(section => section.Blocks).ToList();
         Require(read.Document.Sections.Count == 1, "one flowing section");
@@ -194,13 +194,13 @@ internal static class PdfStructureChecks
 
         // Two columns of prose, written as a borderless table so that the lines of both sit at the same height.
         var proseRows = Enumerable.Range(0, 10).Select(i => new TableRow(
-            new TableCell("Zeile links " + i + " mit etwas Fließtext"), new TableCell("Zeile rechts " + i + " mit etwas Fließtext"))).ToList();
+            new TableCell("Line left " + i + " with some body text"), new TableCell("Line right " + i + " with some body text"))).ToList();
         var twoColumns = new PdfDocumentReader().Read(
             new MemoryStream(WritePdf(new PortableDocument(new DocumentMetadata(), new Section(new Block[] { new TableBlock(proseRows) { Border = new ParagraphBorder(BorderStyle.None) } })))),
             new PdfReadOptions { RecoverStructure = true });
         Require(!twoColumns.Document.Sections.SelectMany(x => x.Blocks).OfType<TableBlock>().Any(), "columns are not a table");
         var columnText = string.Concat(twoColumns.Document.Sections.SelectMany(x => x.Blocks).OfType<Paragraph>().SelectMany(p => p.Inlines.OfType<TextRun>()).Select(r => r.Text));
-        Require(columnText.LastIndexOf("links", StringComparison.Ordinal) < columnText.IndexOf("rechts", StringComparison.Ordinal), "left column before right column");
+        Require(columnText.LastIndexOf("left", StringComparison.Ordinal) < columnText.IndexOf("right", StringComparison.Ordinal), "left column before right column");
         Require(twoColumns.Warnings.Any(w => w.Message.Contains("multi-column", StringComparison.Ordinal)), "columns reported");
 
         var scan = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
@@ -216,7 +216,7 @@ internal static class PdfStructureChecks
         // Twelve long paragraphs set in two text columns by the writer itself (the paragraphs end at different heights
         // in the two columns, so the lines of the columns do not share their baselines).
         var paragraphs = Enumerable.Range(0, 12).Select(i => (Block)new Paragraph(new TextRun(
-            string.Join(' ', Enumerable.Range(0, 70 + i * 3).Select(n => "spalte" + i + "x" + (n % 9))) + "."))
+            string.Join(' ', Enumerable.Range(0, 70 + i * 3).Select(n => "column" + i + "x" + (n % 9))) + "."))
         {
             Style = ParagraphStyle.Default with { SpaceAfter = Length.FromPoints(8) },
         }).ToList();
@@ -266,7 +266,7 @@ internal static class PdfStructureChecks
             "<< /Type /Catalog /Pages 2 0 R >>",
             "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 7 0 R >> /XObject << /Fm1 5 0 R >> >> >>",
-            Stream("", "BT /F1 12 Tf 72 780 Td (Text oben) Tj ET q 1 0 0 1 100 500 cm /Fm1 Do Q"),
+            Stream("", "BT /F1 12 Tf 72 780 Td (Text at the top) Tj ET q 1 0 0 1 100 500 cm /Fm1 Do Q"),
             Stream("/Type /XObject /Subtype /Form /BBox [0 0 100 50] /Resources << /XObject << /Im1 6 0 R >> >>", "q 100 0 0 50 0 0 cm /Im1 Do Q"),
             Stream("/Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8", "\u00FF\u0000\u0000"),
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
@@ -293,9 +293,9 @@ internal static class PdfStructureChecks
 
     private static void LeavesOutRotatedText()
     {
-        var blocks = RecoverBlocks("BT /F1 12 Tf 72 780 Td (Haupttext) Tj ET BT /F1 8 Tf 0 1 -1 0 20 400 Tm (Stempel) Tj ET", out var warnings);
+        var blocks = RecoverBlocks("BT /F1 12 Tf 72 780 Td (Main text) Tj ET BT /F1 8 Tf 0 1 -1 0 20 400 Tm (Stamp) Tj ET", out var warnings);
         var text = AllText(blocks);
-        Require(text.Contains("Haupttext", StringComparison.Ordinal) && !text.Contains("Stempel", StringComparison.Ordinal), "rotated text left out: " + text);
+        Require(text.Contains("Main text", StringComparison.Ordinal) && !text.Contains("Stamp", StringComparison.Ordinal), "rotated text left out: " + text);
         Require(warnings.Any(w => w.Message.Contains("rotated", StringComparison.Ordinal)), "rotated text is reported");
     }
 
@@ -315,9 +315,9 @@ internal static class PdfStructureChecks
 
     private static void KeepsSubscriptsInTheLine()
     {
-        var blocks = RecoverBlocks("BT /F1 10 Tf 72 700 Td (m) Tj ET BT /F1 6 Tf 79 697 Td (2) Tj ET BT /F1 10 Tf 90 700 Td (und mehr) Tj ET", out _);
+        var blocks = RecoverBlocks("BT /F1 10 Tf 72 700 Td (m) Tj ET BT /F1 6 Tf 79 697 Td (2) Tj ET BT /F1 10 Tf 90 700 Td (and more) Tj ET", out _);
         var text = AllText(blocks);
-        Require(text.Contains("m2 und mehr", StringComparison.Ordinal), "subscript stays in its line: " + text);
+        Require(text.Contains("m2 and more", StringComparison.Ordinal), "subscript stays in its line: " + text);
     }
 
     private static void ReadsColumnsAroundAWideLine()
@@ -330,17 +330,17 @@ internal static class PdfStructureChecks
             var y = 780 - (line * 14);
             if (line is >= 10 and < 14)
             {
-                content.Append($"BT /F1 10 Tf 72 {y} Td (breit{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv www xxx) Tj ET ");
+                content.Append($"BT /F1 10 Tf 72 {y} Td (wide{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv www xxx) Tj ET ");
                 continue;
             }
 
-            content.Append($"BT /F1 10 Tf 72 {y} Td (links{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk) Tj ET ");
-            content.Append($"BT /F1 10 Tf 306 {y} Td (rechts{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kk) Tj ET ");
+            content.Append($"BT /F1 10 Tf 72 {y} Td (left{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk) Tj ET ");
+            content.Append($"BT /F1 10 Tf 306 {y} Td (right{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kk) Tj ET ");
         }
 
         var text = AllText(RecoverBlocks(content.ToString(), out _));
         int At(string key) => text.IndexOf(key, StringComparison.Ordinal);
-        Require(At("links09") >= 0 && At("links09") < At("rechts00") && At("rechts09") < At("breit10") && At("breit13") < At("links14") && At("links23") < At("rechts14"),
+        Require(At("left09") >= 0 && At("left09") < At("right00") && At("right09") < At("wide10") && At("wide13") < At("left14") && At("left23") < At("right14"),
             "columns around a wide line: " + text[..Math.Min(300, text.Length)]);
     }
 
@@ -378,7 +378,7 @@ internal static class PdfStructureChecks
         var content = new System.Text.StringBuilder();
         for (var line = 0; line < 4; line++)
         {
-            content.Append($"BT /F1 10 Tf 72 {780 - (line * 14)} Td (Dies ist ein langer Absatz mit vielen Worten damit die Zeile breit genug wird und Fliesstext bleibt.) Tj ET ");
+            content.Append($"BT /F1 10 Tf 72 {780 - (line * 14)} Td (This is a long paragraph with many words so that the line is wide enough and stays body text.) Tj ET ");
         }
 
         // x = (a+b)/(2c): bar 2.5 pt above the baseline of "x =", numerator above, denominator below.
@@ -425,11 +425,11 @@ internal static class PdfStructureChecks
         // The library's own PDF writer draws big operators and root signs as lines (no math font): every one of them must
         // come back as the same operator with its limits.
         MathNode T(string text) => new MathText(text);
-        var blocks = new List<Block> { new Paragraph(new TextRun("Dies ist ein langer Absatz mit vielen Worten damit die Zeile breit genug wird und Fliesstext bleibt.")) };
+        var blocks = new List<Block> { new Paragraph(new TextRun("This is a long paragraph with many words so that the line is wide enough and stays body text.")) };
         foreach (var op in "∑∏∫∬∮⋃⋂")
         {
             blocks.Add(new Equation(new MathRow([T("y"), T("="), new MathNary(op, T("x"), T("0"), T("9"))])));
-            blocks.Add(new Paragraph(new TextRun("Dies ist ein langer Absatz mit vielen Worten damit die Zeile breit genug wird und Fliesstext bleibt.")));
+            blocks.Add(new Paragraph(new TextRun("This is a long paragraph with many words so that the line is wide enough and stays body text.")));
         }
 
         blocks.Add(new Equation(new MathRow([T("z"), T("="), new MathRadical(T("w"), T("3"))])));
@@ -449,7 +449,7 @@ internal static class PdfStructureChecks
         var content = new System.Text.StringBuilder();
         for (var line = 0; line < 4; line++)
         {
-            content.Append($"BT /F2 10 Tf 72 {780 - (line * 14)} Td (Dies ist ein langer Absatz mit vielen Worten damit die Zeile breit genug wird und Fliesstext bleibt.) Tj ET ");
+            content.Append($"BT /F2 10 Tf 72 {780 - (line * 14)} Td (This is a long paragraph with many words so that the line is wide enough and stays body text.) Tj ET ");
         }
 
         // "x = sin x" with x as U+1D465, "s" and "i" plain; n plain too (code n is WinAnsi).
@@ -477,7 +477,7 @@ internal static class PdfStructureChecks
         var content = new System.Text.StringBuilder();
         for (var line = 0; line < 4; line++)
         {
-            content.Append($"BT /F1 10 Tf 72 {780 - (line * 14)} Td (Dies ist ein langer Absatz mit vielen Worten damit die Zeile breit genug wird und Fliesstext bleibt.) Tj ET ");
+            content.Append($"BT /F1 10 Tf 72 {780 - (line * 14)} Td (This is a long paragraph with many words so that the line is wide enough and stays body text.) Tj ET ");
         }
 
         // A vertical axis with ticks, a horizontal axis and a curve; the label sits next to the ticks.
@@ -493,7 +493,7 @@ internal static class PdfStructureChecks
         var content = new System.Text.StringBuilder();
         for (var line = 0; line < 4; line++)
         {
-            content.Append($"BT /F1 10 Tf 72 {780 - (line * 14)} Td (Dies ist ein langer Absatz mit vielen Worten damit die Zeile breit genug wird und Fliesstext bleibt.) Tj ET ");
+            content.Append($"BT /F1 10 Tf 72 {780 - (line * 14)} Td (This is a long paragraph with many words so that the line is wide enough and stays body text.) Tj ET ");
         }
 
         content.Append("72 776.5 200 0.5 re f 72 738 300 0.5 re f 10 10 m 5 c 7 y S"); // also a broken curve: no exception
@@ -507,14 +507,14 @@ internal static class PdfStructureChecks
         for (var line = 0; line < 20; line++)
         {
             var y = 780 - (line * 14);
-            content.Append($"BT /F1 10 Tf 72 {y} Td (links{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk) Tj ET ");
-            content.Append($"BT /F1 10 Tf 306 {y} Td (rechts{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kk) Tj ET ");
+            content.Append($"BT /F1 10 Tf 72 {y} Td (left{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk) Tj ET ");
+            content.Append($"BT /F1 10 Tf 306 {y} Td (right{line:D2} aaa bbb ccc ddd eee fff ggg hhh iii jjj kk) Tj ET ");
         }
 
         var blocks = RecoverBlocks(content.ToString(), out _);
         Require(!blocks.OfType<TableBlock>().Any(), "narrow gutter: no table");
         var text = AllText(blocks);
-        Require(text.IndexOf("links19", StringComparison.Ordinal) is var last and >= 0 && last < text.IndexOf("rechts00", StringComparison.Ordinal),
+        Require(text.IndexOf("left19", StringComparison.Ordinal) is var last and >= 0 && last < text.IndexOf("right00", StringComparison.Ordinal),
             "narrow gutter: left column before right column: " + text[..Math.Min(200, text.Length)]);
     }
 

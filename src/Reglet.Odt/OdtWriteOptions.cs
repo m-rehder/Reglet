@@ -3,7 +3,7 @@ namespace Reglet;
 /// <summary>Options for the ODT writer. Deliberately kept small and optional.</summary>
 public sealed record OdtWriteOptions : WriteOptions
 {
-    /// <summary>Standardoptionen.</summary>
+    /// <summary>The default options.</summary>
     public static OdtWriteOptions Default { get; } = new();
 
     /// <summary>

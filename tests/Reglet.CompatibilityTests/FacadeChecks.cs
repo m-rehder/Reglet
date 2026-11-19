@@ -42,7 +42,7 @@ internal static class FacadeChecks
 
     private static void ReportsMetrics()
     {
-        var document = PortableDocument.Create().Paragraph("Hallo").Build();
+        var document = PortableDocument.Create().Paragraph("Hello").Build();
 
         foreach (var (format, options) in new (DocumentFormat Format, WriteOptions Options)[]
         {
@@ -75,7 +75,7 @@ internal static class FacadeChecks
 
     private static void WritesToPath()
     {
-        var document = PortableDocument.Create().Paragraph("Hallo").Build();
+        var document = PortableDocument.Create().Paragraph("Hello").Build();
         var directory = Path.Combine(Path.GetTempPath(), "reglet-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
 
@@ -94,13 +94,13 @@ internal static class FacadeChecks
             }
 
             Require(DocumentWriter.FormatFromPath("REPORT.DOCX") == DocumentFormat.Docx, "Extension is normalized.");
-            Require(DocumentWriter.FormatFromPath("a.odt") == DocumentFormat.Odt, "odt erkannt.");
-            Require(DocumentWriter.FormatFromPath("a.pdf") == DocumentFormat.Pdf, "pdf erkannt.");
+            Require(DocumentWriter.FormatFromPath("a.odt") == DocumentFormat.Odt, "odt recognised.");
+            Require(DocumentWriter.FormatFromPath("a.pdf") == DocumentFormat.Pdf, "pdf recognised.");
             Throws<NotSupportedException>(() => DocumentWriter.FormatFromPath("a.txt"));
-            Throws<UnsupportedFeatureException>(() => DocumentWriter.FormatFromPath("bericht"));
-            Throws<UnsupportedFeatureException>(() => DocumentWriter.FormatFromPath("bericht.txt"));
+            Throws<UnsupportedFeatureException>(() => DocumentWriter.FormatFromPath("report"));
+            Throws<UnsupportedFeatureException>(() => DocumentWriter.FormatFromPath("report.txt"));
             Require(
-                DocumentWriter.FormatFromPath("bericht.docx").Equals(DocumentFormat.Docx),
+                DocumentWriter.FormatFromPath("report.docx").Equals(DocumentFormat.Docx),
                 "Extension with a leading dot is recognized.");
 
             var existing = Path.Combine(directory, "existing.docx");
@@ -186,20 +186,20 @@ internal static class FacadeChecks
         DocumentWriter.WriteAsync(document, docx, DocumentFormat.Docx).GetAwaiter().GetResult();
         using var docxZip = new ZipArchive(new MemoryStream(docx.ToArray()), ZipArchiveMode.Read);
         var body = ReadEntry(docxZip, "word/document.xml");
-        Require(body.Contains("w:left=\"1440\"", StringComparison.Ordinal), "DOCX: 1 Zoll = 1440 Twips.");
-        Require(body.Contains("w:w=\"11906\"", StringComparison.Ordinal), "DOCX: A4-Breite.");
+        Require(body.Contains("w:left=\"1440\"", StringComparison.Ordinal), "DOCX: 1 in = 1440 twips.");
+        Require(body.Contains("w:w=\"11906\"", StringComparison.Ordinal), "DOCX: A4 width.");
 
         using var odt = new MemoryStream();
         DocumentWriter.WriteAsync(document, odt, DocumentFormat.Odt).GetAwaiter().GetResult();
         using var odtZip = new ZipArchive(new MemoryStream(odt.ToArray()), ZipArchiveMode.Read);
         var styles = ReadEntry(odtZip, "styles.xml");
-        Require(styles.Contains("fo:margin-left=\"72pt\"", StringComparison.Ordinal), "ODT: 1 Zoll = 72pt.");
-        Require(styles.Contains("fo:page-width=\"595.28pt\"", StringComparison.Ordinal), "ODT: A4-Breite.");
+        Require(styles.Contains("fo:margin-left=\"72pt\"", StringComparison.Ordinal), "ODT: 1 in = 72pt.");
+        Require(styles.Contains("fo:page-width=\"595.28pt\"", StringComparison.Ordinal), "ODT: A4 width.");
 
         using var pdf = new MemoryStream();
         DocumentWriter.WriteAsync(document, pdf, DocumentFormat.Pdf).GetAwaiter().GetResult();
         var pdfText = Encoding.Latin1.GetString(pdf.ToArray());
-        Require(pdfText.Contains("595.27559", StringComparison.Ordinal), "PDF: A4-Breite.");
+        Require(pdfText.Contains("595.27559", StringComparison.Ordinal), "PDF: A4 width.");
     }
 
     private static void HeadingSizeBaseline()
@@ -292,7 +292,7 @@ internal static class FacadeChecks
             DocumentWriter.WriteAsync(document, docx, DocumentFormat.Docx).GetAwaiter().GetResult();
             using var docxZip = new ZipArchive(new MemoryStream(docx.ToArray()), ZipArchiveMode.Read);
             var body = ReadEntry(docxZip, "word/document.xml");
-            Require(body.Contains($"cx=\"{(long)(expectedWidth * 12700)}\"", StringComparison.Ordinal), $"DOCX: {mode}-Breite.");
+            Require(body.Contains($"cx=\"{(long)(expectedWidth * 12700)}\"", StringComparison.Ordinal), $"DOCX: {mode} width.");
             Require(body.Contains($"cy=\"{(long)(expectedHeight * 12700)}\"", StringComparison.Ordinal), $"DOCX: {mode} height.");
 
             using var odt = new MemoryStream();
@@ -301,7 +301,7 @@ internal static class FacadeChecks
             var content = ReadEntry(odtZip, "content.xml");
             var expectedWidthCm = (expectedWidth * 2.54 / 72).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
             var expectedHeightCm = (expectedHeight * 2.54 / 72).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-            Require(content.Contains($"svg:width=\"{expectedWidthCm}cm\"", StringComparison.Ordinal), $"ODT: {mode}-Breite.");
+            Require(content.Contains($"svg:width=\"{expectedWidthCm}cm\"", StringComparison.Ordinal), $"ODT: {mode} width.");
             Require(content.Contains($"svg:height=\"{expectedHeightCm}cm\"", StringComparison.Ordinal), $"ODT: {mode} height.");
 
             using var pdf = new MemoryStream();
@@ -448,7 +448,7 @@ internal static class FacadeChecks
             "ODT warns about an unrenderable page break in the header.");
 
         var imageWithAltText = PortableDocument.Create()
-            .Image(CreatePng(2, 1), ImageMediaType.Png, altText: "Diagramm")
+            .Image(CreatePng(2, 1), ImageMediaType.Png, altText: "Chart")
             .Build();
         using var pdfImageStream = new MemoryStream();
         var imageResult = DocumentWriter.WriteAsync(imageWithAltText, pdfImageStream, DocumentFormat.Pdf)
@@ -705,7 +705,7 @@ internal static class FacadeChecks
 
     private static void ErrorMessagesAvoidDocumentContent()
     {
-        const string secret = "Vertraulich-XYZ-42";
+        const string secret = "Confidential-XYZ-42";
         var document = PortableDocument.Create()
             .Paragraph(secret)
             .Paragraph("\u4E2D\u6587")
@@ -824,6 +824,6 @@ internal static class FacadeChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 }

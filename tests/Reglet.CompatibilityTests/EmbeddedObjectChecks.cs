@@ -64,7 +64,7 @@ internal static class EmbeddedObjectChecks
     };
 
     private static PortableDocument Doc(params Block[] objects)
-        => new(new DocumentMetadata(), new Section(new Block[] { new Paragraph(new TextRun("Vorher")) }.Concat(objects).Append(new Paragraph(new TextRun("Nachher"))).ToArray()));
+        => new(new DocumentMetadata(), new Section(new Block[] { new Paragraph(new TextRun("Before")) }.Concat(objects).Append(new Paragraph(new TextRun("After"))).ToArray()));
 
     private static byte[] Write(PortableDocument document, DocumentFormat format, out WriteResult result)
     {
@@ -181,7 +181,7 @@ internal static class EmbeddedObjectChecks
         var source = Write(Doc(Ole1(), Sheet()), DocumentFormat.Docx, out _);
         var read = Read(source, DocumentFormat.Docx).Document;
         var blocks = read.Sections[0].Blocks.ToList();
-        blocks[0] = new Paragraph(new TextRun("Geändert"));
+        blocks[0] = new Paragraph(new TextRun("Changed"));
         var package = Write(new PortableDocument(read.Metadata, new Section(blocks)), DocumentFormat.Docx, out var result);
         Require(!result.HasWarnings, "No warning: " + string.Join("|", result.Warnings.Select(w => w.Message)));
         Require(Objects(Read(package, DocumentFormat.Docx).Document).Length == 2, "The objects survive a changed body.");

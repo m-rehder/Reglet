@@ -31,9 +31,9 @@ public sealed record PageSize
     /// <summary>DIN A3 (297 × 420 mm).</summary>
     public static PageSize A3 { get; } = new(Length.FromMillimeters(297), Length.FromMillimeters(420));
 
-    /// <summary>US Letter (8,5 × 11 Zoll).</summary>
+    /// <summary>US Letter (8.5 × 11 in).</summary>
     public static PageSize Letter { get; } = new(Length.FromInches(8.5), Length.FromInches(11));
 
-    /// <summary>US Legal (8,5 × 14 Zoll).</summary>
+    /// <summary>US Legal (8.5 × 14 in).</summary>
     public static PageSize Legal { get; } = new(Length.FromInches(8.5), Length.FromInches(14));
 }

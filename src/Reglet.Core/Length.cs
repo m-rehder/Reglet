@@ -11,10 +11,10 @@ public enum LengthUnit
     /// <summary>Millimeter.</summary>
     Millimeters,
 
-    /// <summary>Zentimeter.</summary>
+    /// <summary>Centimeters.</summary>
     Centimeters,
 
-    /// <summary>Zoll.</summary>
+    /// <summary>Inches.</summary>
     Inches,
 }
 

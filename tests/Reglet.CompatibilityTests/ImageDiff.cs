@@ -3,7 +3,7 @@ namespace Reglet;
 /// <summary>
 /// tolerance-based image comparison for the visual regression (K11). Decodes both PNGs
 /// via the own <c>PdfPngDecoder</c> and returns the fraction of clearly deviating
-/// Kanalwerte.
+/// channel values.
 /// </summary>
 internal static class ImageDiff
 {

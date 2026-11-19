@@ -10,6 +10,6 @@ public interface IDocumentReader
 {
     /// <summary>Reads a document from the stream into the content model.</summary>
     /// <param name="input">Source stream; it remains open after reading.</param>
-    /// <param name="cancellationToken">Abbruchsignal.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     ReadResult Read(Stream input, CancellationToken cancellationToken = default);
 }

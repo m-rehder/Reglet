@@ -55,7 +55,7 @@ internal static class ProtectionChecks
     /// </summary>
     private static void WritesPasswordProtection()
     {
-        const string password = "Geheim123";
+        const string password = "Secret123";
         using var buffer = new MemoryStream();
         new DocxDocumentWriter()
             .WriteAsync(

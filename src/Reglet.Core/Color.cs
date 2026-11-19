@@ -16,13 +16,13 @@ public readonly record struct Color
         Blue = blue;
     }
 
-    /// <summary>Rotkanal (0–255).</summary>
+    /// <summary>Red channel (0–255).</summary>
     public byte Red { get; }
 
     /// <summary>Green channel (0–255).</summary>
     public byte Green { get; }
 
-    /// <summary>Blaukanal (0–255).</summary>
+    /// <summary>Blue channel (0–255).</summary>
     public byte Blue { get; }
 
     /// <summary>Creates a color from the three color channels.</summary>
@@ -74,7 +74,7 @@ public readonly record struct Color
         return true;
     }
 
-    /// <summary>Schwarz (0, 0, 0).</summary>
+    /// <summary>Black (0, 0, 0).</summary>
     public static Color Black => new(0, 0, 0);
 
     /// <summary>White (255, 255, 255).</summary>

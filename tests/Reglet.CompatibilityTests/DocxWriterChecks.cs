@@ -39,7 +39,7 @@ internal static class DocxWriterChecks
 
     private static void WritesRequiredParts()
     {
-        var document = PortableDocument.Create().Paragraph("Hallo").Build();
+        var document = PortableDocument.Create().Paragraph("Hello").Build();
 
         using var buffer = new MemoryStream();
         new DocxDocumentWriter().WriteAsync(document, buffer).GetAwaiter().GetResult();
@@ -73,20 +73,20 @@ internal static class DocxWriterChecks
     private static void PassesSubsetValidator()
     {
         var document = PortableDocument.Create()
-            .Metadata(title: "Title", author: "Autor")
+            .Metadata(title: "Title", author: "Author")
             .Heading("Heading", level: 1)
-            .Paragraph(p => p.Text("Text ").Bold("fett"))
+            .Paragraph(p => p.Text("Text ").Bold("bold"))
             .BulletList("a", "b")
             .Table(t => t.Header("A", "B").Row("1", "2"))
             .PageBreak()
-            .Paragraph("Ende")
+            .Paragraph("End")
             .Build();
 
         using var buffer = new MemoryStream();
         new DocxDocumentWriter().WriteAsync(document, buffer).GetAwaiter().GetResult();
 
         var errors = DocxPackageValidator.Validate(buffer.ToArray());
-        Require(errors.Count == 0, "DOCX besteht den Subset-Validator: " + string.Join("; ", errors));
+        Require(errors.Count == 0, "DOCX passes the subset validator: " + string.Join("; ", errors));
     }
 
     private static void WritesCoreProperties()
@@ -94,8 +94,8 @@ internal static class DocxWriterChecks
         var document = PortableDocument.Create()
             .Metadata(
                 title: "Title",
-                author: "Autor",
-                subject: "Betreff",
+                author: "Author",
+                subject: "Subject",
                 keywords: new[] { "a", "b" },
                 language: "de-DE",
                 created: new DateTimeOffset(2026, 9, 24, 0, 0, 0, TimeSpan.Zero))
@@ -110,7 +110,7 @@ internal static class DocxWriterChecks
 
         var core = ReadEntry(zip, "docProps/core.xml");
         Require(core.Contains("Title", StringComparison.Ordinal), "core.xml contains the title.");
-        Require(core.Contains("Autor", StringComparison.Ordinal), "core.xml contains the author.");
+        Require(core.Contains("Author", StringComparison.Ordinal), "core.xml contains the author.");
         Require(core.Contains("de-DE", StringComparison.Ordinal), "core.xml contains the language.");
         Require(core.Contains("2026-09-24T00:00:00Z", StringComparison.Ordinal), "core.xml contains the timestamp.");
 
@@ -135,9 +135,9 @@ internal static class DocxWriterChecks
         using var zip = new ZipArchive(buffer, ZipArchiveMode.Read);
         var body = ReadEntry(zip, "word/document.xml");
 
-        Require(body.Contains("w:w=\"15840\"", StringComparison.Ordinal), "Landscape-Breite in Twips (11 Zoll).");
-        Require(body.Contains("w:h=\"12240\"", StringComparison.Ordinal), "Landscape-Hoehe in Twips (8,5 Zoll).");
-        Require(body.Contains("w:orient=\"landscape\"", StringComparison.Ordinal), "Orientierung landscape.");
+        Require(body.Contains("w:w=\"15840\"", StringComparison.Ordinal), "Landscape width in twips (11 in).");
+        Require(body.Contains("w:h=\"12240\"", StringComparison.Ordinal), "Landscape height in twips (8.5 in).");
+        Require(body.Contains("w:orient=\"landscape\"", StringComparison.Ordinal), "Orientation landscape.");
         Require(body.Contains("w:top=\"1440\"", StringComparison.Ordinal), "Top margin in twips (1 inch).");
         Require(body.Contains("w:left=\"1440\"", StringComparison.Ordinal), "Left margin in twips (1 inch).");
     }
@@ -199,7 +199,7 @@ internal static class DocxWriterChecks
         var document = PortableDocument.Create()
             .Heading("Title", level: 2)
             .Paragraph(p => p
-                .Text("Zentriert")
+                .Text("Centred")
                 .Alignment(TextAlignment.Center)
                 .SpaceBefore(Length.FromPoints(6))
                 .SpaceAfter(Length.FromPoints(12))
@@ -219,7 +219,7 @@ internal static class DocxWriterChecks
         Require(body.Contains("w:before=\"120\"", StringComparison.Ordinal), "Space before (6 pt = 120 twips).");
         Require(body.Contains("w:after=\"240\"", StringComparison.Ordinal), "Space after (12 pt = 240 twips).");
         Require(body.Contains("w:left=\"360\"", StringComparison.Ordinal), "Left indent (18 pt = 360 twips).");
-        Require(body.Contains("Zentriert", StringComparison.Ordinal), "Paragraph text present.");
+        Require(body.Contains("Centred", StringComparison.Ordinal), "Paragraph text present.");
     }
 
     private static void WritesTextRuns()
@@ -227,9 +227,9 @@ internal static class DocxWriterChecks
         var document = PortableDocument.Create()
             .Paragraph(p => p
                 .Text("normal ")
-                .Span("fett", bold: true)
-                .Span("kursiv", italic: true)
-                .Span("unterstrichen", underline: true)
+                .Span("bold", bold: true)
+                .Span("italic", italic: true)
+                .Span("underlined", underline: true)
                 .Span("gross", fontSize: Length.FromPoints(20))
                 .Span("rot", color: Color.FromHex("#FF0000"))
                 .Span("serif", fontFamily: "Times New Roman"))
@@ -244,7 +244,7 @@ internal static class DocxWriterChecks
 
         Require(body.Contains("<w:b", StringComparison.Ordinal), "Bold formatting present.");
         Require(body.Contains("<w:i", StringComparison.Ordinal), "Italic formatting present.");
-        Require(body.Contains("w:u w:val=\"single\"", StringComparison.Ordinal), "Unterstreichung vorhanden.");
+        Require(body.Contains("w:u w:val=\"single\"", StringComparison.Ordinal), "Underline present.");
         Require(body.Contains("w:sz w:val=\"40\"", StringComparison.Ordinal), "Font size 20 pt = 40 half-points.");
         Require(body.Contains("w:color w:val=\"FF0000\"", StringComparison.Ordinal), "Color present.");
         Require(body.Contains("w:rFonts w:ascii=\"Times New Roman\"", StringComparison.Ordinal), "Font family present.");
@@ -255,8 +255,8 @@ internal static class DocxWriterChecks
         var document = PortableDocument.Create()
             .Paragraph(p => p
                 .Text(" leading")
-                .Text("folgend ")
-                .Text("doppel  leer")
+                .Text("following ")
+                .Text("double  space")
                 .Text("normal"))
             .Build();
 
@@ -317,10 +317,10 @@ internal static class DocxWriterChecks
 
         Require(body.Contains("w:ilvl w:val=\"0\"", StringComparison.Ordinal), "Level 0 present.");
         Require(body.Contains("w:ilvl w:val=\"1\"", StringComparison.Ordinal), "Level 1 present.");
-        Require(body.Contains("w:numId w:val=\"2\"", StringComparison.Ordinal), "Aufzaehlung (numId 2) vorhanden.");
-        Require(body.Contains("w:numId w:val=\"1\"", StringComparison.Ordinal), "Nummerierung (numId 1) vorhanden.");
+        Require(body.Contains("w:numId w:val=\"2\"", StringComparison.Ordinal), "Bullets (numId 2) present.");
+        Require(body.Contains("w:numId w:val=\"1\"", StringComparison.Ordinal), "Numbering (numId 1) present.");
         Require(body.Contains("one", StringComparison.Ordinal), "List text one present.");
-        Require(body.Contains("two-a", StringComparison.Ordinal), "Verschachtelter Listentext vorhanden.");
+        Require(body.Contains("two-a", StringComparison.Ordinal), "Nested list text present.");
     }
 
     /// <summary>
@@ -355,7 +355,7 @@ internal static class DocxWriterChecks
         var document = PortableDocument.Create()
             .Numbering(new NumberingDefinition("steps", [new NumberingLevel { Kind = ListKind.Number }]))
             .List("steps", "one", "two")
-            .Paragraph("Zwischentext")
+            .Paragraph("Text in between")
             .List("steps", "three", "four")
             .Build();
 
@@ -376,7 +376,7 @@ internal static class DocxWriterChecks
     private static void WritesTables()
     {
         var document = PortableDocument.Create()
-            .Table(t => t.Header("Kennzahl", "Wert").Row("Documents", "42"))
+            .Table(t => t.Header("Metric", "Value").Row("Documents", "42"))
             .Build();
 
         using var buffer = new MemoryStream();
@@ -392,7 +392,7 @@ internal static class DocxWriterChecks
         Require(body.Contains("<w:tblHeader", StringComparison.Ordinal), "Header row marked.");
         Require(body.Contains("<w:tblBorders>", StringComparison.Ordinal), "Table borders present.");
         Require(body.Contains("<w:tblCellMar>", StringComparison.Ordinal), "Cell paddings present.");
-        Require(body.Contains("Kennzahl", StringComparison.Ordinal), "Cell content Kennzahl present.");
+        Require(body.Contains("Metric", StringComparison.Ordinal), "Cell content Metric present.");
         Require(body.Contains("42", StringComparison.Ordinal), "Cell content 42 present.");
     }
 
@@ -415,7 +415,7 @@ internal static class DocxWriterChecks
 
         Require(names.Contains("word/media/image1.png"), "PNG part present.");
         Require(names.Contains("word/media/image2.jpeg"), "JPEG part present.");
-        Require(ReadBinaryEntry(zip, "word/media/image1.png").SequenceEqual(png), "PNG-Bytes unveraendert.");
+        Require(ReadBinaryEntry(zip, "word/media/image1.png").SequenceEqual(png), "PNG bytes unchanged.");
 
         var rels = ReadEntry(zip, "word/_rels/document.xml.rels");
         Require(rels.Contains("media/image1.png", StringComparison.Ordinal), "Relationship for PNG present.");
@@ -440,8 +440,8 @@ internal static class DocxWriterChecks
         using var zip = new ZipArchive(buffer, ZipArchiveMode.Read);
         var body = ReadEntry(zip, "word/document.xml");
 
-        Require(body.Contains("cx=\"914400\"", StringComparison.Ordinal), "Breite 1 Zoll = 914400 EMU.");
-        Require(body.Contains("cy=\"457200\"", StringComparison.Ordinal), "Hoehe 0,5 Zoll = 457200 EMU.");
+        Require(body.Contains("cx=\"914400\"", StringComparison.Ordinal), "Width 1 in = 914400 EMU.");
+        Require(body.Contains("cy=\"457200\"", StringComparison.Ordinal), "Height 0.5 in = 457200 EMU.");
     }
 
     private static void WritesPageBreaks()
@@ -487,11 +487,11 @@ internal static class DocxWriterChecks
         Require(names.Contains("word/footer1.xml"), "footer1.xml present.");
 
         var header = ReadEntry(zip, "word/header1.xml");
-        Require(header.Contains("<w:hdr", StringComparison.Ordinal), "Header-Wurzelelement vorhanden.");
+        Require(header.Contains("<w:hdr", StringComparison.Ordinal), "Header root element present.");
         Require(header.Contains("Header", StringComparison.Ordinal), "Header text present.");
 
         var footer = ReadEntry(zip, "word/footer1.xml");
-        Require(footer.Contains("<w:ftr", StringComparison.Ordinal), "Footer-Wurzelelement vorhanden.");
+        Require(footer.Contains("<w:ftr", StringComparison.Ordinal), "Footer root element present.");
         Require(footer.Contains("PAGE", StringComparison.Ordinal), "Page number field present.");
 
         var body = ReadEntry(zip, "word/document.xml");

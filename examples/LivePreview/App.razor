@@ -4,7 +4,7 @@
 
 <main>
   <section>
-    <label for="source"><strong>Text</strong> &ndash; <code># Überschrift</code>, <code>## Unterüberschrift</code>, <code>- Aufzählung</code>, Leerzeile trennt Absätze</label>
+    <label for="source"><strong>Text</strong> &ndash; <code># Heading</code>, <code>## Subheading</code>, <code>- Bullet</code>, a blank line ends a paragraph</label>
     <textarea id="source" @bind="_source" @bind:event="oninput" @bind:after="ScheduleRender"></textarea>
     @if (_error is not null)
     {
@@ -16,22 +16,22 @@
     }
   </section>
   <section>
-    <div class="preview" @ref="_preview" role="region" aria-label="PDF-Vorschau"></div>
+    <div class="preview" @ref="_preview" role="region" aria-label="PDF preview"></div>
   </section>
 </main>
 
 @code {
     private string _source = """
-        # Live-Vorschau
+        # Live preview
 
-        Dieses PDF erzeugt Reglet direkt im Browser – ohne Server. Tippe links, die Vorschau folgt.
+        Reglet creates this PDF right in the browser – no server involved. Type on the left, the preview follows.
 
-        ## Liste
+        ## List
 
-        - Erster Punkt
-        - Zweiter Punkt
+        - First item
+        - Second item
 
-        Umlaute und Sonderzeichen: äöü ß €
+        Special characters: äöü ß é €
         """;
     private string _status = "";
     private string? _error;
@@ -66,7 +66,7 @@
             watch.Stop();
             await JS.InvokeVoidAsync("showPdf", _preview, stream.ToArray());
             _error = null;
-            _status = $"PDF erzeugt in {watch.ElapsedMilliseconds} ms ({stream.Length / 1024.0:0.0} KB)";
+            _status = $"PDF created in {watch.ElapsedMilliseconds} ms ({stream.Length / 1024.0:0.0} KB)";
         }
         catch (Exception exception)
         {
@@ -78,7 +78,7 @@
     // Minimal markup: "#"/"##"/"###" headings, "- " bullets, blank line ends a paragraph.
     private static PortableDocument Parse(string source)
     {
-        var builder = PortableDocument.Create().Metadata(title: "Live-Vorschau", author: "Reglet");
+        var builder = PortableDocument.Create().Metadata(title: "Live preview", author: "Reglet");
         var paragraph = new List<string>();
         var bullets = new List<string>();
 

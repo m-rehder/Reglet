@@ -25,7 +25,7 @@ public enum TabStopLeader
     /// <summary>Points.</summary>
     Dot,
 
-    /// <summary>Bindestriche.</summary>
+    /// <summary>Hyphens.</summary>
     Hyphen,
 
     /// <summary>Underline.</summary>
@@ -59,7 +59,7 @@ public sealed record TabStop
         Leader = leader;
     }
 
-    /// <summary>Position ab dem linken Rand.</summary>
+    /// <summary>The position from the left margin.</summary>
     public Length Position { get; }
 
     /// <summary>Alignment.</summary>

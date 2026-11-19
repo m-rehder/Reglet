@@ -266,9 +266,9 @@ public sealed class FontCollection
 
     private static string StyleText(bool bold, bool italic) => (bold, italic) switch
     {
-        (true, true) => "fett-kursiv",
-        (true, false) => "fett",
-        (false, true) => "kursiv",
+        (true, true) => "bold italic",
+        (true, false) => "bold",
+        (false, true) => "italic",
         _ => "normal",
     };
 }

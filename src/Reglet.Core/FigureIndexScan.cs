@@ -144,7 +144,7 @@ internal static class FigureIndexScan
         return found;
     }
 
-    /// <summary>The sort key of an entry: without accents and case, so "Ärger" sorts with "A".</summary>
+    /// <summary>The sort key of an entry: without accents and case, so "Ångström" sorts with "A".</summary>
     public static string SortKey(string text)
     {
         var decomposed = text.Normalize(NormalizationForm.FormD);

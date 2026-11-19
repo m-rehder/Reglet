@@ -71,7 +71,7 @@ internal static class ParagraphFormattingChecks
 
         // The same for the definitions of named styles.
         var explicitNamed = new ParagraphStyle { StyleName = "Eng", SpaceAfter = Length.Zero };
-        var defaultNamed = new ParagraphStyle { StyleName = "Weit" };
+        var defaultNamed = new ParagraphStyle { StyleName = "Wide" };
         var named = new PortableDocument(
             new DocumentMetadata(),
             new Section(new Block[] { new Paragraph(new TextRun("named")) { Style = explicitNamed } }))
@@ -87,7 +87,7 @@ internal static class ParagraphFormattingChecks
             var styles = DocumentReader.Read(buffer, format).Document.Styles;
             Require(styles.Single(style => style.StyleName == "Eng").SpaceAfter == Length.Zero,
                 format + ": the explicit zero of a named style was lost.");
-            Require(styles.Single(style => style.StyleName == "Weit").SpaceAfter is null,
+            Require(styles.Single(style => style.StyleName == "Wide").SpaceAfter is null,
                 format + ": an unset named style became explicit.");
         }
     }
@@ -375,7 +375,7 @@ internal static class ParagraphFormattingChecks
         Require(body.Contains("<w:keepNext", StringComparison.Ordinal), "DOCX: keepNext.");
         Require(body.Contains("<w:keepLines", StringComparison.Ordinal), "DOCX: keepLines.");
         Require(body.Contains("<w:pageBreakBefore", StringComparison.Ordinal), "DOCX: pageBreakBefore.");
-        Require(body.Contains("<w:tabs>", StringComparison.Ordinal) && body.Contains("w:leader=\"dot\"", StringComparison.Ordinal), "DOCX: Tabstopp.");
+        Require(body.Contains("<w:tabs>", StringComparison.Ordinal) && body.Contains("w:leader=\"dot\"", StringComparison.Ordinal), "DOCX: tab stop.");
         Require(body.Contains("w:tab w:val=\"right\" w:pos=\"2000\"", StringComparison.Ordinal), "DOCX: Tab-Position (100 pt = 2000).");
         Require(body.Contains("<w:bidi", StringComparison.Ordinal), "DOCX: bidi.");
         Require(body.Contains("w:cols w:num=\"2\"", StringComparison.Ordinal), "DOCX: text columns.");
@@ -395,7 +395,7 @@ internal static class ParagraphFormattingChecks
         Require(content.Contains("fo:keep-with-next=\"always\"", StringComparison.Ordinal), "ODT: keep-with-next.");
         Require(content.Contains("fo:keep-together=\"always\"", StringComparison.Ordinal), "ODT: keep-together.");
         Require(content.Contains("fo:break-before=\"page\"", StringComparison.Ordinal), "ODT: break-before.");
-        Require(content.Contains("style:tab-stops", StringComparison.Ordinal) && content.Contains("style:leader-text=\".\"", StringComparison.Ordinal), "ODT: Tabstopp.");
+        Require(content.Contains("style:tab-stops", StringComparison.Ordinal) && content.Contains("style:leader-text=\".\"", StringComparison.Ordinal), "ODT: tab stop.");
         Require(content.Contains("style:tab-stop style:position=\"100pt\"", StringComparison.Ordinal), "ODT: Tab-Position.");
         Require(content.Contains("style:writing-mode=\"rl-tb\"", StringComparison.Ordinal), "ODT: RTL-Richtung.");
         Require(content.Contains("text:br text:type=\"column\"", StringComparison.Ordinal), "ODT: column break.");
@@ -451,7 +451,7 @@ internal static class ParagraphFormattingChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 
     /// <summary>The first line wraps at the width left after its indent and never runs past the right margin.</summary>

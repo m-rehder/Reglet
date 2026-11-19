@@ -5,7 +5,7 @@ using Reglet;
 var document = PortableDocument.Create()
     .Metadata(title: "AOT-Smoke", author: "Reglet")
     .Heading("AOT", level: 1)
-    .Paragraph("Hallo AOT")
+    .Paragraph("Hello AOT")
     .BulletList("a", "b")
     .Table(table => table.Header("A", "B").Row("1", "2"))
     .Build();

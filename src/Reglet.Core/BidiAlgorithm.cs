@@ -114,7 +114,7 @@ internal static class BidiAlgorithm
             var firstIndex = order[runs[r].Start];
             if (original[firstIndex] == BidiClass.PDI && matchingIsolate[firstIndex] >= 0)
             {
-                continue; // Fortsetzung, kein Sequenzstart
+                continue; // a continuation, not the start of a sequence
             }
 
             var sequence = new List<int>();

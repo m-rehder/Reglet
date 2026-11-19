@@ -21,7 +21,7 @@ internal static class AccessibilityChecks
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine("Barrierefreiheit (Q): " + exception);
+            Console.Error.WriteLine("Accessibility: " + exception);
             return 1;
         }
     }
@@ -47,10 +47,10 @@ internal static class AccessibilityChecks
             AssertContains(latin, $"/S /{role} ");
         }
 
-        AssertContains(latin, "/Alt (Diagramm)");
+        AssertContains(latin, "/Alt (Chart)");
         AssertContains(latin, "/Type /Metadata /Subtype /XML");
         AssertContains(latin, "<pdf:Producer>Reglet</pdf:Producer>");
-        AssertContains(latin, "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Barrierefrei</rdf:li></rdf:Alt></dc:title>");
+        AssertContains(latin, "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Accessible</rdf:li></rdf:Alt></dc:title>");
         AssertContains(latin, "<dc:language><rdf:Bag><rdf:li>de-DE</rdf:li></rdf:Bag></dc:language>");
 
         var content = PdfStreams.Decompress(bytes);
@@ -70,7 +70,7 @@ internal static class AccessibilityChecks
         var document = ReadZipEntry(buffer.ToArray(), "word/document.xml");
         AssertContains(document, "<w:pStyle w:val=\"Heading1\"");
         AssertContains(document, "<w:tblHeader");
-        AssertContains(document, "descr=\"Diagramm\"");
+        AssertContains(document, "descr=\"Chart\"");
 
         var styles = ReadZipEntry(buffer.ToArray(), "word/styles.xml");
         AssertContains(styles, "<w:lang w:val=\"de-DE\"");
@@ -94,11 +94,11 @@ internal static class AccessibilityChecks
 
     private static PortableDocument Sample()
     {
-        var image = new ImageBlock(RenderFixtures.CreatePng(4, 4, 10, 20, 30), ImageMediaType.Png) { AltText = "Diagramm" };
+        var image = new ImageBlock(RenderFixtures.CreatePng(4, 4, 10, 20, 30), ImageMediaType.Png) { AltText = "Chart" };
         var table = new TableBlock(
         [
             new TableRow(new TableCell("Header")) { IsHeader = true },
-            new TableRow(new TableCell("Wert")),
+            new TableRow(new TableCell("Value")),
         ]);
         var section = new Section(
         [
@@ -112,7 +112,7 @@ internal static class AccessibilityChecks
         };
 
         return new PortableDocument(
-            new DocumentMetadata { Title = "Barrierefrei", Language = "de-DE" },
+            new DocumentMetadata { Title = "Accessible", Language = "de-DE" },
             [section]);
     }
 

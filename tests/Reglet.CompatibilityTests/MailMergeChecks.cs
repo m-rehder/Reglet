@@ -559,7 +559,7 @@ internal static class MailMergeChecks
         var source = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
         {
             new Paragraph(new TextRun("{{Repeat:Rows}}")),
-            new Paragraph(new Inline[] { new TextRun("Seite "), new Field("PAGE") }),
+            new Paragraph(new Inline[] { new TextRun("Page "), new Field("PAGE") }),
             new TableBlock([new TableRow(new TableCell("{{Name}}"))]),
             new Paragraph(new TextRun("{{EndRepeat}}")),
         }));
@@ -597,7 +597,7 @@ internal static class MailMergeChecks
         var source = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
         {
             new Paragraph(new TextRun("{{Repeat:Rows}}")),
-            new Paragraph(new Inline[] { new TextRun("{{Name}}"), new Footnote(new Paragraph(new TextRun("Notiz"))) }),
+            new Paragraph(new Inline[] { new TextRun("{{Name}}"), new Footnote(new Paragraph(new TextRun("Note"))) }),
             new Paragraph(new TextRun("{{EndRepeat}}")),
         }));
         using var buffer = new MemoryStream();
@@ -611,7 +611,7 @@ internal static class MailMergeChecks
         Require(notes.Count == 2, $"ODT: both clones keep their note, got {notes.Count}.");
         var ids = notes.Select(note => (string?)note.Attributes().First(attribute => attribute.Name.LocalName == "id")).ToList();
         Require(ids.Distinct(StringComparer.Ordinal).Count() == ids.Count, "ODT: copied notes have unique ids: " + string.Join(", ", ids));
-        Require((xml.Root!.Value.Split("Notiz", StringSplitOptions.None).Length - 1) == 2, "ODT: both note bodies are copied.");
+        Require((xml.Root!.Value.Split("Note", StringSplitOptions.None).Length - 1) == 2, "ODT: both note bodies are copied.");
 
         // A DOCX note is cloned with a fresh id and a duplicated note body in the notes part.
         using var docxBuffer = new MemoryStream();

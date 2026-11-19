@@ -7,7 +7,7 @@ namespace Reglet;
 
 internal static partial class BidiData
 {
-    // 766 Bereiche (Standard L ausgelassen), 130 Klammerpaare, 438 Spiegelzeichen.
+    // 766 ranges (the default L left out), 130 bracket pairs, 438 mirrored characters.
     private static readonly (int Start, int End, byte Class)[] Ranges =
     [
         (0x0000, 0x0008, 9), // Boundary_Neutral

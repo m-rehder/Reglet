@@ -50,7 +50,7 @@ internal static class CoreModelChecks
         Require(metadata.Keywords![0] == "original", "Keywords must be copied.");
 
         var widths = new List<Length> { Length.FromCentimeters(3) };
-        var table = new TableBlock([new TableRow(new TableCell("Wert"))]) { ColumnWidths = widths };
+        var table = new TableBlock([new TableRow(new TableCell("Value"))]) { ColumnWidths = widths };
         widths[0] = Length.FromCentimeters(5);
         Require(table.ColumnWidths![0] == Length.FromCentimeters(3), "Column widths must be copied.");
     }
@@ -85,7 +85,7 @@ internal static class CoreModelChecks
         var withExplicit = new TableBlock(rows) { ColumnWidths = new[] { Length.FromPoints(100) } };
         var widths = TableLayout.ResolveColumnWidths(withExplicit, 3, 400);
         Require(widths.Length == 3, "Three columns resolved.");
-        Require(widths[0] == 100, "Explizite Breite bleibt absolut.");
+        Require(widths[0] == 100, "An explicit width stays absolute.");
         Require(Math.Abs(widths[1] - 150) < 1e-9 && Math.Abs(widths[2] - 150) < 1e-9,
             "The remaining width is distributed evenly.");
 
@@ -122,9 +122,9 @@ internal static class CoreModelChecks
 
     private static void RejectsUnsafePackagePaths()
     {
-        Require(PackagePath.Validate("word/document.xml") == "word/document.xml", "Normaler Pfad bleibt erlaubt.");
+        Require(PackagePath.Validate("word/document.xml") == "word/document.xml", "A normal path stays allowed.");
         Require(PackagePath.Validate("[Content_Types].xml") == "[Content_Types].xml", "OPC path with braces.");
-        Require(PackagePath.Validate("_rels/.rels") == "_rels/.rels", "Beziehungspfad.");
+        Require(PackagePath.Validate("_rels/.rels") == "_rels/.rels", "Relationship path.");
         Throws<DocumentValidationException>(() => PackagePath.Validate("/etc/passwd"));
         Throws<DocumentValidationException>(() => PackagePath.Validate("../secret.xml"));
         Throws<DocumentValidationException>(() => PackagePath.Validate("word/../../x.xml"));
@@ -174,9 +174,9 @@ internal static class CoreModelChecks
     {
         var section = new Section(new Paragraph(new TextRun("x")));
         Require(section.PageSize == PageSize.A4, "A4 is the default size.");
-        Require(Math.Abs(PageSize.A4.Width.Points - 210 * 72 / 25.4) < 1e-9, "A4-Breite (210 mm).");
-        Require(Math.Abs(PageSize.A4.Height.Points - 297 * 72 / 25.4) < 1e-9, "A4-Hoehe (297 mm).");
-        Require(PageSize.Letter != PageSize.A4, "Letter bleibt explizit waehlbar.");
+        Require(Math.Abs(PageSize.A4.Width.Points - 210 * 72 / 25.4) < 1e-9, "A4 width (210 mm).");
+        Require(Math.Abs(PageSize.A4.Height.Points - 297 * 72 / 25.4) < 1e-9, "A4 height (297 mm).");
+        Require(PageSize.Letter != PageSize.A4, "Letter stays available explicitly.");
     }
 
     private static void UsesCanonicalPoints()
@@ -195,7 +195,7 @@ internal static class CoreModelChecks
     private static void ConvertsLengthsAndColors()
     {
         var inch = Length.FromInches(1);
-        Require(Math.Abs(inch.To(LengthUnit.Millimeters) - 25.4) < 1e-10, "Zoll-Umrechnung.");
+        Require(Math.Abs(inch.To(LengthUnit.Millimeters) - 25.4) < 1e-10, "Inch conversion.");
         Require(Color.FromHex("#1A2B3C") == new Color(0x1A, 0x2B, 0x3C), "Hex-Farbe.");
         Throws<ArgumentException>(() => Color.FromHex("#12345G"));
         Throws<ArgumentException>(() => Color.FromHex(" 12345"));
@@ -212,7 +212,7 @@ internal static class CoreModelChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

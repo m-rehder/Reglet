@@ -66,7 +66,7 @@ internal static class VisualRegressionChecks
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine("Visuelle Regression: " + exception);
+            Console.Error.WriteLine("Visual regression: " + exception);
             return 1;
         }
     }
@@ -117,12 +117,12 @@ internal static class VisualRegressionChecks
             var difference = ImageDiff.DifferenceRatio(File.ReadAllBytes(baselinePath), rendered);
             if (difference > 0.01)
             {
-                Console.Error.WriteLine($"Visuelle Regression '{name}': {difference:P2} Abweichung.");
+                Console.Error.WriteLine($"Visual regression '{name}': {difference:P2} difference.");
                 failures++;
             }
         }
 
-        Require(failures == 0, $"{failures} visuelle Fixture(s) weichen ab.");
+        Require(failures == 0, $"{failures} visual fixture(s) differ.");
         Console.WriteLine("Visual regression: all fixtures within tolerance.");
         return 0;
     }

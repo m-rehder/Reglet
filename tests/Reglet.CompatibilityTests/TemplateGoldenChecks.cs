@@ -81,7 +81,7 @@ internal static class TemplateGoldenChecks
         {
             Template = DocumentTemplate.FromBytes(template)
                 .Body("Content")
-                .Bind("Title", new Paragraph(new TextRun("Monatsbericht")))
+                .Bind("Title", new Paragraph(new TextRun("Monthly report")))
                 .BindText("Date", "1. October 2026"),
         };
 
@@ -109,7 +109,7 @@ internal static class TemplateGoldenChecks
         {
             Template = DocumentTemplate.FromBytes(template)
                 .Body("Content")
-                .Bind("Title", new Paragraph(new TextRun("Monatsbericht")))
+                .Bind("Title", new Paragraph(new TextRun("Monthly report")))
                 .BindText("Date", "1. October 2026"),
         };
 

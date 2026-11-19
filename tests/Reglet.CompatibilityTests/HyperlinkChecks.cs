@@ -48,9 +48,9 @@ internal static class HyperlinkChecks
         Require(body.Contains("Example", StringComparison.Ordinal), "DOCX: link text present.");
 
         var rels = ReadZipEntry(package, "word/_rels/document.xml.rels");
-        Require(rels.Contains("relationships/hyperlink", StringComparison.Ordinal), "DOCX: Beziehungstyp Hyperlink.");
-        Require(rels.Contains("Target=\"https://example.com/\"", StringComparison.Ordinal), "DOCX: Ziel.");
-        Require(rels.Contains("TargetMode=\"External\"", StringComparison.Ordinal), "DOCX: externes Ziel.");
+        Require(rels.Contains("relationships/hyperlink", StringComparison.Ordinal), "DOCX: relationship type hyperlink.");
+        Require(rels.Contains("Target=\"https://example.com/\"", StringComparison.Ordinal), "DOCX: target.");
+        Require(rels.Contains("TargetMode=\"External\"", StringComparison.Ordinal), "DOCX: external target.");
     }
 
     private static void ReadsDocxHyperlink()
@@ -103,7 +103,7 @@ internal static class HyperlinkChecks
         var content = ReadZipEntry(buffer.ToArray(), "content.xml");
 
         Require(content.Contains("<text:a ", StringComparison.Ordinal), "ODT: text:a.");
-        Require(content.Contains("xlink:href=\"https://example.com/\"", StringComparison.Ordinal), "ODT: Ziel.");
+        Require(content.Contains("xlink:href=\"https://example.com/\"", StringComparison.Ordinal), "ODT: target.");
         Require(content.Contains("Example", StringComparison.Ordinal), "ODT: Linktext.");
     }
 
@@ -245,7 +245,7 @@ internal static class HyperlinkChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

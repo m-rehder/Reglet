@@ -158,7 +158,7 @@ internal static class ListFormattingChecks
         Throws<ArgumentOutOfRangeException>(() => new NumberingLevel { Format = (ListNumberFormat)99 });
 
         // The definition name is also the ODT list style name; it must be an NCName.
-        Throws<ArgumentException>(() => new NumberingDefinition("1 Liste", [new NumberingLevel()]));
+        Throws<ArgumentException>(() => new NumberingDefinition("1 List", [new NumberingLevel()]));
         Throws<ArgumentException>(() => new NumberingDefinition(string.Empty, [new NumberingLevel()]));
         Throws<ArgumentOutOfRangeException>(() => new NumberingDefinition("n", []));
         Throws<ArgumentOutOfRangeException>(() => new NumberingDefinition(

@@ -1214,7 +1214,7 @@ internal sealed class DocxTemplateBinder
     /// <summary>
     /// merges elements of a property group (<c>pPr</c>/<c>rPr</c>): the base
     /// supplies missing properties, the generated content wins, and the order follows
-    /// dem Schema (CT_PPr/CT_RPr).
+    /// the schema (CT_PPr/CT_RPr).
     /// </summary>
     private static void MergeProperties(
         XElement element,

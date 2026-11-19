@@ -25,7 +25,7 @@ The writers build the `FieldContext` themselves:
 - **document variables** (`DOCVARIABLE`) from `DocumentMetadata.Variables`;
 - **bookmark text** (`REF`) from the bookmarks of the document;
 - **creation date** (`CREATEDATE`) from `DocumentMetadata.Created`;
-- **sequence counters** (`SEQ`): they belong to the context, so the second `SEQ Abbildung` on the
+- **sequence counters** (`SEQ`): they belong to the context, so the second `SEQ Figure` on the
   page is `2`, also across table cells and notes;
 - **`IF`**, `QUOTE`, `MERGEFIELD` and nested fields (`FieldEvaluator`). The value of a nested field
   is one piece of data: its spaces and quotes do not split or end an operand. Fields nested deeper
@@ -46,7 +46,7 @@ caller-supplied: mail merge fills `MergeValues`, and only the PDF knows page num
   stays without a result. Word fills `PAGE` and `NUMPAGES` in headers and footers by itself, but
   in the body, and `PAGEREF` anywhere, only after an update (F9, printing); LibreOffice leaves
   `PAGEREF` empty until the fields are updated. Marking the fields dirty does not help: Word then
-  calculates them before it has laid out the pages (checked with Word 16.114: "Seite 1 von 1" in a
+  calculates them before it has laid out the pages (checked with Word 16.114: "Page 1 of 1" in a
   two-page document). A caller who wants numbers in those files writes general fields
   (`new Field("PAGE")`) and resolves them with `FieldResolver` and a context that has the page
   values.

@@ -99,7 +99,7 @@ internal static class RegressionChecks
         var decoded = PdfPngDecoder.Decode(png);
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Require(decoded.Samples.Length == 3, "One RGB pixel decoded.");
-        Require(allocated < 16 * 1024 * 1024, $"Dekodierung bleibt klein ({allocated} Bytes).");
+        Require(allocated < 16 * 1024 * 1024, $"Decoding stays small ({allocated} bytes).");
 
         Throws<ImageException>(() => PdfPngDecoder.Decode(CreatePng(4, 4, rawLength: 3)));
     }
@@ -136,14 +136,14 @@ internal static class RegressionChecks
 
     private static void PdfIndentsNestedLists()
     {
-        var nested = TestLists.List(ListKind.Bullet, new ListItem[] { new(new Paragraph(new TextRun("innen"))) });
+        var nested = TestLists.List(ListKind.Bullet, new ListItem[] { new(new Paragraph(new TextRun("inner"))) });
         var list = TestLists.List(
             ListKind.Bullet,
-            new ListItem[] { new(new Block[] { new Paragraph(new TextRun("aussen")), nested }) });
+            new ListItem[] { new(new Block[] { new Paragraph(new TextRun("outer")), nested }) });
         var content = PdfContent(TestLists.Document(list));
 
-        var outer = TextX(content, "aussen");
-        var inner = TextX(content, "innen");
+        var outer = TextX(content, "outer");
+        var inner = TextX(content, "inner");
         Require(inner > outer + 1, "Nested list is indented further.");
     }
 
@@ -159,12 +159,12 @@ internal static class RegressionChecks
     {
         var section = new Section(new Paragraph(new TextRun("Body")))
         {
-            Header = new HeaderFooter(TestLists.List(ListKind.Bullet, new ListItem[] { new(new Paragraph(new TextRun("Headerpunkt"))) })),
+            Header = new HeaderFooter(TestLists.List(ListKind.Bullet, new ListItem[] { new(new Paragraph(new TextRun("Headeritem"))) })),
         };
         var content = PdfContent(TestLists.Fix(new PortableDocument(new DocumentMetadata(), section)));
         // The bullet marker is WinAnsi 0x95, written as the PDF octal escape \225.
         Require(
-            TextX(content, "\\225") < TextX(content, "Headerpunkt") - 1,
+            TextX(content, "\\225") < TextX(content, "Headeritem") - 1,
             "The list in the header is drawn with its marker.");
     }
 
@@ -211,7 +211,7 @@ internal static class RegressionChecks
     {
         var document = PortableDocument.Create()
             .NumberedList("a", "b")
-            .Paragraph("Zwischentext")
+            .Paragraph("Text in between")
             .NumberedList("c", "d")
             .Build();
         var (body, numbering) = DocxParts(document);
@@ -226,10 +226,10 @@ internal static class RegressionChecks
 
     private static void DocxDerivesListLevelFromNesting()
     {
-        var nested = TestLists.List(ListKind.Bullet, new ListItem[] { new(new Paragraph(new TextRun("innen"))) });
+        var nested = TestLists.List(ListKind.Bullet, new ListItem[] { new(new Paragraph(new TextRun("inner"))) });
         var list = TestLists.List(
             ListKind.Bullet,
-            new ListItem[] { new(new Block[] { new Paragraph(new TextRun("aussen")), nested }) });
+            new ListItem[] { new(new Block[] { new Paragraph(new TextRun("outer")), nested }) });
         var (body, _) = DocxParts(TestLists.Document(list));
         Require(body.Contains("w:ilvl w:val=\"1\"", StringComparison.Ordinal), "Nested list lies at level 1.");
     }
@@ -260,7 +260,7 @@ internal static class RegressionChecks
 
     private static void DocxEndsCellsWithParagraph()
     {
-        var inner = new TableBlock(new[] { new TableRow(new TableCell("innen")) });
+        var inner = new TableBlock(new[] { new TableRow(new TableCell("inner")) });
         var outer = new TableBlock(new[] { new TableRow(new TableCell(inner)) });
         var (body, _) = DocxParts(TestLists.Document(outer));
         Require(body.Contains("</w:tbl><w:p /></w:tc>", StringComparison.Ordinal), "Cell ends with a paragraph.");
@@ -383,7 +383,7 @@ internal static class RegressionChecks
 
     private static void DocxEndsCellWithParagraphAfterListTable()
     {
-        var inner = new TableBlock(new[] { new TableRow(new TableCell("innen")) });
+        var inner = new TableBlock(new[] { new TableRow(new TableCell("inner")) });
         var list = TestLists.List(
             ListKind.Bullet,
             new ListItem[] { new(new Block[] { new Paragraph(new TextRun("Point")), inner }) });
@@ -433,7 +433,7 @@ internal static class RegressionChecks
             var styles = ReadEntry(zip, "styles.xml");
             var content = ReadEntry(zip, "content.xml");
             Require(styles.Contains($"fo:margin-bottom=\"{after.Points}pt\"", StringComparison.Ordinal), "ODT: default spacing.");
-            Require(content.Contains("fo:margin-bottom=\"0pt\"", StringComparison.Ordinal), "ODT: Kompakter Stil vorhanden.");
+            Require(content.Contains("fo:margin-bottom=\"0pt\"", StringComparison.Ordinal), "ODT: compact style present.");
             Require(content.Contains("<text:p text:style-name=\"P1\">Point<text:s />one</text:p>", StringComparison.Ordinal), "ODT: list item compact.");
             Require(content.Contains("<text:p>Point<text:s />two</text:p>", StringComparison.Ordinal), "ODT: last list item with default spacing.");
         }
@@ -456,17 +456,17 @@ internal static class RegressionChecks
             var builder = PortableDocument.Create();
             for (var index = 0; index < fill; index++)
             {
-                builder.Paragraph("Fuelltext");
+                builder.Paragraph("Filler");
             }
 
-            var pages = PdfPageContents(builder.Heading("Title", level: 2).Paragraph("Folgetext").Build());
+            var pages = PdfPageContents(builder.Heading("Title", level: 2).Paragraph("Continuation").Build());
             var headingPage = pages.FindIndex(page => page.Contains("(Title) Tj", StringComparison.Ordinal));
-            var nextPage = pages.FindIndex(page => page.Contains("(Folgetext) Tj", StringComparison.Ordinal));
+            var nextPage = pages.FindIndex(page => page.Contains("(Continuation) Tj", StringComparison.Ordinal));
             Require(headingPage == nextPage, $"Heading and following line on the same page (fill amount {fill}).");
 
             // Moved means: on the heading's page no filler text stands before it.
             var page = pages[headingPage];
-            var filler = page.IndexOf("(Fuelltext) Tj", StringComparison.Ordinal);
+            var filler = page.IndexOf("(Filler) Tj", StringComparison.Ordinal);
             headingMovedToNextPage |= headingPage > 0 && (filler < 0 || filler > page.IndexOf("(Title) Tj", StringComparison.Ordinal));
         }
 
@@ -475,7 +475,7 @@ internal static class RegressionChecks
 
     private static void UsesSameTableCellPaddingInAllFormats()
     {
-        var document = PortableDocument.Create().Table(t => t.Row("Oben").Row("Unten")).Build();
+        var document = PortableDocument.Create().Table(t => t.Row("Top").Row("Bottom")).Build();
 
         var (body, _) = DocxParts(document);
         var twips = Typography.TableCellPaddingHorizontal.Points * 20;
@@ -484,9 +484,9 @@ internal static class RegressionChecks
 
         var pdf = PdfContent(document);
         var line = DocumentDefaults.Default.FontSize.Points * Typography.LineHeightFactor;
-        Require(Math.Abs(TextX(pdf, "Oben") - PageMargins.Normal.Left.Points - Typography.TableCellPaddingHorizontal.Points) < 0.01,
+        Require(Math.Abs(TextX(pdf, "Top") - PageMargins.Normal.Left.Points - Typography.TableCellPaddingHorizontal.Points) < 0.01,
             "PDF: cell padding left like DOCX.");
-        Require(Math.Abs(TextY(pdf, "Oben") - TextY(pdf, "Unten") - line - 2 * Typography.TableCellPaddingVertical.Points) < 0.01,
+        Require(Math.Abs(TextY(pdf, "Top") - TextY(pdf, "Bottom") - line - 2 * Typography.TableCellPaddingVertical.Points) < 0.01,
             "PDF: line height without additional top/bottom padding.");
     }
 
@@ -595,7 +595,7 @@ internal static class RegressionChecks
         string StyleOf(string pattern)
         {
             var match = Regex.Match(content, pattern);
-            Require(match.Success, $"Element gefunden: {pattern}");
+            Require(match.Success, $"Element found: {pattern}");
             return match.Groups[1].Value;
         }
 
@@ -657,15 +657,15 @@ internal static class RegressionChecks
     {
         // A headline across the page, then a continuous section in two columns: both columns start below the headline
         // (the right one used to start at the top of the page and overlapped it).
-        var head = new Section(new Block[] { new Paragraph(new TextRun("Kopfzeile des Artikels")), new Paragraph(new TextRun("Vorspann über die ganze Breite.")) });
-        var columns = new Section(Enumerable.Range(0, 12).Select(i => (Block)new Paragraph(new TextRun($"Spalte{i:D2} " + string.Join(' ', Enumerable.Repeat("wort", 60))))).ToList())
+        var head = new Section(new Block[] { new Paragraph(new TextRun("Headline of the article")), new Paragraph(new TextRun("Standfirst across the full width.")) });
+        var columns = new Section(Enumerable.Range(0, 12).Select(i => (Block)new Paragraph(new TextRun($"Column{i:D2} " + string.Join(' ', Enumerable.Repeat("word", 60))))).ToList())
         {
             TextColumns = 2,
             StartType = SectionStartType.Continuous,
         };
         var page = PdfPageContents(new PortableDocument(new DocumentMetadata(), [head, columns]))[0];
-        var below = TextY(page, "Vorspann");
-        var right = Enumerable.Range(0, 12).Select(i => $"Spalte{i:D2}").Where(key => page.Contains(key, StringComparison.Ordinal))
+        var below = TextY(page, "Standfirst");
+        var right = Enumerable.Range(0, 12).Select(i => $"Column{i:D2}").Where(key => page.Contains(key, StringComparison.Ordinal))
             .Select(key => TextPosition(page, key)).Where(position => position.X > 280).ToList();
         Require(right.Count > 0, "PDF: some text reaches the right column on the first page.");
         Require(right.All(position => position.Y < below), "PDF: the right column starts below the full-width text.");
@@ -679,10 +679,10 @@ internal static class RegressionChecks
         {
             var page = PdfPageContents(new PortableDocument(new DocumentMetadata(), new Section(new Block[]
             {
-                new Paragraph(new TextRun("oben")) { Style = ParagraphStyle.Default with { SpaceAfter = Length.FromPoints(after) } },
-                new Heading(HeadingLevel.Level2, new TextRun("unten")) { Style = ParagraphStyle.Default with { SpaceBefore = Length.FromPoints(12) } },
+                new Paragraph(new TextRun("top")) { Style = ParagraphStyle.Default with { SpaceAfter = Length.FromPoints(after) } },
+                new Heading(HeadingLevel.Level2, new TextRun("bottom")) { Style = ParagraphStyle.Default with { SpaceBefore = Length.FromPoints(12) } },
             })))[0];
-            return TextY(page, "oben") - TextY(page, "unten");
+            return TextY(page, "top") - TextY(page, "bottom");
         }
 
         Require(Math.Abs(Gap(6) - Gap(0)) < 0.01, "PDF: the gap between paragraphs is the larger space, not the sum.");
@@ -708,7 +708,7 @@ internal static class RegressionChecks
             new Section(new Block[] { new Heading(HeadingLevel.Level2, new TextRun("Section")) }),
         });
         // After a section break Word/LibreOffice reduce the space before by a
-        // festen Betrag (siehe Typography.SpaceBeforeReductionAtSectionStart; in Word „~5 pt“
+        // fixed amount (see Typography.SpaceBeforeReductionAtSectionStart; in Word about 5 pt
         // at a 12-pt heading, measured in LibreOffice as max(0, before − 6)).
         Require(Math.Abs(TextY(PdfPageContents(sections)[1], "Section")
             - (top - (before - Typography.SpaceBeforeReductionAtSectionStart.Points) - size * ascent)) < 0.01,
@@ -720,14 +720,14 @@ internal static class RegressionChecks
             var builder = PortableDocument.Create();
             for (var index = 0; index < fill; index++)
             {
-                builder.Paragraph("Fuelltext");
+                builder.Paragraph("Filler");
             }
 
-            var pages = PdfPageContents(builder.Heading("Ueberlauf", level: 2).Paragraph("y").Build());
-            var page = pages.FindIndex(content => content.Contains("(Ueberlauf) Tj", StringComparison.Ordinal));
-            if (page > 0 && !pages[page].Contains("(Fuelltext) Tj", StringComparison.Ordinal))
+            var pages = PdfPageContents(builder.Heading("Overflow", level: 2).Paragraph("y").Build());
+            var page = pages.FindIndex(content => content.Contains("(Overflow) Tj", StringComparison.Ordinal));
+            if (page > 0 && !pages[page].Contains("(Filler) Tj", StringComparison.Ordinal))
             {
-                Require(Math.Abs(TextY(pages[page], "Ueberlauf") - (top - size * ascent)) < 0.01, $"PDF: no space before after overflow (fill amount {fill}).");
+                Require(Math.Abs(TextY(pages[page], "Overflow") - (top - size * ascent)) < 0.01, $"PDF: no space before after overflow (fill amount {fill}).");
                 overflowChecked = true;
             }
         }
@@ -877,7 +877,7 @@ internal static class RegressionChecks
         Directory.CreateDirectory(directory);
         try
         {
-            var path = Path.Combine(directory, "kaputt.docx");
+            var path = Path.Combine(directory, "broken.docx");
             var document = PortableDocument.Create().Paragraph("A\u0001B").Build();
             Throws<DocumentValidationException>(() => DocumentWriter.WriteAsync(
                 document,
@@ -985,7 +985,7 @@ internal static class RegressionChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

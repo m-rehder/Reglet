@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 
 namespace Reglet;
 
-/// <summary>Optionale Dokumentmetadaten.</summary>
+/// <summary>Optional document metadata.</summary>
 public sealed record DocumentMetadata
 {
     private IReadOnlyList<string>? _keywords;
@@ -16,7 +16,7 @@ public sealed record DocumentMetadata
     /// <summary>Author or creator.</summary>
     public string? Author { get; init; }
 
-    /// <summary>Betreff.</summary>
+    /// <summary>Subject.</summary>
     public string? Subject { get; init; }
 
     /// <summary>Keywords.</summary>
@@ -26,7 +26,7 @@ public sealed record DocumentMetadata
         init => _keywords = value is null ? null : ModelCollections.Snapshot(value, nameof(Keywords));
     }
 
-    /// <summary>Sprache (z. B. <c>de-DE</c>).</summary>
+    /// <summary>Language (e.g. <c>en-GB</c>).</summary>
     public string? Language { get; init; }
 
     /// <summary>Creation time.</summary>

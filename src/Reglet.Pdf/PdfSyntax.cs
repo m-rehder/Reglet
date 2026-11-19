@@ -4,7 +4,7 @@ using System.Text;
 namespace Reglet;
 
 /// <summary>
-/// Werte des PDF-Objektmodells (Subset): Null, boolesche Werte, Zahlen, Strings, Namen,
+/// values of the PDF object model (subset): null, booleans, numbers, strings, names,
 /// arrays, dictionaries, indirect references and streams.
 /// </summary>
 internal abstract class PdfValue

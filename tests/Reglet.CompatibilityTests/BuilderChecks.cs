@@ -22,7 +22,7 @@ internal static class BuilderChecks
     private static void BuildReturnsImmutableDocument()
     {
         var builder = PortableDocument.Create()
-            .Metadata(title: "Title", author: "Autor")
+            .Metadata(title: "Title", author: "Author")
             .Heading("Heading", level: 1)
             .Paragraph("Paragraph");
 
@@ -89,6 +89,6 @@ internal static class BuilderChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 }

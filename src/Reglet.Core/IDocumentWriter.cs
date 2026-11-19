@@ -13,6 +13,6 @@ public interface IDocumentWriter
     /// <summary>Writes the document to the stream and returns collected warnings.</summary>
     /// <param name="document">The document to write.</param>
     /// <param name="output">Target stream; it remains open after writing.</param>
-    /// <param name="cancellationToken">Abbruchsignal.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     Task<WriteResult> WriteAsync(PortableDocument document, Stream output, CancellationToken cancellationToken = default);
 }

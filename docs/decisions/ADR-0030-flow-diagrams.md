@@ -1,6 +1,6 @@
 # ADR-0030: Flow diagrams (a `Diagram` block of nodes and connectors)
 
-- **Status:** Accepted (2026-11-18, product owner: "Flussdiagramme", details chosen by the implementer: recommended defaults); implemented in .NET
+- **Status:** Accepted (2026-11-18, product owner: "flow diagrams", details chosen by the implementer: recommended defaults); implemented in .NET
 - **Date:** 2026-11-18
 - **Context:** "Connectors and flow diagrams" row of "Out of scope" in the feature matrix. The drawing layer
   (ADR-0022) has lines, rectangles, ellipses, freeforms and text boxes, but no arrowheads, no connection between
@@ -73,7 +73,7 @@ curved connectors; reading diagrams back.
   the text, and the space that centres the text, computed for the full height, pushed it out of the boxes. Now
   `DiagramLayout.Scale` scales the laid-out shapes themselves (geometry, paths, outline widths, font sizes, paragraph
   spacing) and DOCX and PDF draw those; the group is not scaled any more. ODT keeps the full size.
-- Second Word check: node text fits; the connector labels ("Ja", "Nein") still vanished, because the text margins
+- Second Word check: node text fits; the connector labels ("Yes", "No") still vanished, because the text margins
   stayed at Word's defaults (7.2 pt left and right) while the label boxes shrank. The DOCX writer now writes the
   margins of a shrunk diagram scaled (`lIns`, `tIns`, `rIns`, `bIns`), the PDF scales its 4 pt padding the same way.
 - ODT (2026-11-19): a diagram wider than its place (text area or table cell) is shrunk with its text like in DOCX and

@@ -55,7 +55,7 @@ internal static class HeaderFooterChecks
         Require(body.Contains("<w:titlePg", StringComparison.Ordinal), "DOCX: titlePg.");
         Require(body.Contains("w:type=\"first\"", StringComparison.Ordinal), "DOCX: header of the first page.");
         Require(body.Contains("w:type=\"even\"", StringComparison.Ordinal), "DOCX: header of even pages.");
-        Require(body.Contains("w:pgNumType w:start=\"5\"", StringComparison.Ordinal), "DOCX: Startseitenzahl.");
+        Require(body.Contains("w:pgNumType w:start=\"5\"", StringComparison.Ordinal), "DOCX: start page number.");
 
         Require(ReadZipEntry(package, "word/settings.xml").Contains("w:evenAndOddHeaders", StringComparison.Ordinal), "DOCX: evenAndOddHeaders.");
     }
@@ -68,8 +68,8 @@ internal static class HeaderFooterChecks
 
         Require(content.Contains("(First) Tj", StringComparison.Ordinal), "PDF: header of the first page.");
         Require(content.Contains("(Even) Tj", StringComparison.Ordinal), "PDF: header of even pages.");
-        Require(content.Contains("(5) Tj", StringComparison.Ordinal), "PDF: Startseitenzahl 5.");
-        Require(content.Contains("(6) Tj", StringComparison.Ordinal), "PDF: Folgeseite 6.");
+        Require(content.Contains("(5) Tj", StringComparison.Ordinal), "PDF: start page number 5.");
+        Require(content.Contains("(6) Tj", StringComparison.Ordinal), "PDF: next page 6.");
     }
 
     private static void WritesOdtVariants()
@@ -144,7 +144,7 @@ internal static class HeaderFooterChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

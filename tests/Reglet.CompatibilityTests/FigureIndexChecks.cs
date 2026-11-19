@@ -48,7 +48,7 @@ internal static class FigureIndexChecks
             Caption("Figure", 2, "Second picture"),
             Caption("Table", 1, "A table"),
             Mark("Apples again.", new IndexEntry("Apple")),
-            Mark("Oranges.", new IndexEntry("Ärger \"quoted\": text")),
+            Mark("Oranges.", new IndexEntry("Ångström \"quoted\": text")),
         }));
 
     private static void RejectsInvalidValues()
@@ -71,7 +71,7 @@ internal static class FigureIndexChecks
         Require(body.Contains("INDEX \\h", StringComparison.Ordinal), "DOCX: the index is an INDEX field.");
         Require(body.Contains(" XE \"Apple\" ", StringComparison.Ordinal), "DOCX: an index entry is an XE field.");
         Require(body.Contains(" XE \"Fruit:Pear\" ", StringComparison.Ordinal), "DOCX: a sub entry follows its main entry after a colon.");
-        Require(body.Contains("XE \"Ärger \\\"quoted\\\"\\: text\"", StringComparison.Ordinal), "DOCX: quotation marks and colons are escaped.");
+        Require(body.Contains("XE \"Ångström \\\"quoted\\\"\\: text\"", StringComparison.Ordinal), "DOCX: quotation marks and colons are escaped.");
         Require(body.Contains("<w:vanish", StringComparison.Ordinal), "DOCX: the entry field is hidden text.");
         Require(Count(body, ">Apple<") <= 1, "DOCX: an entry that occurs twice is listed once.");
     }
@@ -130,7 +130,7 @@ internal static class FigureIndexChecks
         Require(lines.Any(line => line == "Apple, 2, 3"), "PDF: an entry on two pages lists both pages: " + string.Join("|", lines));
         Require(lines.Contains("Fruit") && lines.Any(line => line == "Pear, 2"), "PDF: a sub entry stands below its main entry.");
         Require(lines.IndexOf("A") < lines.IndexOf("Apple, 2, 3") && lines.IndexOf("Apple, 2, 3") < lines.IndexOf("F"), "PDF: the entries are grouped by letter.");
-        Require(lines.IndexOf("A") < lines.FindIndex(line => line.StartsWith("Ärger", StringComparison.Ordinal)), "PDF: an accented entry sorts with its base letter.");
+        Require(lines.IndexOf("A") < lines.FindIndex(line => line.StartsWith("Ångström", StringComparison.Ordinal)), "PDF: an accented entry sorts with its base letter.");
     }
 
     private static void RoundTripsWithoutError()

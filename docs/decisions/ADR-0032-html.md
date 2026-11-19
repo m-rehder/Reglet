@@ -1,6 +1,6 @@
 # ADR-0032: HTML as a document format (reader and writer)
 
-- **Status:** Accepted (2026-11-18, product owner: "Konvertierungsengine nur HTML", details chosen by the implementer: recommended defaults)
+- **Status:** Accepted (2026-11-18, product owner: "conversion engine: only HTML", details chosen by the implementer: recommended defaults)
 - **Date:** 2026-11-18
 - **Context:** "Conversion engine and formats" row of "Out of scope" (HTML, Markdown, TXT, RTF, XPS, DOC, flat OPC, images,
   layout-faithful conversions, HTML→PDF; XL). The product owner narrowed it to **HTML**. The library converts between its

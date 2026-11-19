@@ -74,18 +74,18 @@ internal static class OdtWriterChecks
     private static void PassesSubsetValidator()
     {
         var document = PortableDocument.Create()
-            .Metadata(title: "Title", author: "Autor")
+            .Metadata(title: "Title", author: "Author")
             .Heading("Heading", level: 1)
-            .Paragraph(p => p.Text("Text ").Bold("fett"))
+            .Paragraph(p => p.Text("Text ").Bold("bold"))
             .BulletList("a", "b")
             .Table(t => t.Header("A", "B").Row("1", "2"))
             .PageBreak()
-            .Paragraph("Ende")
+            .Paragraph("End")
             .Build();
 
         var bytes = WritePackage(document);
         var errors = OdtPackageValidator.Validate(bytes);
-        Require(errors.Count == 0, "ODT besteht den Subset-Validator: " + string.Join("; ", errors));
+        Require(errors.Count == 0, "ODT passes the subset validator: " + string.Join("; ", errors));
     }
 
     private static void WritesManifest()
@@ -115,13 +115,13 @@ internal static class OdtWriterChecks
         var content = ReadEntry(zip, "content.xml");
         Require(content.Contains("office:document-content", StringComparison.Ordinal), "Root element present.");
         Require(content.Contains("office:version=\"1.3\"", StringComparison.Ordinal), "office:version 1.3 present.");
-        Require(content.Contains("office:automatic-styles", StringComparison.Ordinal), "Automatische Stile vorhanden.");
+        Require(content.Contains("office:automatic-styles", StringComparison.Ordinal), "Automatic styles present.");
         Require(content.Contains("office:text", StringComparison.Ordinal), "office:text present.");
 
         var manifest = ReadEntry(zip, "META-INF/manifest.xml");
         Require(
             manifest.Contains("manifest:full-path=\"content.xml\"", StringComparison.Ordinal),
-            "Manifest listet content.xml.");
+            "The manifest lists content.xml.");
     }
 
     private static void WritesStylesSkeleton()
@@ -143,7 +143,7 @@ internal static class OdtWriterChecks
         var manifest = ReadEntry(zip, "META-INF/manifest.xml");
         Require(
             manifest.Contains("manifest:full-path=\"styles.xml\"", StringComparison.Ordinal),
-            "Manifest listet styles.xml.");
+            "The manifest lists styles.xml.");
     }
 
     private static void WritesMeta()
@@ -151,8 +151,8 @@ internal static class OdtWriterChecks
         var document = PortableDocument.Create()
             .Metadata(
                 title: "Title",
-                author: "Autor",
-                subject: "Betreff",
+                author: "Author",
+                subject: "Subject",
                 keywords: new[] { "a", "b" },
                 language: "de-DE",
                 created: new DateTimeOffset(2026, 9, 24, 0, 0, 0, TimeSpan.Zero))
@@ -165,8 +165,8 @@ internal static class OdtWriterChecks
         var meta = ReadEntry(zip, "meta.xml");
         Require(meta.Contains("office:document-meta", StringComparison.Ordinal), "Root element present.");
         Require(meta.Contains("Title", StringComparison.Ordinal), "Title present.");
-        Require(meta.Contains("Autor", StringComparison.Ordinal), "Author present.");
-        Require(meta.Contains("Betreff", StringComparison.Ordinal), "Subject present.");
+        Require(meta.Contains("Author", StringComparison.Ordinal), "Author present.");
+        Require(meta.Contains("Subject", StringComparison.Ordinal), "Subject present.");
         Require(meta.Contains("de-DE", StringComparison.Ordinal), "Language present.");
         Require(meta.Contains("2026-09-24T00:00:00Z", StringComparison.Ordinal), "Timestamp present.");
         Require(meta.Split("<meta:keyword", StringSplitOptions.None).Length - 1 == 2, "Two keywords present.");
@@ -174,7 +174,7 @@ internal static class OdtWriterChecks
         var manifest = ReadEntry(zip, "META-INF/manifest.xml");
         Require(
             manifest.Contains("manifest:full-path=\"meta.xml\"", StringComparison.Ordinal),
-            "Manifest listet meta.xml.");
+            "The manifest lists meta.xml.");
     }
 
     private static void WritesSettings()
@@ -190,7 +190,7 @@ internal static class OdtWriterChecks
         var manifest = ReadEntry(zip, "META-INF/manifest.xml");
         Require(
             manifest.Contains("manifest:full-path=\"settings.xml\"", StringComparison.Ordinal),
-            "Manifest listet settings.xml.");
+            "The manifest lists settings.xml.");
     }
 
     private static void WritesExpectedNamespaces()
@@ -247,7 +247,7 @@ internal static class OdtWriterChecks
             return;
         }
 
-        Require(expected.Contains(namespaceUri), $"Unerwarteter Namespace in {partName}: {namespaceUri}");
+        Require(expected.Contains(namespaceUri), $"Unexpected namespace in {partName}: {namespaceUri}");
     }
 
     private static void WritesSectionLayouts()
@@ -397,11 +397,11 @@ internal static class OdtWriterChecks
         var content = ReadEntry(zip, "content.xml");
         Require(content.Contains("<text:h", StringComparison.Ordinal), "text:h present.");
         Require(content.Contains("text:outline-level=\"2\"", StringComparison.Ordinal), "outline-level 2 present.");
-        Require(content.Contains("text:style-name=\"Heading2\"", StringComparison.Ordinal), "Heading2-Stilreferenz vorhanden.");
+        Require(content.Contains("text:style-name=\"Heading2\"", StringComparison.Ordinal), "Heading2 style reference present.");
 
         var styles = ReadEntry(zip, "styles.xml");
         Require(styles.Contains("style:name=\"Heading2\"", StringComparison.Ordinal), "Heading2 style defined.");
-        Require(styles.Contains("fo:font-weight", StringComparison.Ordinal), "Fett-Definition vorhanden.");
+        Require(styles.Contains("fo:font-weight", StringComparison.Ordinal), "Bold definition present.");
     }
 
     private static void WritesTextSpans()
@@ -419,8 +419,8 @@ internal static class OdtWriterChecks
 
         Require(CountOccurrences(content, "style:family=\"text\"") == 2, "Exactly two deduplicated text styles.");
         Require(CountOccurrences(content, "<text:span") == 3, "Three text spans.");
-        Require(content.Contains("fo:font-weight=\"bold\"", StringComparison.Ordinal), "Fett-Definition vorhanden.");
-        Require(content.Contains("fo:font-style=\"italic\"", StringComparison.Ordinal), "Kursiv-Definition vorhanden.");
+        Require(content.Contains("fo:font-weight=\"bold\"", StringComparison.Ordinal), "Bold definition present.");
+        Require(content.Contains("fo:font-style=\"italic\"", StringComparison.Ordinal), "Italic definition present.");
     }
 
     private static void WritesLists()
@@ -449,13 +449,13 @@ internal static class OdtWriterChecks
         Require(references.Count == 2 && references.All(styles.Contains), "Every list references its definition: " + string.Join(", ", references));
         Require(CountOccurrences(content, "<text:list-item") == 4, "Four list items.");
         Require(content.Contains("list-level-style-bullet", StringComparison.Ordinal), "Bullet style defined.");
-        Require(content.Contains("list-level-style-number", StringComparison.Ordinal), "Nummerierungsstil definiert.");
+        Require(content.Contains("list-level-style-number", StringComparison.Ordinal), "Numbering style defined.");
     }
 
     private static void WritesTables()
     {
         var document = PortableDocument.Create()
-            .Table(t => t.Header("Kennzahl", "Wert").Row("Documents", "42").ColumnWidths(Length.FromCentimeters(3), Length.FromCentimeters(5)))
+            .Table(t => t.Header("Metric", "Value").Row("Documents", "42").ColumnWidths(Length.FromCentimeters(3), Length.FromCentimeters(5)))
             .Build();
 
         var bytes = WritePackage(document);
@@ -468,7 +468,7 @@ internal static class OdtWriterChecks
         Require(content.Contains("<table:table-cell", StringComparison.Ordinal), "Cells present.");
         Require(content.Contains("<text:p", StringComparison.Ordinal), "Paragraph present in the cell.");
         Require(content.Contains("style:family=\"table-column\"", StringComparison.Ordinal), "Column style defined.");
-        Require(content.Contains("Kennzahl", StringComparison.Ordinal), "Cell content present.");
+        Require(content.Contains("Metric", StringComparison.Ordinal), "Cell content present.");
     }
 
     private static void DeduplicatesRoundedColumnStyles()
@@ -530,7 +530,7 @@ internal static class OdtWriterChecks
         Require(content.Contains("<draw:image", StringComparison.Ordinal), "draw:image present.");
         Require(
             content.Contains("xlink:href=\"Pictures/image1.png\"", StringComparison.Ordinal),
-            "Relative Paketpfad-Referenz vorhanden.");
+            "Relative package path reference present.");
         Require(content.Contains("svg:width=", StringComparison.Ordinal), "Frame width set.");
         Require(content.Contains("svg:height=", StringComparison.Ordinal), "Frame height set.");
     }
@@ -539,14 +539,14 @@ internal static class OdtWriterChecks
     private static void WritesImageAltText()
     {
         var png = CreatePng(96, 48);
-        var document = PortableDocument.Create().Image(png, ImageMediaType.Png, altText: "Diagramm").Build();
+        var document = PortableDocument.Create().Image(png, ImageMediaType.Png, altText: "Chart").Build();
 
         var bytes = WritePackage(document);
         using var zip = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read);
         var content = ReadEntry(zip, "content.xml");
 
-        Require(content.Contains("<svg:title>Diagramm</svg:title>", StringComparison.Ordinal), "svg:title present.");
-        Require(content.Contains("<svg:desc>Diagramm</svg:desc>", StringComparison.Ordinal), "svg:desc present.");
+        Require(content.Contains("<svg:title>Chart</svg:title>", StringComparison.Ordinal), "svg:title present.");
+        Require(content.Contains("<svg:desc>Chart</svg:desc>", StringComparison.Ordinal), "svg:desc present.");
         Require(
             content.IndexOf("</draw:image>", StringComparison.Ordinal)
                 < content.IndexOf("<svg:title>", StringComparison.Ordinal),

@@ -3,9 +3,9 @@ namespace Reglet;
 /// <summary>Orientation of a page.</summary>
 public enum PageOrientation
 {
-    /// <summary>Hochformat.</summary>
+    /// <summary>Portrait.</summary>
     Portrait,
 
-    /// <summary>Querformat.</summary>
+    /// <summary>Landscape.</summary>
     Landscape,
 }

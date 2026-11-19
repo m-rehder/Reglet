@@ -1197,7 +1197,7 @@ internal static class DocxTemplateChecks
 
     private static void BindsListInBlockContent()
     {
-        var templateBytes = CreateTemplate(PortableDocument.Create().Paragraph("{{Liste}}").Build());
+        var templateBytes = CreateTemplate(PortableDocument.Create().Paragraph("{{List}}").Build());
 
         var list = TestLists.List(ListKind.Bullet, new ListItem[]
         {
@@ -1210,7 +1210,7 @@ internal static class DocxTemplateChecks
             templateBytes,
             new DocxWriteOptions
             {
-                Template = DocumentTemplate.FromBytes(templateBytes).Bind("Liste", list),
+                Template = DocumentTemplate.FromBytes(templateBytes).Bind("List", list),
             },
             out var package);
 
@@ -1589,7 +1589,7 @@ internal static class DocxTemplateChecks
         foreach (var bind in new[] { false, true })
         {
             var templateBytes = CreateTemplate(PortableDocument.Create().Paragraph("{{Table}}").Build());
-            var table = new TableBlock([new TableRow([new TableCell("Kopf")]) { IsHeader = true }])
+            var table = new TableBlock([new TableRow([new TableCell("Head")]) { IsHeader = true }])
             {
                 Style = new TableStyle("Raster") { HeaderRow = new TableStyleArea { Bold = true } },
             };

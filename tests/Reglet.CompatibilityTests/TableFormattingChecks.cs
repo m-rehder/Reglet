@@ -42,7 +42,7 @@ internal static class TableFormattingChecks
             },
             new TableRow(new[]
             {
-                new TableCell("Wert")
+                new TableCell("Value")
                 {
                     VerticalAlignment = TableCellVerticalAlignment.Center,
                     Background = Color.FromHex("EEEEEE"),
@@ -118,7 +118,7 @@ internal static class TableFormattingChecks
         var content = PdfStreams.Decompress(buffer.ToArray());
         Require(content.Contains("0.933 0.933 0.933 rg", StringComparison.Ordinal), "PDF: cell background is filled.");
         Require(content.Contains("(Header", StringComparison.Ordinal), "PDF: spanned cell text is rendered.");
-        Require(content.Contains("(Wert)", StringComparison.Ordinal), "PDF: cell text is rendered.");
+        Require(content.Contains("(Value)", StringComparison.Ordinal), "PDF: cell text is rendered.");
     }
 
     /// <summary>Paragraph indents apply inside a table cell (left indent, first line, and the first line's wrap width).</summary>

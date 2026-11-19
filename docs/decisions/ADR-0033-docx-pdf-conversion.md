@@ -1,6 +1,6 @@
 # ADR-0033: DOCX↔PDF conversion (PDF structure recovery, DOCX→PDF fidelity)
 
-- **Status:** Accepted (2026-11-18, product owner: "die Konvertierung DOCX<->PDF wäre schön", details chosen by the implementer: recommended defaults)
+- **Status:** Accepted (2026-11-18, product owner: "the conversion DOCX<->PDF would be nice", details chosen by the implementer: recommended defaults)
 - **Date:** 2026-11-18
 - **Context:** DOCX→PDF already works through the model (`DocumentReader` → `DocumentWriter`). PDF→DOCX works only
   as far as the PDF reader goes: one paragraph per text line, bold/italic, no lists, headings, tables or images,
@@ -84,7 +84,7 @@ structure (`/StructTree`) as a better source of paragraphs (a possible later imp
 - **Renderer bug found by the column test:** a paragraph that continued in the next text column was drawn at the left
   edge of the previous column (over the first lines of that column). Fixed: the line position comes from the current column.
 - **Drift explained and fixed:** the remaining difference was the space between a paragraph and the next one. LibreOffice
-  uses the larger of "after" and "before"; the library added them. A hand check in Word (`abstand.docx`, screenshot 2026-11-18)
+  uses the larger of "after" and "before"; the library added them. A hand check in Word (`spacing.docx`, screenshot 2026-11-18)
   shows the same as LibreOffice (about 26 pt between the last line of a paragraph and a following 12 pt heading, not 31 pt), so the
   PDF renderer now takes the larger value (not after a section break or at the top of a page). The text document then agrees with
   LibreOffice on 8 instead of 3 of 13 page starts.
@@ -99,7 +99,7 @@ Five public PDFs read with `RecoverStructure` (share of the `pdftotext` words fo
 Wikipedia print of "Berlin" 93 %, Bundestag Drucksache (62 pages) 92 %, BITV test report 92 %, Berkeley two-column guide 89 %, arXiv physics paper 68 %.
 None crashed; 62 pages take about 140 ms. Findings:
 - Formula-heavy two-column text is the weak spot: lines with Greek and math symbols are misread as tables (23 tables in a 10-page paper) and a rotated margin stamp (arXiv id) ends up in a heading.
-- Wikipedia: headings, lists and 177 images are recovered, "→ Hauptartikel" lines become headings (size heuristic).
+- Wikipedia: headings, lists and 177 images are recovered, "→ Main article" lines become headings (size heuristic).
 - Page sizes in the Drucksache differ; the recovered document takes the first one and reports it.
 - Fixed the same day: (1) the gutter search is now a white-space strip that stays empty in nearly all text lines (also 6 pt wide), not a cell-based one, so a two-column paper with a narrow gutter is split into columns; (2) prose columns that still end up as a table are recognised from 3 rows (was 6); (3) table cells get the spaces between their pieces (words had been glued together); (4) rotated text (arXiv margin stamp, sideways labels) is left out and reported. arXiv paper: 68 % -> 86 % of the words, 23 -> 10 tables, title is a heading again.
 - Fixed afterwards (ligatures and formulas): simple fonts without a ToUnicode map now use the glyph names of `/Encoding /Differences` (LaTeX and dvips: `fi`, `ffi`, `nu`, `alpha`, dashes, math symbols) through a subset of the Adobe Glyph List (`PdfGlyphNames`, also `uniXXXX` and accented letters); and line building puts superscripts and subscripts into their line in horizontal order (the baseline is the largest piece's, the tolerance uses the larger size), so `m2 or m3` stays in place instead of drifting to the end of the line. Berkeley guide 88 % -> 99.5 %, Wikipedia 93 % -> 95 %, arXiv 86 % -> 89 %.

@@ -205,10 +205,10 @@ internal static class ReviewFindingChecks
     private static void DocxLocalizedHeadingStyleIsHeading()
     {
         var styles = $"<w:styles xmlns:w='{W}'><w:style w:type='paragraph' w:styleId='berschrift2'><w:name w:val='heading 2'/></w:style>"
-            + "<w:style w:type='paragraph' w:styleId='Kapitel'><w:basedOn w:val='berschrift2'/></w:style></w:styles>";
+            + "<w:style w:type='paragraph' w:styleId='Chapter'><w:basedOn w:val='berschrift2'/></w:style></w:styles>";
         var result = ReadDocx(
             "<w:p><w:pPr><w:pStyle w:val='berschrift2'/></w:pPr><w:r><w:t>A</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:pStyle w:val='Kapitel'/></w:pPr><w:r><w:t>B</w:t></w:r></w:p>",
+            + "<w:p><w:pPr><w:pStyle w:val='Chapter'/></w:pPr><w:r><w:t>B</w:t></w:r></w:p>",
             ("word/styles.xml", styles));
         Require(result.Document.Sections[0].Blocks is [Heading { Level: HeadingLevel.Level2 }, Heading { Level: HeadingLevel.Level2 }],
             "Localized and derived heading styles are headings.");
@@ -393,11 +393,11 @@ internal static class ReviewFindingChecks
 
     private static void PdfUriIsAscii()
     {
-        var document = new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new Hyperlink("https://bücher.example/straße", "link"))));
+        var document = new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new Hyperlink("https://café.example/crème", "link"))));
         using var pdf = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(document, pdf).GetAwaiter().GetResult();
         var text = Encoding.Latin1.GetString(pdf.ToArray());
-        Require(text.Contains("/URI (https://xn--bcher-kva.example/stra%C3%9Fe)", StringComparison.Ordinal), "PDF: URIs are 7-bit ASCII (punycode, percent-encoding).");
+        Require(text.Contains("/URI (https://xn--caf-dma.example/cr%C3%A8me)", StringComparison.Ordinal), "PDF: URIs are 7-bit ASCII (punycode, percent-encoding).");
     }
 
     private static void PdfListInTableCellIsDrawn()

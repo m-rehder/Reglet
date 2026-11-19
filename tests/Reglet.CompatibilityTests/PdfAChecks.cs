@@ -61,7 +61,7 @@ internal static class PdfAChecks
 
         foreach (var required in new[] { "desc", "wtpt", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC", "cprt" })
         {
-            Require(signatures.Contains(required), $"Tag '{required}' vorhanden.");
+            Require(signatures.Contains(required), $"Tag '{required}' present.");
         }
     }
 
@@ -87,7 +87,7 @@ internal static class PdfAChecks
     /// <summary>R02: without an embedded font PDF/A is rejected.</summary>
     private static void RejectsPdfAWithoutEmbeddedFont()
     {
-        var document = PortableDocument.Create().Paragraph("Hallo").Build();
+        var document = PortableDocument.Create().Paragraph("Hello").Build();
         using var buffer = new MemoryStream();
         Throws<UnsupportedFeatureException>(() => new PdfDocumentWriter()
             .WriteAsync(document, buffer, new PdfWriteOptions { PdfA = PdfAConformance.PdfA2b })
@@ -99,8 +99,8 @@ internal static class PdfAChecks
     {
         var attachment = new PdfAttachment
         {
-            Name = "daten.txt",
-            Data = Encoding.UTF8.GetBytes("Anhang"),
+            Name = "data.txt",
+            Data = Encoding.UTF8.GetBytes("Appendix"),
             MimeType = "text/plain",
             Description = "Sample data",
             Relationship = "Data",
@@ -114,7 +114,7 @@ internal static class PdfAChecks
         AssertContains(latin, "/Type /Filespec");
         AssertContains(latin, "/AFRelationship /Data");
         AssertContains(latin, "/EmbeddedFiles ");
-        AssertContains(latin, "(daten.txt)");
+        AssertContains(latin, "(data.txt)");
         Require(System.Text.RegularExpressions.Regex.IsMatch(Latin(Extracted(bytes)), @"/AF\s*\["), "an extracted PDF/A-3 keeps the catalog's /AF.");
     }
 
@@ -122,7 +122,7 @@ internal static class PdfAChecks
     private static void RejectsAttachmentsInPdfA2()
     {
         var attachment = new PdfAttachment { Name = "a.txt", Data = Encoding.UTF8.GetBytes("x") };
-        var document = PortableDocument.Create().Paragraph("Hallo").Build();
+        var document = PortableDocument.Create().Paragraph("Hello").Build();
         using var buffer = new MemoryStream();
         Throws<ArgumentException>(() => new PdfDocumentWriter()
             .WriteAsync(
@@ -132,7 +132,7 @@ internal static class PdfAChecks
             .GetAwaiter().GetResult());
     }
 
-    /// <summary>R01/R05: Optionaler externer PDF/A-Validator (Pfad in REGLET_VERAPDF).</summary>
+    /// <summary>Optional external PDF/A validator (path in REGLET_VERAPDF).</summary>
     private static void ValidatesWithVeraPdfWhenConfigured()
     {
         var verapdf = Environment.GetEnvironmentVariable("REGLET_VERAPDF");
@@ -177,7 +177,7 @@ internal static class PdfAChecks
     {
         using var buffer = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(
-            PortableDocument.Create().Metadata(title: "Ti\u0001tel & Co", author: "Au\u0002tor", language: "de\u0003").Paragraph("Hallo").Build(),
+            PortableDocument.Create().Metadata(title: "Ti\u0001tle & Co", author: "Au\u0002thor", language: "de\u0003").Paragraph("Hello").Build(),
             buffer,
             new PdfWriteOptions { PdfA = conformance, Fonts = new Dictionary<string, byte[]> { [""] = Font() } }).GetAwaiter().GetResult();
         return buffer.ToArray();
@@ -186,7 +186,7 @@ internal static class PdfAChecks
     private static void KeepsXmpWellFormedWithControlCharacters()
     {
         var written = WithControlCharacters(PdfAConformance.PdfA2b);
-        var rewritten = Rewritten(Write(PdfAConformance.PdfA2b, attachments: null), new DocumentMetadata { Title = "Ti\u0001tel & Co", Author = "Au\u0002tor" });
+        var rewritten = Rewritten(Write(PdfAConformance.PdfA2b, attachments: null), new DocumentMetadata { Title = "Ti\u0001tle & Co", Author = "Au\u0002thor" });
         foreach (var pdf in new[] { written, rewritten })
         {
             var text = Encoding.UTF8.GetString(pdf);
@@ -195,11 +195,11 @@ internal static class PdfAChecks
             Require(start >= 0 && end > start, "the PDF carries an XMP package.");
             var xmp = new System.Xml.XmlDocument();
             xmp.LoadXml(text[start..(end + "</x:xmpmeta>".Length)]);
-            Require(xmp.InnerText.Contains("Ti\uFFFDtel & Co", StringComparison.Ordinal), "XMP keeps the title with U+FFFD.");
+            Require(xmp.InnerText.Contains("Ti\uFFFDtle & Co", StringComparison.Ordinal), "XMP keeps the title with U+FFFD.");
 
             // The Info entries mirror XMP, as PDF/A requires.
             var metadata = new PdfDocumentReader().Read(new MemoryStream(pdf)).Document.Metadata;
-            Require(metadata.Title == "Ti\uFFFDtel & Co" && metadata.Author == "Au\uFFFDtor", $"Info matches XMP (title '{metadata.Title}').");
+            Require(metadata.Title == "Ti\uFFFDtle & Co" && metadata.Author == "Au\uFFFDthor", $"Info matches XMP (title '{metadata.Title}').");
         }
     }
 
@@ -213,7 +213,7 @@ internal static class PdfAChecks
         yield return Rewritten(source, new DocumentMetadata { Title = "New" });
         yield return WithControlCharacters(PdfAConformance.PdfA2b);
 
-        PdfAttachment[] attachments = [new() { Name = "daten.txt", Data = Encoding.UTF8.GetBytes("Anhang"), MimeType = "text/plain", Relationship = "Data" }];
+        PdfAttachment[] attachments = [new() { Name = "data.txt", Data = Encoding.UTF8.GetBytes("Appendix"), MimeType = "text/plain", Relationship = "Data" }];
         var source3 = Write(PdfAConformance.PdfA3b, attachments);
         yield return source3;
         yield return WriteOptions(new PdfWriteOptions { PdfA = PdfAConformance.PdfA3b, Attachments = attachments, Annotations = AllAnnotations() });
@@ -226,11 +226,11 @@ internal static class PdfAChecks
     [
         new() { Kind = PdfAnnotationKind.Text, X = 100, Y = 100 },
         new() { Kind = PdfAnnotationKind.Highlight, X = 100, Y = 200, Width = 50, Height = 10 },
-        new() { Kind = PdfAnnotationKind.Stamp, X = 100, Y = 300, Width = 50, Height = 30, Content = "Hallo" },
-        new() { Kind = PdfAnnotationKind.FreeText, X = 100, Y = 400, Width = 50, Height = 30, Content = "Hallo" },
+        new() { Kind = PdfAnnotationKind.Stamp, X = 100, Y = 300, Width = 50, Height = 30, Content = "Hello" },
+        new() { Kind = PdfAnnotationKind.FreeText, X = 100, Y = 400, Width = 50, Height = 30, Content = "Hello" },
     ];
 
-    private static byte[] WriteOptions(PdfWriteOptions options, string text = "Hallo")
+    private static byte[] WriteOptions(PdfWriteOptions options, string text = "Hello")
     {
         using var buffer = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(
@@ -276,7 +276,7 @@ internal static class PdfAChecks
     {
         try
         {
-            WriteOptions(new PdfWriteOptions { PdfA = PdfAConformance.PdfA2b }, "Hallo Z");
+            WriteOptions(new PdfWriteOptions { PdfA = PdfAConformance.PdfA2b }, "Hello Z");
         }
         catch (UnsupportedFeatureException)
         {
@@ -330,7 +330,7 @@ internal static class PdfAChecks
 
     private static byte[] Write(PdfAConformance conformance, IReadOnlyList<PdfAttachment>? attachments)
     {
-        var document = PortableDocument.Create().Paragraph("Hallo").Build();
+        var document = PortableDocument.Create().Paragraph("Hello").Build();
         using var buffer = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(
             document,
@@ -344,7 +344,7 @@ internal static class PdfAChecks
         return buffer.ToArray();
     }
 
-    /// <summary>Small synthetic font for "Hallo" (glyphs 3–6).</summary>
+    /// <summary>Small synthetic font for "Hello" (glyphs 3–6).</summary>
     internal static byte[] Font()
     {
         const int count = 7;
@@ -378,7 +378,7 @@ internal static class PdfAChecks
             ("maxp", SyntheticTrueTypeFont.Maxp(count)),
             ("hmtx", SyntheticTrueTypeFont.Hmtx(metrics)),
             ("name", SyntheticTrueTypeFont.Name("PdfATest")),
-            ("cmap", SyntheticTrueTypeFont.Cmap12(('H', 3), ('a', 4), ('l', 5), ('o', 6))),
+            ("cmap", SyntheticTrueTypeFont.Cmap12(('H', 3), ('a', 4), ('e', 4), ('l', 5), ('o', 6))),
             ("glyf", glyf.ToArray()),
             ("loca", loca),
         };
@@ -401,7 +401,7 @@ internal static class PdfAChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

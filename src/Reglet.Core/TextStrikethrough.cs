@@ -9,6 +9,6 @@ public enum TextStrikethrough
     /// <summary>Single strikethrough.</summary>
     Single,
 
-    /// <summary>Doppelte Durchstreichung.</summary>
+    /// <summary>Double strikethrough.</summary>
     Double,
 }

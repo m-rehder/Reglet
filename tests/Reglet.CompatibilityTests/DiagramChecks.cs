@@ -47,23 +47,23 @@ internal static class DiagramChecks
         P(400), P(330),
         [
             Node("start", FlowNodeKind.Terminator, "Start", 140, 0),
-            Node("read", FlowNodeKind.InputOutput, "Eingabe lesen", 140, 66),
-            Node("check", FlowNodeKind.Decision, "Gültig?", 140, 132, 120, 70),
-            Node("work", FlowNodeKind.Process, "Verarbeiten", 140, 224),
-            Node("fail", FlowNodeKind.Process, "Fehler melden", 290, 145, 110, 44),
-            Node("end", FlowNodeKind.Terminator, "Ende", 140, 286),
+            Node("read", FlowNodeKind.InputOutput, "Read input", 140, 66),
+            Node("check", FlowNodeKind.Decision, "Valid?", 140, 132, 120, 70),
+            Node("work", FlowNodeKind.Process, "Process", 140, 224),
+            Node("fail", FlowNodeKind.Process, "Report error", 290, 145, 110, 44),
+            Node("end", FlowNodeKind.Terminator, "End", 140, 286),
         ],
         [
             new FlowConnector("start", FlowSide.Bottom, "read", FlowSide.Top),
             new FlowConnector("read", FlowSide.Bottom, "check", FlowSide.Top),
             new FlowConnector("check", FlowSide.Bottom, "work", FlowSide.Top) { Label = "Ja" },
-            new FlowConnector("check", FlowSide.Right, "fail", FlowSide.Left) { Label = "Nein" },
+            new FlowConnector("check", FlowSide.Right, "fail", FlowSide.Left) { Label = "No" },
             new FlowConnector("work", FlowSide.Bottom, "end", FlowSide.Top),
             new FlowConnector("fail", FlowSide.Bottom, "end", FlowSide.Right) { Dash = ShapeDash.Dash },
-        ]) { AltText = "Ablauf der Eingabeprüfung" };
+        ]) { AltText = "Flow of the input check" };
 
     private static PortableDocument Document()
-        => new(new DocumentMetadata(), new Section(new Block[] { new Paragraph(new TextRun("Vorher")), Sample(), new Paragraph(new TextRun("Nachher")) }));
+        => new(new DocumentMetadata(), new Section(new Block[] { new Paragraph(new TextRun("Before")), Sample(), new Paragraph(new TextRun("After")) }));
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)
     {
@@ -128,12 +128,12 @@ internal static class DiagramChecks
         Require(xml.Contains("<wpg:wgp", StringComparison.Ordinal) && xml.Contains("wpg:grpSpPr", StringComparison.Ordinal), "docx group");
         Require(System.Text.RegularExpressions.Regex.Matches(xml, "<wps:wsp[ >]").Count == document_shapes(), "docx shape count");
         Require(xml.Contains("<wp:extent ", StringComparison.Ordinal) && !xml.Contains("<a:extent", StringComparison.Ordinal), "docx diagram has wp:extent (Word rejects a:extent in wp:inline)");
-        Require(xml.Contains("Ablauf der Eingabeprüfung", StringComparison.Ordinal), "docx alt text");
+        Require(xml.Contains("Flow of the input check", StringComparison.Ordinal), "docx alt text");
 
         var odt = Write(document, DocumentFormat.Odt);
         var content = Part(odt, "content.xml");
         Require(content.Contains("<draw:g ", StringComparison.Ordinal), "odt group");
-        Require(content.Contains("Verarbeiten", StringComparison.Ordinal), "odt text");
+        Require(content.Contains("Process", StringComparison.Ordinal), "odt text");
 
         foreach (var (bytes, format) in new[] { (docx, DocumentFormat.Docx), (odt, DocumentFormat.Odt) })
         {

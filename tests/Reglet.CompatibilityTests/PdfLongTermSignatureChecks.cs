@@ -41,15 +41,15 @@ internal static class PdfLongTermSignatureChecks
 
     private static PortableDocument Document()
         => new(
-            new DocumentMetadata { Title = "Langzeit" },
-            new Section(new Paragraph(new TextRun("Inhalt mit Langzeitvalidierung."))));
+            new DocumentMetadata { Title = "Long term" },
+            new Section(new Paragraph(new TextRun("Content with long-term validation."))));
 
     /// <summary>A granted time-stamp response with a small placeholder token.</summary>
     private static byte[] Response()
     {
         var token = PdfDer.Sequence(
             PdfDer.Oid("1.2.840.113549.1.7.2"),
-            PdfDer.Concat([Encoding.ASCII.GetBytes("Langzeit-Token")]));
+            PdfDer.Concat([Encoding.ASCII.GetBytes("LongTerm-Token")]));
         return PdfDer.Sequence(PdfDer.Sequence(PdfDer.Integer(0)), token);
     }
 
@@ -72,8 +72,8 @@ internal static class PdfLongTermSignatureChecks
 
     private static void WritesTheValidationStore()
     {
-        using var signer = Certificate("CN=Langzeit Signer");
-        using var authority = Certificate("CN=Langzeit CA");
+        using var signer = Certificate("CN=Long-term signer");
+        using var authority = Certificate("CN=Long-term CA");
 
         var pdf = Sign(PadesOptions(signer, new PdfValidationData
         {
@@ -175,7 +175,7 @@ internal static class PdfLongTermSignatureChecks
         AssertContains(latin, "/AcroForm");
         Require(CountOccurrences(latin, "%%EOF") == 2, "The timestamp is a second revision.");
         Require(
-            latin.Contains(Convert.ToHexString(Encoding.ASCII.GetBytes("Langzeit-Token")), StringComparison.OrdinalIgnoreCase),
+            latin.Contains(Convert.ToHexString(Encoding.ASCII.GetBytes("LongTerm-Token")), StringComparison.OrdinalIgnoreCase),
             "The token of the authority is embedded.");
 
         // The byte range covers the file except the token. It is the one of the timestamp
@@ -209,7 +209,7 @@ internal static class PdfLongTermSignatureChecks
         using var encrypted = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(Document(), encrypted, new PdfWriteOptions
         {
-            Encryption = new PdfEncryptionOptions { UserPassword = "geheim" },
+            Encryption = new PdfEncryptionOptions { UserPassword = "secret" },
         }).GetAwaiter().GetResult();
 
         using var source = new MemoryStream(encrypted.ToArray());
@@ -281,7 +281,7 @@ internal static class PdfLongTermSignatureChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

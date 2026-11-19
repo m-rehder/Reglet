@@ -49,7 +49,7 @@ internal static class EquationChecks
         new MathFraction(
             Row(T("−"), T("b"), T("±"), new MathRadical(Row(new MathScript(T("b"), superscript: T("2")), T("−"), T("4"), T("a"), T("c")))),
             Row(T("2"), T("a")))))
-    { AltText = "Mitternachtsformel" };
+    { AltText = "Quadratic formula" };
 
     private static Equation Sum() => new(Row(
         new MathNary('∑', new MathScript(T("x"), subscript: T("i")), new MathRow([T("i"), T("="), T("1")]), T("n")),
@@ -60,7 +60,7 @@ internal static class EquationChecks
     private static PortableDocument Document()
         => new(new DocumentMetadata(), new Section(new Block[]
         {
-            new Paragraph(new TextRun("Vorher")), Quadratic(), Sum(), new Paragraph(new TextRun("Nachher")),
+            new Paragraph(new TextRun("Before")), Quadratic(), Sum(), new Paragraph(new TextRun("After")),
         }));
 
     private static byte[] Write(PortableDocument document, DocumentFormat format, WriteResultSink? sink = null)
@@ -157,7 +157,7 @@ internal static class EquationChecks
         Require(equations.Count == 2, "odt equations " + equations.Count);
         Require(Shape(equations[0].Root) == Shape(Quadratic().Root), "odt quadratic:\n" + Shape(equations[0].Root) + "\n" + Shape(Quadratic().Root));
         Require(Shape(equations[1].Root) == Shape(Sum().Root), "odt sum:\n" + Shape(equations[1].Root) + "\n" + Shape(Sum().Root));
-        Require(equations[0].AltText == "Mitternachtsformel", "odt alt text");
+        Require(equations[0].AltText == "Quadratic formula", "odt alt text");
 
         // The alignment goes into the paragraph style of the equation and comes back.
         var aligned = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
@@ -179,7 +179,7 @@ internal static class EquationChecks
         Require(!sink.Messages.Any(m => m.Contains("not rendered", StringComparison.Ordinal)), "nothing left out: " + string.Join(" | ", sink.Messages));
         var text = string.Concat(new PdfDocumentReader().Read(new MemoryStream(pdf)).Document.Sections
             .SelectMany(section => section.Blocks).OfType<Paragraph>().SelectMany(p => p.Inlines).OfType<TextRun>().Select(r => r.Text));
-        Require(text.Contains("Verarbeiten", StringComparison.Ordinal), "diagram node text in the cell: " + text);
+        Require(text.Contains("Process", StringComparison.Ordinal), "diagram node text in the cell: " + text);
         Require(System.Text.Encoding.Latin1.GetString(pdf).Contains("/S /Formula", StringComparison.Ordinal), "formula tagged in the cell");
 
         // DOCX: the formula in the cell comes back as a formula, without an extra paragraph or warning.

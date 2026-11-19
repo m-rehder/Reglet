@@ -45,7 +45,7 @@ internal static class ImportFidelityChecks
         };
 
         var paragraph = new Paragraph(new TextRun("Text")) { Style = style };
-        var list = TestLists.List(ListKind.Number, [new ListItem(new Paragraph(new TextRun("Eintrag")))], format: ListNumberFormat.UpperRoman, start: 5);
+        var list = TestLists.List(ListKind.Number, [new ListItem(new Paragraph(new TextRun("Entry")))], format: ListNumberFormat.UpperRoman, start: 5);
 
         var section = new Section([paragraph, list])
         {
@@ -127,8 +127,8 @@ internal static class ImportFidelityChecks
             new DocumentMetadata(),
             new Section(
             [
-                new Paragraph(new TextRun("Erster")) { Style = new ParagraphStyle { KeepWithNext = true, KeepTogether = true } },
-                new Paragraph(new TextRun("Zweiter"))
+                new Paragraph(new TextRun("First")) { Style = new ParagraphStyle { KeepWithNext = true, KeepTogether = true } },
+                new Paragraph(new TextRun("Second"))
                 {
                     Style = new ParagraphStyle
                     {

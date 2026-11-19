@@ -6,12 +6,12 @@ public enum TextAlignment
     /// <summary>Left-aligned (default).</summary>
     Left,
 
-    /// <summary>Zentriert.</summary>
+    /// <summary>Centered.</summary>
     Center,
 
     /// <summary>Right-aligned.</summary>
     Right,
 
-    /// <summary>Blocksatz.</summary>
+    /// <summary>Justified.</summary>
     Justify,
 }

@@ -241,7 +241,7 @@ internal static class SubsetChecks
     {
         var glyph = new byte[16];
         BinaryPrimitives.WriteInt16BigEndian(glyph.AsSpan(0, 2), -1);
-        BinaryPrimitives.WriteUInt16BigEndian(glyph.AsSpan(10, 2), 0x0002); // ARGS_ARE_XY_VALUES, kein weiteres Element
+        BinaryPrimitives.WriteUInt16BigEndian(glyph.AsSpan(10, 2), 0x0002); // ARGS_ARE_XY_VALUES, no further element
         BinaryPrimitives.WriteUInt16BigEndian(glyph.AsSpan(12, 2), component);
         return glyph;
     }
@@ -254,7 +254,7 @@ internal static class SubsetChecks
         BinaryPrimitives.WriteUInt16BigEndian(gdef.AsSpan(12, 2), 1); // Format 1
         BinaryPrimitives.WriteUInt16BigEndian(gdef.AsSpan(14, 2), 3); // startGlyph
         BinaryPrimitives.WriteUInt16BigEndian(gdef.AsSpan(16, 2), 1); // count
-        BinaryPrimitives.WriteUInt16BigEndian(gdef.AsSpan(18, 2), 1); // Klasse Basis
+        BinaryPrimitives.WriteUInt16BigEndian(gdef.AsSpan(18, 2), 1); // class base
         return gdef;
     }
 

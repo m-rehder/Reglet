@@ -1,16 +1,16 @@
-# U06: Schwellenwerte fuer die Benchmarks (build/run-benchmarks.sh).
-# Format: Szenario  maxDauerMs  maxAllokierteBytes
-# Die Grenzen sind bewusst grosszuegig (mehrfacher Messwert), damit langsamere CI-Rechner
-# nicht flackern; grobe Regressionen werden trotzdem erkannt.
+# Thresholds of the benchmarks (build/run-benchmarks.sh).
+# Format: scenario  maxMilliseconds  maxAllocatedBytes
+# The limits are generous on purpose (several times the measured value), so that slower CI
+# machines do not flicker; large regressions are still caught.
 pdf-1000-pages        500    26214400
 pdf-10000-pages       3000   262144000
-docx-10000-bloecke     500    20971520
-odt-10000-bloecke      500    26214400
+docx-10000-blocks     500    20971520
+odt-10000-blocks      500    26214400
 pdf-large-image       1000   125829120
 parallel-8x1000-pages 1500   209715200
-read-docx-10000-bloecke        500    251658240
-read-odt-10000-bloecke         500    377487360
-read-pdf-10000-bloecke        2500   2306867200
-template-docx-10000-bloecke    800    629145600
-template-odt-10000-bloecke     800    629145600
-rewrite-pdf-10000-bloecke     1700   1572864000
+read-docx-10000-blocks        500    251658240
+read-odt-10000-blocks         500    377487360
+read-pdf-10000-blocks        2500   2306867200
+template-docx-10000-blocks    800    629145600
+template-odt-10000-blocks     800    629145600
+rewrite-pdf-10000-blocks     1700   1572864000

@@ -49,7 +49,7 @@ internal static class DocxPackageValidator
             }
             catch (XmlException exception)
             {
-                errors.Add($"XML fehlerhaft: {entry.FullName} ({exception.Message})");
+                errors.Add($"XML malformed: {entry.FullName} ({exception.Message})");
             }
         }
 

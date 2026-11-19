@@ -9,8 +9,8 @@ public sealed class PdfDocumentWriter : IDocumentWriter
     /// <summary>Writes the document as PDF to the stream.</summary>
     /// <param name="document">The document to write.</param>
     /// <param name="output">Target stream; it remains open. The stream does not need to be seekable; a non-seekable stream is buffered internally and written asynchronously.</param>
-    /// <param name="options">Optionale Writer-Optionen.</param>
-    /// <param name="cancellationToken">Abbruchsignal.</param>
+    /// <param name="options">Optional writer options.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     /// <remarks>
     /// a seekable stream is written synchronously; the returned
     /// <see cref="Task{WriteResult}"/> is already completed. A non-seekable stream

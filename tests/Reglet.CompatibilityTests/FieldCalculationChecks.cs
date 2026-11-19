@@ -56,13 +56,13 @@ internal static class FieldCalculationChecks
 
     private static void EvaluatesNestedFields()
     {
-        var context = FieldContext.Create(mergeValues: new Dictionary<string, string> { ["Land"] = "DE" });
+        var context = FieldContext.Create(mergeValues: new Dictionary<string, string> { ["Country"] = "DE" });
 
         Require(
-            FieldEvaluator.Evaluate("IF { MERGEFIELD Land } = \"DE\" \"Hallo\" \"Hallo\"", context) == "Hallo",
+            FieldEvaluator.Evaluate("IF { MERGEFIELD Country } = \"DE\" \"Hello\" \"Bye\"", context) == "Hello",
             "IF: a nested field is calculated first.");
         Require(
-            FieldEvaluator.Evaluate("{ MERGEFIELD Land }", context) == "DE",
+            FieldEvaluator.Evaluate("{ MERGEFIELD Country }", context) == "DE",
             "A nested field on its own returns its value.");
     }
 

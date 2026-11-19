@@ -49,15 +49,15 @@ internal static class ShapingChecks
         var gsub = Gsub(script: "latn", feature: "liga", lookupType: 4, lookupData: LigatureSubtable(first: 3, second: 4, ligature: 5));
         var layout = OpenTypeLayout.TryCreate(LoadFont(gsub: gsub)) ?? throw new InvalidOperationException("Layout missing.");
 
-        Require(layout.HasGsub, "GSUB erkannt.");
+        Require(layout.HasGsub, "GSUB recognised.");
         var lookups = layout.GetFeatureLookups(gpos: false, OpenTypeLayout.Tag("latn"), OpenTypeLayout.Tag("liga"));
-        Require(lookups.Count == 1 && lookups[0] == 0, "Ligatur-Lookup gefunden.");
+        Require(lookups.Count == 1 && lookups[0] == 0, "Ligature lookup found.");
 
         ushort[] glyphs = [3, 4, 4];
         Require(
             layout.TryLigature(glyphs, 0, 0, out var ligature, out var components),
-            "Ligatur angewandt.");
-        Require(ligature == 5 && components == 2, "Ligatur ersetzt 3+4 durch 5.");
+            "Ligature applied.");
+        Require(ligature == 5 && components == 2, "The ligature replaces 3+4 with 5.");
         Require(!layout.TryLigature(glyphs, 1, 0, out _, out _), "No ligature at position 1.");
     }
 
@@ -67,11 +67,11 @@ internal static class ShapingChecks
         var gpos = Gpos(script: "latn", feature: "kern", lookupData: PairPosSubtable(first: 3, second: 4, xAdvance: -80, xPlacement: 5));
         var layout = OpenTypeLayout.TryCreate(LoadFont(gpos: gpos)) ?? throw new InvalidOperationException("Layout missing.");
 
-        Require(layout.HasGpos, "GPOS erkannt.");
+        Require(layout.HasGpos, "GPOS recognised.");
         var lookups = layout.GetFeatureLookups(gpos: true, OpenTypeLayout.Tag("latn"), OpenTypeLayout.Tag("kern"));
-        Require(lookups.Count == 1 && lookups[0] == 0, "Kerning-Lookup gefunden.");
+        Require(lookups.Count == 1 && lookups[0] == 0, "Kerning lookup found.");
 
-        Require(layout.TryKern(0, 3, 4, out var advance, out var placement), "Kerning angewandt.");
+        Require(layout.TryKern(0, 3, 4, out var advance, out var placement), "Kerning applied.");
         Require(Math.Abs(advance - (-80)) < 1e-9, "XAdvance = -80.");
         Require(Math.Abs(placement - 5) < 1e-9, "XPlacement = 5.");
         Require(!layout.TryKern(0, 4, 3, out _, out _), "No kerning for the reversed pair.");
@@ -81,7 +81,7 @@ internal static class ShapingChecks
     private static void ReadsGlyphClassesFromGdef()
     {
         var layout = OpenTypeLayout.TryCreate(LoadFont(gdef: Gdef((3, 1), (4, 3)))) ?? throw new InvalidOperationException("Layout missing.");
-        Require(layout.HasGlyphClasses, "GDEF erkannt.");
+        Require(layout.HasGlyphClasses, "GDEF recognised.");
         Require(layout.GetGlyphClass(3) == 1, "Glyph 3 is a base.");
         Require(layout.GetGlyphClass(4) == 3, "Glyph 4 is a mark.");
         Require(layout.GetGlyphClass(5) == 0, "Glyph 5 without a class.");
@@ -145,7 +145,7 @@ internal static class ShapingChecks
         var layout = OpenTypeLayout.TryCreate(font)!;
         var kernLookups = layout.GetFeatureLookups(gpos: true, OpenTypeLayout.ScriptLatin, OpenTypeLayout.FeatureKern);
         Require(kernLookups.Count == 1, $"Kerning lookup for latn/kern (is {kernLookups.Count}).");
-        Require(layout.TryKern(0, 3, 3, out var directAdvance, out _) && Math.Abs(directAdvance - (-80)) < 1e-9, "Direktes Kerning -80.");
+        Require(layout.TryKern(0, 3, 3, out var directAdvance, out _) && Math.Abs(directAdvance - (-80)) < 1e-9, "Direct kerning -80.");
         var shaper = new TextShaper(font, layout);
 
         var ligature = shaper.Shape("fi") ?? throw new InvalidOperationException("No shaping.");
@@ -176,10 +176,10 @@ internal static class ShapingChecks
         var glyphs = shaper.Shape("\u0628\u0628") ?? throw new InvalidOperationException("No shaping.");
         Require(glyphs.Count == 2, "Two glyphs.");
         // Visual order (RTL): the final form stands on the left, the initial form on the right.
-        Require(glyphs[0].GlyphId == 7, "Finalform zuerst in visueller Reihenfolge.");
+        Require(glyphs[0].GlyphId == 7, "The final form comes first in visual order.");
         Require(glyphs[1].GlyphId == 3, "Initial form after.");
 
-        // Formanalyse direkt: Initial, Final, Initial.
+        // Shape analysis directly: initial, final, initial.
         var forms = ArabicJoining.ResolveForms([0x0628, 0x0627, 0x0628]);
         Require(forms[0] == ArabicJoining.ContextForm.Initial, "BEH initial.");
         Require(forms[1] == ArabicJoining.ContextForm.Final, "ALEF final.");
@@ -195,7 +195,7 @@ internal static class ShapingChecks
             gsub: Gsub("latn", "liga", 4, LigatureSubtable(3, 4, 5)));
         var shaper = new TextShaper(font, OpenTypeLayout.TryCreate(font)!);
 
-        // hmtx: f=600, i=300, Ligatur=700 -> mit Ligatur 700, ohne 900.
+        // hmtx: f=600, i=300, ligature=700 -> with the ligature 700, without 900.
         var handle = new PdfFontHandle(
             "F1",
             new PdfEmbeddedFontMetrics(font),
@@ -204,7 +204,7 @@ internal static class ShapingChecks
             text => true,
             shaper: shaper);
 
-        Require(Math.Abs(handle.Measure("fi", 1000) - 700) < 1e-9, "Ligaturbreite 700.");
+        Require(Math.Abs(handle.Measure("fi", 1000) - 700) < 1e-9, "Ligature width 700.");
         Require(Math.Abs(handle.Measure("if", 1000) - 900) < 1e-9, "Without ligature 600+300.");
     }
 
@@ -240,7 +240,7 @@ internal static class ShapingChecks
         Require(result.Levels[0] == 0 && result.Levels[5] == 0, "Latin characters at level 0.");
         Require(result.Levels[2] == 1 && result.Levels[3] == 1, "Hebrew word at level 1.");
 
-        // Visuelle Reihenfolge dreht den hebraeischen Lauf.
+        // The visual order reverses the Hebrew run.
         var visual = BidiAlgorithm.ReorderVisual(result.Levels);
         Require(visual[2] == 3 && visual[3] == 2, "Hebrew run is reversed.");
 
@@ -485,7 +485,7 @@ internal static class ShapingChecks
             throw new InvalidOperationException($"Bidi conformance: {failures} of {total} cases incorrect.");
         }
 
-        Console.WriteLine($"Bidi-Konformitaet: {total} Faelle bestanden.");
+        Console.WriteLine($"Bidi conformance: {total} cases passed.");
     }
 
     private static TrueTypeFont LoadFont(byte[]? gsub = null, byte[]? gpos = null, byte[]? gdef = null, byte[]? cmap = null)
@@ -521,7 +521,7 @@ internal static class ShapingChecks
         return SyntheticTrueTypeFont.Build(tables.ToArray());
     }
 
-    // --- Synthetische Layout-Tabellen ---------------------------------------------------
+    // --- Synthetic layout tables ---------------------------------------------------
 
     private static byte[] Gsub(string script, string feature, int lookupType, byte[] lookupData)
         => LayoutTable(script, feature, lookupType, lookupData);
@@ -622,7 +622,7 @@ internal static class ShapingChecks
         var subtable = b.Position;
         b.U16(2); // Format 2
         var pCoverage = b.U16(0);
-        b.U16(1); // Glyphenanzahl
+        b.U16(1); // glyph count
         b.U16(to);
         b.Patch(pCoverage, b.Position - subtable);
         b.U16(1); // Coverage-Format 1
@@ -639,7 +639,7 @@ internal static class ShapingChecks
         b.U16(0); // Version
         b.U16(1); // table
         b.U16(3); // Windows
-        b.U16(10); // Unicode vollstaendig
+        b.U16(10); // full Unicode
         b.U32(12); // offset of the subtable
         b.U16(12); // Format 12
         b.U16(0);
@@ -725,7 +725,7 @@ internal static class ShapingChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected {typeof(TException).Name} was not thrown.");
     }
 
     /// <summary>Small big-endian buffer with offset patches for the table assembly.</summary>

@@ -3,7 +3,7 @@ namespace Reglet;
 /// <summary>Options for the PDF writer. Deliberately kept small and optional.</summary>
 public sealed record PdfWriteOptions : WriteOptions
 {
-    /// <summary>Standardoptionen.</summary>
+    /// <summary>The default options.</summary>
     public static PdfWriteOptions Default { get; } = new();
 
     /// <summary>

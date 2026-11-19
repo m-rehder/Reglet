@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reglet Live-Vorschau</title>
+  <title>Reglet live preview</title>
   <base href="/" />
   <style>
     body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: #f4f4f4; color: #222; }
@@ -19,7 +19,7 @@
   </style>
 </head>
 <body>
-  <div id="app">Lädt …</div>
+  <div id="app">Loading …</div>
   <script>
     // Native viewer on desktop; pdf.js where the browser has none or shows only page 1
     // (iOS Safari reports a viewer but renders the iframe as a static image). ?viewer=pdfjs forces it.
@@ -40,7 +40,7 @@
 
     window.showPdf = async (host, bytes) => {
       if (useNative) {
-        const frame = host.querySelector("iframe") ?? host.appendChild(Object.assign(document.createElement("iframe"), { title: "PDF-Vorschau" }));
+        const frame = host.querySelector("iframe") ?? host.appendChild(Object.assign(document.createElement("iframe"), { title: "PDF preview" }));
         const old = frame.dataset.url;
         frame.dataset.url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
         frame.src = frame.dataset.url + "#view=FitH";
@@ -63,7 +63,7 @@
           const viewport = page.getViewport({ scale });
           const canvas = Object.assign(document.createElement("canvas"), { width: viewport.width, height: viewport.height });
           canvas.setAttribute("role", "img");
-          canvas.setAttribute("aria-label", `Seite ${number} von ${doc.numPages}`);
+          canvas.setAttribute("aria-label", `Page ${number} of ${doc.numPages}`);
           await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
           if (run !== generation) return; // a newer PDF is on its way
           pages.push(canvas);

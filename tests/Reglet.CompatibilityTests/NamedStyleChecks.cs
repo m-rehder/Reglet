@@ -60,7 +60,7 @@ internal static class NamedStyleChecks
             LeftIndent = Length.FromPoints(24),
         };
 
-        var paragraph = new Paragraph(new TextRun("Zitat")) { Style = quote };
+        var paragraph = new Paragraph(new TextRun("Quote")) { Style = quote };
         return new PortableDocument(new DocumentMetadata(), new Section(new Block[] { paragraph }))
         {
             Styles = [quote],
@@ -318,16 +318,16 @@ internal static class NamedStyleChecks
         var styles = "<w:styles xmlns:w='" + W + "'>"
             + "<w:style w:type='paragraph' w:styleId='Basis'><w:pPr><w:jc w:val='center'/>"
             + "<w:spacing w:before='120'/></w:pPr></w:style>"
-            + "<w:style w:type='paragraph' w:styleId='Zitat'><w:basedOn w:val='Basis'/>"
+            + "<w:style w:type='paragraph' w:styleId='Quote'><w:basedOn w:val='Basis'/>"
             + "<w:pPr><w:ind w:left='567' w:firstLine='567'/></w:pPr></w:style>"
-            + "<w:style w:type='paragraph' w:styleId='EigeneUeberschrift'>"
+            + "<w:style w:type='paragraph' w:styleId='OwnHeading'>"
             + "<w:pPr><w:outlineLvl w:val='0'/><w:spacing w:before='240'/></w:pPr></w:style>"
             + "</w:styles>";
-        var body = "<w:p><w:pPr><w:pStyle w:val='Zitat'/></w:pPr><w:r><w:t>Zitat</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:pStyle w:val='Zitat'/><w:jc w:val='right'/></w:pPr><w:r><w:t>Rechts</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:pStyle w:val='Zitat'/><w:ind w:hanging='284'/></w:pPr><w:r><w:t>Haengend</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:pStyle w:val='EigeneUeberschrift'/></w:pPr><w:r><w:t>Titel</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:pStyle w:val='Zitat'/></w:pPr><w:r><w:t>Wieder</w:t></w:r></w:p>";
+        var body = "<w:p><w:pPr><w:pStyle w:val='Quote'/></w:pPr><w:r><w:t>Quote</w:t></w:r></w:p>"
+            + "<w:p><w:pPr><w:pStyle w:val='Quote'/><w:jc w:val='right'/></w:pPr><w:r><w:t>Right</w:t></w:r></w:p>"
+            + "<w:p><w:pPr><w:pStyle w:val='Quote'/><w:ind w:hanging='284'/></w:pPr><w:r><w:t>Hanging</w:t></w:r></w:p>"
+            + "<w:p><w:pPr><w:pStyle w:val='OwnHeading'/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p>"
+            + "<w:p><w:pPr><w:pStyle w:val='Quote'/></w:pPr><w:r><w:t>Again</w:t></w:r></w:p>";
 
         using var stream = new MemoryStream(DocxPackage(styles, body));
         var read = new DocxDocumentReader().Read(stream).Document;
@@ -368,11 +368,11 @@ internal static class NamedStyleChecks
         var styles = "<w:styles xmlns:w='" + W + "'><w:docDefaults><w:pPrDefault><w:pPr>"
             + "<w:jc w:val='center'/><w:spacing w:after='240' w:line='276' w:lineRule='auto'/>"
             + "</w:pPr></w:pPrDefault></w:docDefaults>"
-            + "<w:style w:type='paragraph' w:styleId='Rechts'><w:pPr><w:jc w:val='right'/></w:pPr></w:style>"
+            + "<w:style w:type='paragraph' w:styleId='Right'><w:pPr><w:jc w:val='right'/></w:pPr></w:style>"
             + "</w:styles>";
         var body = "<w:p><w:r><w:t>Standard</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:jc w:val='right'/></w:pPr><w:r><w:t>Rechts</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:pStyle w:val='Rechts'/></w:pPr><w:r><w:t>Stil</w:t></w:r></w:p>";
+            + "<w:p><w:pPr><w:jc w:val='right'/></w:pPr><w:r><w:t>Right</w:t></w:r></w:p>"
+            + "<w:p><w:pPr><w:pStyle w:val='Right'/></w:pPr><w:r><w:t>Style</w:t></w:r></w:p>";
 
         using var stream = new MemoryStream(DocxPackage(styles, body));
         var read = new DocxDocumentReader().Read(stream).Document;
@@ -422,17 +422,17 @@ internal static class NamedStyleChecks
         var styles = "<w:styles xmlns:w='" + W + "'>"
             + "<w:style w:type='paragraph' w:styleId='Basis'><w:rPr>"
             + "<w:color w:val='CC0000'/><w:sz w:val='28'/></w:rPr></w:style>"
-            + "<w:style w:type='paragraph' w:styleId='Zitat'><w:basedOn w:val='Basis'/>"
+            + "<w:style w:type='paragraph' w:styleId='Quote'><w:basedOn w:val='Basis'/>"
             + "<w:rPr><w:b/><w:i/></w:rPr></w:style>"
-            + "<w:style w:type='character' w:styleId='Klein'><w:rPr>"
+            + "<w:style w:type='character' w:styleId='Small'><w:rPr>"
             + "<w:color w:val='0000CC'/><w:sz w:val='16'/></w:rPr></w:style>"
-            + "<w:style w:type='character' w:styleId='Aufrecht'><w:rPr><w:b w:val='0'/><w:i/></w:rPr></w:style>"
+            + "<w:style w:type='character' w:styleId='Upright'><w:rPr><w:b w:val='0'/><w:i/></w:rPr></w:style>"
             + "</w:styles>";
-        var body = "<w:p><w:pPr><w:pStyle w:val='Zitat'/></w:pPr>"
-            + "<w:r><w:t>Zitat</w:t></w:r>"
-            + "<w:r><w:rPr><w:i w:val='0'/></w:rPr><w:t>aufrecht</w:t></w:r>"
-            + "<w:r><w:rPr><w:rStyle w:val='Klein'/></w:rPr><w:t>klein</w:t></w:r>"
-            + "<w:r><w:rPr><w:rStyle w:val='Aufrecht'/></w:rPr><w:t>nicht fett</w:t></w:r></w:p>";
+        var body = "<w:p><w:pPr><w:pStyle w:val='Quote'/></w:pPr>"
+            + "<w:r><w:t>Quote</w:t></w:r>"
+            + "<w:r><w:rPr><w:i w:val='0'/></w:rPr><w:t>upright</w:t></w:r>"
+            + "<w:r><w:rPr><w:rStyle w:val='Small'/></w:rPr><w:t>small</w:t></w:r>"
+            + "<w:r><w:rPr><w:rStyle w:val='Upright'/></w:rPr><w:t>not bold</w:t></w:r></w:p>";
 
         using var stream = new MemoryStream(DocxPackage(styles, body));
         var document = new DocxDocumentReader().Read(stream).Document;
@@ -453,7 +453,7 @@ internal static class NamedStyleChecks
         Require(quoted.Bold == true && quoted.Italic == true, "DOCX: the style formatting does not reach the run.");
         Require(quoted.Color?.ToString() == "#CC0000", "DOCX: the inherited color is missing: " + quoted.Color);
         Require(quoted.FontSize is { } size && size.Points == 14, "DOCX: the inherited font size is missing.");
-        Require(document.Styles.Single(entry => entry.StyleName == "Zitat").Bold == true,
+        Require(document.Styles.Single(entry => entry.StyleName == "Quote").Bold == true,
             "DOCX: the named style lost its run formatting.");
 
         // w:i with val=0 switches the inherited italic off, the bold of the style stays.
@@ -462,7 +462,7 @@ internal static class NamedStyleChecks
         Require(upright.Bold == true && upright.Italic == false, "DOCX: the own italic-off does not win.");
 
         // The character style sits between the paragraph style and the run: it stays a reference.
-        Require(runs[2].CharacterStyleName == "Klein" && runs[2].Color is null,
+        Require(runs[2].CharacterStyleName == "Small" && runs[2].Color is null,
             "DOCX: the character style formatting was baked into the run.");
         var small = Effective(document, paragraph, runs[2]);
         Require(small.Color?.ToString() == "#0000CC", "DOCX: the character style lost the color: " + small.Color);
@@ -470,8 +470,8 @@ internal static class NamedStyleChecks
             "DOCX: the character style lost the size: " + small.FontSize);
         Require(small.Bold == true && small.Italic == true, "DOCX: the character style dropped the inherited weight.");
 
-        Require(runs[3].CharacterStyleName == "Aufrecht", "DOCX: the character style reference is missing.");
-        Require(document.CharacterStyles.Single(entry => entry.Name == "Aufrecht").Bold == false,
+        Require(runs[3].CharacterStyleName == "Upright", "DOCX: the character style reference is missing.");
+        Require(document.CharacterStyles.Single(entry => entry.Name == "Upright").Bold == false,
             "DOCX: the character style lost its explicit bold-off.");
         var notBold = Effective(document, paragraph, runs[3]);
         Require(notBold.Bold == false && notBold.Italic == true,
@@ -486,12 +486,12 @@ internal static class NamedStyleChecks
         var styles = "<office:styles>"
             + "<style:default-style style:family='paragraph'><style:paragraph-properties "
             + "fo:margin-bottom='12pt' fo:text-align='center'/></style:default-style>"
-            + "<style:style style:name='Rechts' style:family='paragraph'>"
+            + "<style:style style:name='Right' style:family='paragraph'>"
             + "<style:paragraph-properties fo:text-align='right'/></style:style>"
             + "</office:styles>";
-        var body = "<text:p>Standard</text:p><text:p text:style-name='Rechts'>Rechts</text:p>"
-            + "<text:h text:outline-level='1'>Titel</text:h>"
-            + "<text:h text:outline-level='2' text:style-name='Heading2'>Untertitel</text:h>";
+        var body = "<text:p>Standard</text:p><text:p text:style-name='Right'>Right</text:p>"
+            + "<text:h text:outline-level='1'>Title</text:h>"
+            + "<text:h text:outline-level='2' text:style-name='Heading2'>Subtitle</text:h>";
 
         using var stream = new MemoryStream(OdtPackage(styles, body: body));
         var read = new OdtDocumentReader().Read(stream).Document;
@@ -530,9 +530,9 @@ internal static class NamedStyleChecks
         var styles = "<office:styles><style:default-style style:family='paragraph'>"
             + "<style:text-properties fo:font-weight='bold' fo:font-style='italic' fo:font-size='13pt'/>"
             + "</style:default-style>"
-            + "<style:style style:name='Aufrecht' style:family='paragraph'>"
+            + "<style:style style:name='Upright' style:family='paragraph'>"
             + "<style:text-properties fo:font-weight='normal'/></style:style></office:styles>";
-        var body = "<text:p>Standard</text:p><text:p text:style-name='Aufrecht'>Aufrecht</text:p>";
+        var body = "<text:p>Standard</text:p><text:p text:style-name='Upright'>Upright</text:p>";
 
         using var stream = new MemoryStream(OdtPackage(styles, body: body));
         var document = new OdtDocumentReader().Read(stream).Document;
@@ -560,13 +560,13 @@ internal static class NamedStyleChecks
         var styles = "<office:styles>"
             + "<style:style style:name='Basis' style:family='paragraph'><style:text-properties "
             + "fo:color='#CC0000' fo:font-size='14pt'/></style:style>"
-            + "<style:style style:name='Zitat' style:family='paragraph' style:parent-style-name='Basis'>"
+            + "<style:style style:name='Quote' style:family='paragraph' style:parent-style-name='Basis'>"
             + "<style:text-properties fo:font-weight='bold' fo:font-style='italic'/></style:style>"
             + "</office:styles>";
         var automatic = "<style:style style:name='T1' style:family='text'>"
             + "<style:text-properties fo:font-size='8pt'/></style:style>";
-        var body = "<text:p text:style-name='Zitat'>Zitat<text:span text:style-name='T1'> klein</text:span></text:p>"
-            + "<text:p>Ohne</text:p>";
+        var body = "<text:p text:style-name='Quote'>Quote<text:span text:style-name='T1'> small</text:span></text:p>"
+            + "<text:p>Without</text:p>";
 
         using var stream = new MemoryStream(OdtPackage(styles, automatic, body));
         var document = new OdtDocumentReader().Read(stream).Document;
@@ -607,12 +607,12 @@ internal static class NamedStyleChecks
     /// <summary>An explicit "normal" in a span switches the paragraph style's bold off.</summary>
     private static void ReadsOdtSpanTurnsBoldOff()
     {
-        var styles = "<office:styles><style:style style:name='Zitat' style:family='paragraph'>"
+        var styles = "<office:styles><style:style style:name='Quote' style:family='paragraph'>"
             + "<style:text-properties fo:font-weight='bold' fo:font-size='14pt'/></style:style></office:styles>";
-        var automatic = "<style:style style:name='Aufrecht' style:family='text'>"
+        var automatic = "<style:style style:name='Upright' style:family='text'>"
             + "<style:text-properties fo:font-weight='normal'/></style:style>";
-        var body = "<text:p text:style-name='Zitat'>Fett"
-            + "<text:span text:style-name='Aufrecht'>aufrecht</text:span></text:p>";
+        var body = "<text:p text:style-name='Quote'>Bold"
+            + "<text:span text:style-name='Upright'>upright</text:span></text:p>";
 
         using var stream = new MemoryStream(OdtPackage(styles, automatic, body));
         var document = new OdtDocumentReader().Read(stream).Document;
@@ -630,7 +630,7 @@ internal static class NamedStyleChecks
     /// <summary>Automatic text styles inherit along their parent chain; cycles terminate.</summary>
     private static void ReadsOdtNestedTextStyles()
     {
-        var styles = "<office:styles><style:style style:name='Zitat' style:family='paragraph'>"
+        var styles = "<office:styles><style:style style:name='Quote' style:family='paragraph'>"
             + "<style:text-properties fo:font-weight='bold' fo:font-size='14pt'/></style:style></office:styles>";
         var automatic = "<style:style style:name='T2' style:family='text'>"
             + "<style:text-properties fo:font-size='9pt'/></style:style>"
@@ -640,8 +640,8 @@ internal static class NamedStyleChecks
             + "<style:text-properties fo:font-size='10pt'/></style:style>"
             + "<style:style style:name='C2' style:family='text' style:parent-style-name='C1'>"
             + "<style:text-properties fo:font-style='italic'/></style:style>";
-        var body = "<text:p text:style-name='Zitat'>Fett"
-            + "<text:span text:style-name='T1'>klein</text:span>"
+        var body = "<text:p text:style-name='Quote'>Bold"
+            + "<text:span text:style-name='T1'>small</text:span>"
             + "<text:span text:style-name='C1'>Kreis</text:span></text:p>";
 
         using var stream = new MemoryStream(OdtPackage(styles, automatic, body));
@@ -659,11 +659,11 @@ internal static class NamedStyleChecks
     private static void ReadsOdtNoteFormatting()
     {
         var styles = "<office:styles>"
-            + "<style:style style:name='Zitat' style:family='paragraph'>"
+            + "<style:style style:name='Quote' style:family='paragraph'>"
             + "<style:text-properties fo:font-weight='bold' fo:font-size='14pt'/></style:style>"
             + "</office:styles>";
-        var body = "<text:p text:style-name='Zitat'>Text<text:note text:note-class='footnote'>"
-            + "<text:note-body><text:p>Fussnote</text:p></text:note-body>"
+        var body = "<text:p text:style-name='Quote'>Text<text:note text:note-class='footnote'>"
+            + "<text:note-body><text:p>Footnote</text:p></text:note-body>"
             + "</text:note></text:p>";
 
         using var stream = new MemoryStream(OdtPackage(styles, body: body));
@@ -683,12 +683,12 @@ internal static class NamedStyleChecks
     private static void ReadsOdtNoteParagraphStyle()
     {
         var styles = "<office:styles>"
-            + "<style:style style:name='Fussnote' style:family='paragraph'>"
+            + "<style:style style:name='Footnote' style:family='paragraph'>"
             + "<style:paragraph-properties fo:text-align='center'/>"
             + "<style:text-properties fo:font-style='italic' fo:font-size='9pt'/></style:style>"
             + "</office:styles>";
         var body = "<text:p>Text<text:note text:note-class='footnote'>"
-            + "<text:note-body><text:p text:style-name='Fussnote'>Fussnote</text:p></text:note-body>"
+            + "<text:note-body><text:p text:style-name='Footnote'>Footnote</text:p></text:note-body>"
             + "</text:note></text:p>";
 
         using var stream = new MemoryStream(OdtPackage(styles, body: body));
@@ -721,12 +721,12 @@ internal static class NamedStyleChecks
     {
         const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
         var styles = "<w:styles xmlns:w='" + W + "'>"
-            + "<w:style w:type='paragraph' w:styleId='Liste'><w:pPr><w:numPr>"
+            + "<w:style w:type='paragraph' w:styleId='List'><w:pPr><w:numPr>"
             + "<w:numId w:val='7'/><w:ilvl w:val='1'/></w:numPr></w:pPr></w:style>"
             + "</w:styles>";
-        var body = "<w:p><w:pPr><w:pStyle w:val='Liste'/></w:pPr><w:r><w:t>Punkt</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:pStyle w:val='Liste'/><w:numPr><w:numId w:val='0'/></w:numPr></w:pPr>"
-            + "<w:r><w:t>Ohne</w:t></w:r></w:p>";
+        var body = "<w:p><w:pPr><w:pStyle w:val='List'/></w:pPr><w:r><w:t>Item</w:t></w:r></w:p>"
+            + "<w:p><w:pPr><w:pStyle w:val='List'/><w:numPr><w:numId w:val='0'/></w:numPr></w:pPr>"
+            + "<w:r><w:t>Without</w:t></w:r></w:p>";
         var numbering = "<w:numbering xmlns:w='" + W + "'>"
             + "<w:abstractNum w:abstractNumId='0'><w:lvl w:ilvl='0'><w:numFmt w:val='decimal'/></w:lvl>"
             + "<w:lvl w:ilvl='1'><w:numFmt w:val='bullet'/></w:lvl></w:abstractNum>"
@@ -764,7 +764,7 @@ internal static class NamedStyleChecks
     /// <summary>The automatic paragraph styles of the header/footer are not named styles.</summary>
     private static void IgnoresOdtBandStyles()
     {
-        var header = new Paragraph(new TextRun("Kopf"))
+        var header = new Paragraph(new TextRun("Head"))
         {
             Style = ParagraphStyle.Default with { Alignment = TextAlignment.Center },
         };
@@ -857,8 +857,8 @@ internal static class NamedStyleChecks
     /// <summary>A linked paragraph/character style keeps its link across a write and read.</summary>
     private static void WritesStyleLinks()
     {
-        var paragraph = new ParagraphStyle { StyleName = "Titel", LinkedStyleName = "TitelZeichen" };
-        var character = new CharacterStyle("TitelZeichen") { Bold = true, LinkedStyleName = "Titel" };
+        var paragraph = new ParagraphStyle { StyleName = "Title", LinkedStyleName = "TitelZeichen" };
+        var character = new CharacterStyle("TitelZeichen") { Bold = true, LinkedStyleName = "Title" };
         var document = new PortableDocument(
             new DocumentMetadata(),
             new Section(new Block[] { new Paragraph(new TextRun("Text")) { Style = paragraph } }))
@@ -874,7 +874,7 @@ internal static class NamedStyleChecks
 
         Require(read.Styles.Single().LinkedStyleName == "TitelZeichen",
             "DOCX: the link of the paragraph style is not written.");
-        Require(read.CharacterStyles.Single().LinkedStyleName == "Titel",
+        Require(read.CharacterStyles.Single().LinkedStyleName == "Title",
             "DOCX: the link of the character style is not written.");
     }
 
@@ -883,23 +883,23 @@ internal static class NamedStyleChecks
     {
         const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
         var styles = "<w:styles xmlns:w='" + W + "'>"
-            + "<w:style w:type='paragraph' w:styleId='Titel'><w:name w:val='Titel'/>"
-            + "<w:link w:val='TitelZeichen'/></w:style>"
-            + "<w:style w:type='character' w:styleId='TitelZeichen'><w:name w:val='Titel Zeichen'/>"
-            + "<w:link w:val='Titel'/><w:rPr><w:b/></w:rPr></w:style>"
+            + "<w:style w:type='paragraph' w:styleId='Title'><w:name w:val='Title'/>"
+            + "<w:link w:val='TitleChar'/></w:style>"
+            + "<w:style w:type='character' w:styleId='TitleChar'><w:name w:val='Title Char'/>"
+            + "<w:link w:val='Title'/><w:rPr><w:b/></w:rPr></w:style>"
             + "</w:styles>";
 
         using var stream = new MemoryStream(DocxPackage(styles));
         var document = new DocxDocumentReader().Read(stream).Document;
         var style = document.Styles.Single();
-        var changed = document with { Styles = [style with { LinkedStyleName = "Andere" }] };
+        var changed = document with { Styles = [style with { LinkedStyleName = "Other" }] };
 
         using var buffer = new MemoryStream();
         new DocxDocumentWriter().WriteAsync(changed, buffer).GetAwaiter().GetResult();
         buffer.Position = 0;
         using var archive = new ZipArchive(buffer, ZipArchiveMode.Read, leaveOpen: true);
         using var reader = new StreamReader(archive.GetEntry("word/styles.xml")!.Open());
-        Require(reader.ReadToEnd().Contains("w:link w:val=\"Andere\"", StringComparison.Ordinal),
+        Require(reader.ReadToEnd().Contains("w:link w:val=\"Other\"", StringComparison.Ordinal),
             "DOCX: a changed style link is not written.");
     }
 
@@ -908,11 +908,11 @@ internal static class NamedStyleChecks
     {
         const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
         var styles = "<w:styles xmlns:w='" + W + "'>"
-            + "<w:style w:type='paragraph' w:styleId='Titel'><w:name w:val='Titel'/>"
-            + "<w:link w:val='TitelZeichen'/></w:style>"
+            + "<w:style w:type='paragraph' w:styleId='Title'><w:name w:val='Title'/>"
+            + "<w:link w:val='TitleChar'/></w:style>"
             // No w:rPr: the character style is dropped by the reader.
-            + "<w:style w:type='character' w:styleId='TitelZeichen'><w:name w:val='Titel Zeichen'/>"
-            + "<w:link w:val='Titel'/></w:style>"
+            + "<w:style w:type='character' w:styleId='TitleChar'><w:name w:val='Title Char'/>"
+            + "<w:link w:val='Title'/></w:style>"
             + "</w:styles>";
 
         using var stream = new MemoryStream(DocxPackage(styles));

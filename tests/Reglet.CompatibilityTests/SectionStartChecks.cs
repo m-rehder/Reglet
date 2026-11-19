@@ -33,9 +33,9 @@ internal static class SectionStartChecks
 
     private static PortableDocument Document(SectionStartType startType, string text = "Text")
         => new(
-            new DocumentMetadata { Title = "Abschnittsstart" },
+            new DocumentMetadata { Title = "Section start" },
             [
-                new Section([new Paragraph(new TextRun("Erster"))]),
+                new Section([new Paragraph(new TextRun("First"))]),
                 new Section([new Paragraph(new TextRun(text))]) { StartType = startType },
             ]);
 
@@ -61,7 +61,7 @@ internal static class SectionStartChecks
                     new Section([new Paragraph(new TextRun("Text"))])
                     {
                         StartType = SectionStartType.Continuous,
-                        FirstHeader = new HeaderFooter(new Paragraph(new TextRun("Kopf"))),
+                        FirstHeader = new HeaderFooter(new Paragraph(new TextRun("Head"))),
                     }),
                 buffer2)
             .GetAwaiter()
@@ -120,7 +120,7 @@ internal static class SectionStartChecks
         buffer.Position = 0;
         var pages = new PdfDocumentReader().ReadPageTexts(buffer);
         Assert(pages.Count == 1, "The continuous section starts a new page: " + pages.Count);
-        Assert(pages[0].Contains("Erster", StringComparison.Ordinal), "The first text is missing.");
+        Assert(pages[0].Contains("First", StringComparison.Ordinal), "The first text is missing.");
         Assert(pages[0].Contains("Text", StringComparison.Ordinal), "The second text is missing.");
     }
 
@@ -184,7 +184,7 @@ internal static class SectionStartChecks
             var document = new PortableDocument(
                 new DocumentMetadata(),
                 [
-                    new Section([new Paragraph(new TextRun("Erster")), new PageBreak()]),
+                    new Section([new Paragraph(new TextRun("First")), new PageBreak()]),
                     new Section([new Paragraph(new TextRun("Text"))]) { StartType = startType },
                 ]);
             using var buffer = new MemoryStream();
@@ -198,7 +198,7 @@ internal static class SectionStartChecks
         // A page break at the end of the document stays.
         using var last = new MemoryStream();
         new PdfDocumentWriter()
-            .WriteAsync(new PortableDocument(new DocumentMetadata(), new Section([new Paragraph(new TextRun("Erster")), new PageBreak()])), last)
+            .WriteAsync(new PortableDocument(new DocumentMetadata(), new Section([new Paragraph(new TextRun("First")), new PageBreak()])), last)
             .GetAwaiter().GetResult();
         last.Position = 0;
         Assert(new PdfDocumentReader().ReadPageTexts(last).Count == 2, "The final page break was dropped.");

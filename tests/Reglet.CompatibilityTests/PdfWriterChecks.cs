@@ -245,10 +245,10 @@ internal static class PdfWriterChecks
         var text = Encoding.Latin1.GetString(buffer.ToArray());
 
         Require(text.Contains("/Font", StringComparison.Ordinal), "Font group present.");
-        Require(text.Contains("/F1 10 0 R", StringComparison.Ordinal), "F1 referenziert.");
-        Require(text.Contains("/F2 11 0 R", StringComparison.Ordinal), "F2 referenziert.");
+        Require(text.Contains("/F1 10 0 R", StringComparison.Ordinal), "F1 referenced.");
+        Require(text.Contains("/F2 11 0 R", StringComparison.Ordinal), "F2 referenced.");
         Require(text.Contains("/XObject", StringComparison.Ordinal), "XObject group present.");
-        Require(text.Contains("/Im1 20 0 R", StringComparison.Ordinal), "Im1 referenziert.");
+        Require(text.Contains("/Im1 20 0 R", StringComparison.Ordinal), "Im1 referenced.");
 
         var document = PortableDocument.Create().Paragraph("x").Build();
         using var pdf = new MemoryStream();
@@ -272,7 +272,7 @@ internal static class PdfWriterChecks
         content.BeginText();
         content.SetFont("F1", 12);
         content.MoveText(72, 700);
-        content.ShowText("Hallo (Welt)"u8);
+        content.ShowText("Hello (World)"u8);
         content.EndText();
         content.RestoreState();
 
@@ -286,7 +286,7 @@ internal static class PdfWriterChecks
         AssertContains(text, "10 20 50 30 re\n");
         AssertContains(text, "0 0 0 rg\n");
         AssertContains(text, "f\n");
-        AssertContains(text, "BT\n/F1 12 Tf\n72 700 Td\n(Hallo \\(Welt\\)) Tj\nET\n");
+        AssertContains(text, "BT\n/F1 12 Tf\n72 700 Td\n(Hello \\(World\\)) Tj\nET\n");
         AssertContains(text, "Q\n");
     }
 
@@ -342,7 +342,7 @@ internal static class PdfWriterChecks
 
         var parsed = TrueTypeFont.Load(font);
         Require(parsed.TableTags.Count == 5, "Five tables read.");
-        Require(parsed.TryGetTable("head", out _, out var length), "head gefunden.");
+        Require(parsed.TryGetTable("head", out _, out var length), "head found.");
         Require(length == 54, "head length read.");
         Require(!parsed.TryGetTable("glyf", out _, out _), "glyf is not present.");
 
@@ -381,8 +381,8 @@ internal static class PdfWriterChecks
         Require(parsed.LineGap == 50, "LineGap read.");
         Require(parsed.XMin == -10 && parsed.YMax == 800, "BoundingBox read.");
         Require(parsed.PostScriptName == "TestFont", "PostScript name read.");
-        Require(parsed.GetAdvanceWidth(0) == 500, "Breite Glyphe 0.");
-        Require(parsed.GetAdvanceWidth(1) == 600, "Breite Glyphe 1.");
+        Require(parsed.GetAdvanceWidth(0) == 500, "Width of glyph 0.");
+        Require(parsed.GetAdvanceWidth(1) == 600, "Width of glyph 1.");
         Require(parsed.GetAdvanceWidth(2) == 600, "The last width continues to apply.");
     }
 
@@ -427,7 +427,7 @@ internal static class PdfWriterChecks
         var face = FontFace.Load(fontData);
         var embedded = manager.GetFont("embedded:TestFont", face);
         Require(embedded.DescriptorObject > 0, "Descriptor was assigned.");
-        Require(ReferenceEquals(manager.GetFont("embedded:TestFont", face), embedded), "Dedup greift.");
+        Require(ReferenceEquals(manager.GetFont("embedded:TestFont", face), embedded), "Deduplication works.");
         embedded.Record(embedded.Font.GetGlyphId('A'), "A");
         manager.Finish();
 
@@ -456,7 +456,7 @@ internal static class PdfWriterChecks
 
         var objectMarker = $"{embedded.FontFileObject} 0 obj\n";
         var objectStart = text.IndexOf(objectMarker, StringComparison.Ordinal);
-        Require(objectStart >= 0, "FontFile2-Objekt gefunden.");
+        Require(objectStart >= 0, "FontFile2 object found.");
         var streamStart = text.IndexOf("stream\n", objectStart, StringComparison.Ordinal) + "stream\n".Length;
         var streamEnd = text.IndexOf("\nendstream", streamStart, StringComparison.Ordinal);
         var compressed = bytes[streamStart..streamEnd];
@@ -685,7 +685,7 @@ internal static class PdfWriterChecks
     private static void DrawsUnderlines()
     {
         var document = PortableDocument.Create()
-            .Paragraph(p => p.Text("normal ").Span("unterstrichen", underline: true, fontSize: Length.FromPoints(10)))
+            .Paragraph(p => p.Text("normal ").Span("underlined", underline: true, fontSize: Length.FromPoints(10)))
             .Build();
 
         using var buffer = new MemoryStream();
@@ -695,7 +695,7 @@ internal static class PdfWriterChecks
         var content = PdfStreams.Decompress(buffer.ToArray());
         // 10 pt: stroke width 0.5 (0.05 em); the line lies 1 pt below the baseline (0.1 em).
         AssertContains(content, "0.5 w\n");
-        var text = System.Text.RegularExpressions.Regex.Match(content, "([0-9.]+) Td\\n\\(unterstrichen\\) Tj");
+        var text = System.Text.RegularExpressions.Regex.Match(content, "([0-9.]+) Td\\n\\(underlined\\) Tj");
         var line = System.Text.RegularExpressions.Regex.Match(content, "([0-9.]+) ([0-9.]+) m\\n[0-9.]+ ([0-9.]+) l\\nS\\n");
         Require(text.Success && line.Success, "An underlined segment is drawn with a line.");
         var baseline = double.Parse(text.Groups[1].Value, CultureInfo.InvariantCulture);
@@ -715,7 +715,7 @@ internal static class PdfWriterChecks
     /// <summary>
     /// line height and baseline of embedded fonts follow the hhea metrics of the
     /// file (ascender + descender + line gap or ascender), as in Word and
-    /// LibreOffice; Standardschriften behalten den Faktor 1,2.
+    /// LibreOffice; the standard fonts keep the factor 1.2.
     /// </summary>
     private static void UsesEmbeddedFontVerticalMetrics()
     {
@@ -776,7 +776,7 @@ internal static class PdfWriterChecks
         var first = System.Text.RegularExpressions.Regex.Match(content, "([0-9.]+) ([0-9.]+) Td\\n\\(W+\\) Tj");
         Require(first.Success, "First line is drawn.");
         var x = double.Parse(first.Groups[1].Value, CultureInfo.InvariantCulture);
-        // 20 pt Linkseinzug + 5 pt Erstzeileneinzug rechts vom Standardrand (72 pt).
+        // 20 pt left indent + 5 pt first-line indent to the right of the default margin (72 pt).
         Require(Math.Abs(x - (PageMargins.Normal.Left.Points + 20 + 5)) < 0.01,
             "First line starts after the left indent plus first-line indent.");
 
@@ -832,7 +832,7 @@ internal static class PdfWriterChecks
         var content = PdfStreams.Decompress(buffer.ToArray());
 
         // Courier 10 pt: 6 pt per character; 180 pt wrap width -> line 1 is
-        // "aaaa bbbb cccc dddd eeee ffff" (174 pt), ffff ihr letztes Wort.
+        // "aaaa bbbb cccc dddd eeee ffff" (174 pt), ffff its last word.
         var ffff = System.Text.RegularExpressions.Regex.Match(content, "([0-9.]+) ([0-9.]+) Td\\n\\(ffff\\) Tj");
         var gggg = System.Text.RegularExpressions.Regex.Match(content, "([0-9.]+) ([0-9.]+) Td\\n\\(gggg\\) Tj");
         Require(ffff.Success && gggg.Success, "Justified paragraph is wrapped into lines.");
@@ -999,7 +999,7 @@ internal static class PdfWriterChecks
     private static void WritesImageAltTextAsMarkedContent()
     {
         var png = TestImages.RgbPng(4, 2, 255, 0, 0);
-        var withAlt = PortableDocument.Create().Image(png, ImageMediaType.Png, altText: "Diagramm").Build();
+        var withAlt = PortableDocument.Create().Image(png, ImageMediaType.Png, altText: "Chart").Build();
         using var buffer = new MemoryStream();
         var result = new PdfDocumentWriter().WriteAsync(withAlt, buffer).GetAwaiter().GetResult();
         Require(!result.HasWarnings, "Image alternative text produces no warning.");
@@ -1016,7 +1016,7 @@ internal static class PdfWriterChecks
 
         var latin = Encoding.Latin1.GetString(bytes);
         AssertContains(latin, "/S /Figure ");
-        AssertContains(latin, "/Alt (Diagramm)");
+        AssertContains(latin, "/Alt (Chart)");
 
         // Without alternative text the image stays tagged but carries no /Alt.
         var withoutAlt = PortableDocument.Create().Image(png, ImageMediaType.Png).Build();
@@ -1045,7 +1045,7 @@ internal static class PdfWriterChecks
 
         // On the second page the field yields page 2.
         var fill = Enumerable.Range(0, 60).Select(index => (Block)new Paragraph(new TextRun("Filler text"))).ToList();
-        fill.Add(new Paragraph(new Inline[] { new TextRun("Blatt "), new PageNumberField() }));
+        fill.Add(new Paragraph(new Inline[] { new TextRun("Sheet "), new PageNumberField() }));
         var twoPages = new PortableDocument(new DocumentMetadata(), new Section(fill));
         using var page2 = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(twoPages, page2).GetAwaiter().GetResult();
@@ -1063,7 +1063,7 @@ internal static class PdfWriterChecks
         new PdfDocumentWriter().WriteAsync(document, buffer).GetAwaiter().GetResult();
         var content = PdfStreams.Decompress(buffer.ToArray());
         AssertContains(content, "0.5 w\n");
-        // Vier Zellen -> vier umrandete Rechtecke (re ... S).
+        // Four cells -> four outlined rectangles (re ... S).
         var rectangles = System.Text.RegularExpressions.Regex.Matches(content, " re\n").Count;
         Require(rectangles >= 4, "Each cell gets a border (re).");
         Require(content.Contains("S\n", StringComparison.Ordinal), "The borders are drawn (S).");
@@ -1241,7 +1241,7 @@ internal static class PdfWriterChecks
         var pdf = new TrackingStream();
         new PdfDocumentWriter().WriteAsync(document, pdf).GetAwaiter().GetResult();
         Require(!pdf.Disposed, "PDF: the foreign stream remains open.");
-        Require(pdf.Length > 0, "PDF: Es wurden Bytes geschrieben.");
+        Require(pdf.Length > 0, "PDF: bytes were written.");
         pdf.Dispose();
 
         var odt = new TrackingStream();
@@ -1258,7 +1258,7 @@ internal static class PdfWriterChecks
     private static void ProducesDeterministicBytes()
     {
         var document = PortableDocument.Create()
-            .Metadata(title: "Deterministisch", author: "Autor")
+            .Metadata(title: "Deterministic", author: "Author")
             .Heading("Title", level: 1)
             .Paragraph("One paragraph")
             .BulletList("a", "b")
@@ -1305,7 +1305,7 @@ internal static class PdfWriterChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete Ausnahme {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

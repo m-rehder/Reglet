@@ -27,15 +27,15 @@ public sealed record PageMargins
         Left = left;
     }
 
-    /// <summary>Oberer Rand.</summary>
+    /// <summary>Top margin.</summary>
     public Length Top { get; }
 
-    /// <summary>Rechter Rand.</summary>
+    /// <summary>Right margin.</summary>
     public Length Right { get; }
 
     /// <summary>Bottom margin.</summary>
     public Length Bottom { get; }
 
-    /// <summary>Linker Rand.</summary>
+    /// <summary>Left margin.</summary>
     public Length Left { get; }
 }

@@ -6,7 +6,7 @@ namespace Reglet;
 /// </summary>
 public sealed record ResourceLimits
 {
-    /// <summary>Standardgrenzen.</summary>
+    /// <summary>The default limits.</summary>
     public static ResourceLimits Default { get; } = new();
 
     /// <summary>Maximum byte count of an image (default: 32 MiB).</summary>

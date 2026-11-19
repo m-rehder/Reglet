@@ -9,7 +9,7 @@ internal sealed class PdfObjectRegistry
     private readonly Dictionary<string, int> _byKey = new(StringComparer.Ordinal);
     private int _last;
 
-    /// <summary>Zuletzt vergebene Objektnummer.</summary>
+    /// <summary>The last object number handed out.</summary>
     public int LastObjectNumber => _last;
 
     /// <summary>Reserves the next object number.</summary>

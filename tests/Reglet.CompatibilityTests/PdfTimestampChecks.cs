@@ -38,8 +38,8 @@ internal static class PdfTimestampChecks
 
     private static PortableDocument Document()
         => new(
-            new DocumentMetadata { Title = "Zeitstempel" },
-            new Section(new Paragraph(new TextRun("Inhalt mit Zeitstempel."))));
+            new DocumentMetadata { Title = "Timestamp" },
+            new Section(new Paragraph(new TextRun("Content with a timestamp."))));
 
     /// <summary>A granted response with a token; the token is a placeholder, not a real TSA token.</summary>
     private static byte[] Response(bool granted = true)
@@ -180,7 +180,7 @@ internal static class PdfTimestampChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

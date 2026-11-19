@@ -41,14 +41,14 @@ internal static class HtmlChecks
 
     private static void ReadsStructure()
     {
-        var result = Read("<html><head><title>Titel</title><style>p{color:red}</style></head><body><h1>Kopf</h1><p>Eins <b>fett</b> und <i>schief</i><br>Zeile<p>Zwei <a href=\"https://example.org\">Link</a>"
+        var result = Read("<html><head><title>Title</title><style>p{color:red}</style></head><body><h1>Head</h1><p>One <b>bold</b> and <i>slanted</i><br>Line<p>Two <a href=\"https://example.org\">Link</a>"
             + "<ul><li>a<ul><li>b</li></ul></li><li>c</ol></body></html>");
         var blocks = Blocks(result);
-        Require(result.Document.Metadata.Title == "Titel", "title");
+        Require(result.Document.Metadata.Title == "Title", "title");
         Require(blocks[0] is Heading { Level: HeadingLevel.Level1 }, "heading");
         var first = (Paragraph)blocks[1];
-        Require(Text(first) == "Eins fett und schief\nZeile", "text: " + Text(first));
-        Require(first.Inlines.OfType<TextRun>().Any(run => run.Bold == true && run.Text == "fett"), "bold");
+        Require(Text(first) == "One bold and slanted\nLine", "text: " + Text(first));
+        Require(first.Inlines.OfType<TextRun>().Any(run => run.Bold == true && run.Text == "bold"), "bold");
         Require(first.Inlines.OfType<TextRun>().Any(run => run.Italic == true), "italic");
         Require(((Paragraph)blocks[2]).Inlines.OfType<Hyperlink>().Single().Target == "https://example.org", "link");
         var list = (ListBlock)blocks[3];
@@ -62,8 +62,8 @@ internal static class HtmlChecks
     private static void ReadsEntitiesAndEncodings()
     {
         Require(Text((Paragraph)Blocks(Read("<p>a &amp; b &lt; &#65;&#x42; &auml; &euro; &bogus;</p>"))[0]) == "a & b < AB ä € &bogus;", "entities");
-        var latin = Read("<meta charset=\"iso-8859-1\"><p>Grüße</p>", Encoding.Latin1);
-        Require(Text((Paragraph)Blocks(latin)[0]) == "Grüße", "latin1");
+        var latin = Read("<meta charset=\"iso-8859-1\"><p>Crème brûlée</p>", Encoding.Latin1);
+        Require(Text((Paragraph)Blocks(latin)[0]) == "Crème brûlée", "latin1");
         var bom = Read("﻿<p>Ü</p>", new UTF8Encoding(true));
         Require(Text((Paragraph)Blocks(bom)[0]) == "Ü", "bom");
         Require(Text((Paragraph)Blocks(Read("<p>a\n   b\t c</p>"))[0]) == "a b c", "whitespace");
@@ -71,13 +71,13 @@ internal static class HtmlChecks
 
     private static void IsSafe()
     {
-        var result = Read("<p onclick=\"x()\">T<script>alert(1)</script><a href=\"javascript:alert(1)\">bad</a><img src=\"http://example.org/a.png\" alt=\"Bild\"><iframe src=\"x\"></iframe></p>");
+        var result = Read("<p onclick=\"x()\">T<script>alert(1)</script><a href=\"javascript:alert(1)\">bad</a><img src=\"http://example.org/a.png\" alt=\"Picture\"><iframe src=\"x\"></iframe></p>");
         var paragraph = (Paragraph)Blocks(result)[0];
         Require(!paragraph.Inlines.OfType<Hyperlink>().Any(), "javascript link dropped");
-        Require(Text(paragraph).Contains("bad", StringComparison.Ordinal) && Text(paragraph).Contains("Bild", StringComparison.Ordinal), "text kept");
+        Require(Text(paragraph).Contains("bad", StringComparison.Ordinal) && Text(paragraph).Contains("Picture", StringComparison.Ordinal), "text kept");
         Require(!Text(paragraph).Contains("alert", StringComparison.Ordinal), "script dropped");
         Require(result.Warnings.Count >= 2, "warnings");
-        var deep = Read(string.Concat(Enumerable.Repeat("<div>", 5000)) + "tief");
+        var deep = Read(string.Concat(Enumerable.Repeat("<div>", 5000)) + "deep");
         Require(Blocks(deep).Count >= 1, "deep nesting survives");
         var image = Blocks(Read("<img src=\"data:image/png;base64," + Convert.ToBase64String(Png()) + "\" alt=\"x\">"));
         Require(image.OfType<ImageBlock>().Count() == 1, "data uri image");
@@ -95,8 +95,8 @@ internal static class HtmlChecks
     private static PortableDocument Sample()
         => new(new DocumentMetadata { Title = "A & B" }, new Section(new Block[]
         {
-            new Heading(HeadingLevel.Level2, new TextRun("Kopf <1>")),
-            new Paragraph(new Inline[] { new TextRun("Fett") { Bold = true }, new TextRun(" und "), new Hyperlink("https://example.org/?a=1&b=2", "Link") }),
+            new Heading(HeadingLevel.Level2, new TextRun("Head <1>")),
+            new Paragraph(new Inline[] { new TextRun("Bold") { Bold = true }, new TextRun(" and "), new Hyperlink("https://example.org/?a=1&b=2", "Link") }),
             new TableBlock(new[] { new TableRow(new TableCell("x"), new TableCell("y")) { IsHeader = true } }),
             new ImageBlock(Png(), ImageMediaType.Png) { AltText = "Pixel" },
             new Equation(new MathText("x")),
@@ -107,8 +107,8 @@ internal static class HtmlChecks
         var stream = new MemoryStream();
         var write = new HtmlDocumentWriter().WriteAsync(Sample(), stream).GetAwaiter().GetResult();
         var html = Encoding.UTF8.GetString(stream.ToArray());
-        Require(html.Contains("<title>A &amp; B</title>", StringComparison.Ordinal) && html.Contains("Kopf &lt;1&gt;", StringComparison.Ordinal), "escaping");
-        Require(html.Contains("data:image/png;base64,", StringComparison.Ordinal) && html.Contains("<b>Fett</b>", StringComparison.Ordinal), "content");
+        Require(html.Contains("<title>A &amp; B</title>", StringComparison.Ordinal) && html.Contains("Head &lt;1&gt;", StringComparison.Ordinal), "escaping");
+        Require(html.Contains("data:image/png;base64,", StringComparison.Ordinal) && html.Contains("<b>Bold</b>", StringComparison.Ordinal), "content");
         Require(write.Warnings.Any(w => w.Message.Contains("Equation", StringComparison.Ordinal)), "equation reported");
         var back = Blocks(new HtmlDocumentReader().Read(new MemoryStream(stream.ToArray())));
         Require(back[0] is Heading && back.OfType<TableBlock>().Count() == 1 && back.OfType<ImageBlock>().Count() == 1, "round trip");
@@ -117,7 +117,7 @@ internal static class HtmlChecks
 
     private static void ConvertsToOtherFormats()
     {
-        var html = Encoding.UTF8.GetBytes("<h1>Hallo</h1><p>Welt <b>fett</b></p><ul><li>eins</li></ul>");
+        var html = Encoding.UTF8.GetBytes("<h1>Hello</h1><p>World <b>bold</b></p><ul><li>one</li></ul>");
         foreach (var format in new[] { DocumentFormat.Docx, DocumentFormat.Odt, DocumentFormat.Pdf })
         {
             var read = DocumentReader.Read(new MemoryStream(html), DocumentFormat.Html);

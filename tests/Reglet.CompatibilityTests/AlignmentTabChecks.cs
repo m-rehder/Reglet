@@ -27,15 +27,15 @@ internal static class AlignmentTabChecks
     {
         var footer = new Paragraph(new Inline[]
         {
-            new TextRun("links"),
+            new TextRun("left"),
             new AlignmentTab(TabStopAlignment.Center),
-            new TextRun("Mitte"),
+            new TextRun("Middle"),
             new AlignmentTab(TabStopAlignment.Right, TabStopLeader.Dot, AlignmentTabRelativeTo.Margin),
-            new TextRun("rechts"),
+            new TextRun("right"),
         });
         var body = new Paragraph(new Inline[]
         {
-            new TextRun("Kapitel"),
+            new TextRun("Chapter"),
             new AlignmentTab(TabStopAlignment.Right, relativeTo: AlignmentTabRelativeTo.Indent),
             new TextRun("7"),
         }) { Style = new ParagraphStyle { LeftIndent = Length.FromPoints(36), RightIndent = Length.FromPoints(18) } };
@@ -74,7 +74,7 @@ internal static class AlignmentTabChecks
         var tabs = footer.Inlines.OfType<AlignmentTab>().ToList();
         Require(tabs.Count == 2 && tabs[0].Alignment == TabStopAlignment.Center && tabs[1].Alignment == TabStopAlignment.Right
             && tabs[1].Leader == TabStopLeader.Dot && tabs[1].RelativeTo == AlignmentTabRelativeTo.Margin, "DOCX read: the footer tabs.");
-        Require(footer.Inlines.Select(inline => inline is TextRun run ? run.Text : "|").SequenceEqual(new[] { "links", "|", "Mitte", "|", "rechts" }), "DOCX read: the text between the tabs.");
+        Require(footer.Inlines.Select(inline => inline is TextRun run ? run.Text : "|").SequenceEqual(new[] { "left", "|", "Middle", "|", "right" }), "DOCX read: the text between the tabs.");
         var body = (Paragraph)read.Document.Sections[0].Blocks.Single();
         Require(body.Inlines.OfType<AlignmentTab>().Single().RelativeTo == AlignmentTabRelativeTo.Indent, "DOCX read: the indent reference.");
     }
@@ -106,7 +106,7 @@ internal static class AlignmentTabChecks
         }
 
         var text = string.Join("\n", DocumentReader.ReadPdfPages(new MemoryStream(buffer.ToArray())));
-        Require(text.Contains("links", StringComparison.Ordinal) && text.Contains("rechts", StringComparison.Ordinal) && text.Contains("Kapitel", StringComparison.Ordinal), "PDF: the text: " + text);
+        Require(text.Contains("left", StringComparison.Ordinal) && text.Contains("right", StringComparison.Ordinal) && text.Contains("Chapter", StringComparison.Ordinal), "PDF: the text: " + text);
     }
 
     private static void Throws(Action action)

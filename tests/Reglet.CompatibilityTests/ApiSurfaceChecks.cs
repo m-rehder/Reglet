@@ -118,12 +118,12 @@ internal static class ApiSurfaceChecks
         {
             if (ForbiddenNamespacePrefixes.Any(prefix => ns.StartsWith(prefix, StringComparison.Ordinal)))
             {
-                violations.Add($"{context} verwendet {type.FullName}");
+                violations.Add($"{context} uses {type.FullName}");
             }
 
             return;
         }
 
-        violations.Add($"{context} verwendet {type.FullName}");
+        violations.Add($"{context} uses {type.FullName}");
     }
 }

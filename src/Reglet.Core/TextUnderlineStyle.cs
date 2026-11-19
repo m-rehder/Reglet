@@ -9,15 +9,15 @@ public enum TextUnderlineStyle
     /// <summary>Single solid line.</summary>
     Single,
 
-    /// <summary>Doppelte Linie.</summary>
+    /// <summary>Double line.</summary>
     Double,
 
-    /// <summary>Gepunktete Linie.</summary>
+    /// <summary>Dotted line.</summary>
     Dotted,
 
-    /// <summary>Gestrichelte Linie.</summary>
+    /// <summary>Dashed line.</summary>
     Dashed,
 
-    /// <summary>Wellenlinie.</summary>
+    /// <summary>Wavy line.</summary>
     Wave,
 }

@@ -395,8 +395,8 @@ internal static class CommentChecks
         Require(notes.Count == 1 && notes[0].Page == 2, "PDF: the note is on the page of its anchor.");
 
         // PDF/A: a note needs an appearance stream; the writer gives it one.
-        // The test font has only the glyphs of "Hallo".
-        var small = new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new Inline[] { new Comment(0, "Ann", "note"), new TextRun("Hallo") })));
+        // The test font has only the glyphs of "Hello".
+        var small = new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new Inline[] { new Comment(0, "Ann", "note"), new TextRun("Hello") })));
         var pdfA = WritePdf(small, PdfCommentMode.Annotations, out var result, PdfAConformance.PdfA2b);
         var latin = System.Text.Encoding.Latin1.GetString(pdfA);
         Require(PdfNotes(pdfA).Count == 1 && latin.Contains("/AP "), "PDF/A: the notes carry an appearance stream: " + string.Join("|", result.Warnings.Select(w => w.Message)));

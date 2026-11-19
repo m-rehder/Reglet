@@ -17,7 +17,7 @@ var thresholds = LoadThresholds(Path.Combine(root, "build", "benchmarks.txt"));
 var results = new List<Result>();
 foreach (var scenario in Scenarios.All())
 {
-    scenario.Run(); // Aufwaermen (JIT, Caches)
+    scenario.Run(); // warm-up (JIT, caches)
     GC.Collect();
     GC.WaitForPendingFinalizers();
     GC.Collect();
@@ -33,7 +33,7 @@ foreach (var scenario in Scenarios.All())
     results.Add(new Result(scenario.Name, stopwatch.Elapsed.TotalMilliseconds, allocated, retained, bytes));
 }
 
-Console.WriteLine($"{"Szenario",-24} {"Dauer ms",10} {"allokiert",14} {"zurückgehalten",14} {"Bytes",12}");
+Console.WriteLine($"{"Scenario",-24} {"Time ms",10} {"allocated",14} {"retained",14} {"Bytes",12}");
 foreach (var result in results)
 {
     Console.WriteLine(
@@ -52,14 +52,14 @@ foreach (var result in results)
     if (result.Milliseconds > limit.MaxMilliseconds)
     {
         Console.Error.WriteLine(
-            $"REGRESSION: '{result.Name}' dauerte {result.Milliseconds:0.0} ms (Grenze {limit.MaxMilliseconds:0.0} ms).");
+            $"REGRESSION: '{result.Name}' took {result.Milliseconds:0.0} ms (limit {limit.MaxMilliseconds:0.0} ms).");
         failures++;
     }
 
     if (result.AllocatedBytes > limit.MaxAllocatedBytes)
     {
         Console.Error.WriteLine(
-            $"REGRESSION: '{result.Name}' allokierte {result.AllocatedBytes:N0} Bytes (Grenze {limit.MaxAllocatedBytes:N0}).");
+            $"REGRESSION: '{result.Name}' allocated {result.AllocatedBytes:N0} bytes (limit {limit.MaxAllocatedBytes:N0}).");
         failures++;
     }
 }
@@ -129,19 +129,19 @@ internal static class Scenarios
     {
         yield return new Scenario("pdf-1000-pages", () => WritePdf(1_000));
         yield return new Scenario("pdf-10000-pages", () => WritePdf(10_000));
-        yield return new Scenario("docx-10000-bloecke", () => WriteBlocks(DocumentFormat.Docx));
-        yield return new Scenario("odt-10000-bloecke", () => WriteBlocks(DocumentFormat.Odt));
+        yield return new Scenario("docx-10000-blocks", () => WriteBlocks(DocumentFormat.Docx));
+        yield return new Scenario("odt-10000-blocks", () => WriteBlocks(DocumentFormat.Odt));
         yield return new Scenario("pdf-large-image", WriteLargeImage);
         yield return new Scenario("parallel-8x1000-pages", WriteParallel);
         var docx = Blocks(DocumentFormat.Docx);
         var odt = Blocks(DocumentFormat.Odt);
         var pdf = Blocks(DocumentFormat.Pdf);
-        yield return new Scenario("read-docx-10000-bloecke", () => Read(docx, DocumentFormat.Docx));
-        yield return new Scenario("read-odt-10000-bloecke", () => Read(odt, DocumentFormat.Odt));
-        yield return new Scenario("read-pdf-10000-bloecke", () => Read(pdf, DocumentFormat.Pdf));
-        yield return new Scenario("template-docx-10000-bloecke", () => BindTemplate(docx, DocumentFormat.Docx));
-        yield return new Scenario("template-odt-10000-bloecke", () => BindTemplate(odt, DocumentFormat.Odt));
-        yield return new Scenario("rewrite-pdf-10000-bloecke", () => RewritePdf(pdf));
+        yield return new Scenario("read-docx-10000-blocks", () => Read(docx, DocumentFormat.Docx));
+        yield return new Scenario("read-odt-10000-blocks", () => Read(odt, DocumentFormat.Odt));
+        yield return new Scenario("read-pdf-10000-blocks", () => Read(pdf, DocumentFormat.Pdf));
+        yield return new Scenario("template-docx-10000-blocks", () => BindTemplate(docx, DocumentFormat.Docx));
+        yield return new Scenario("template-odt-10000-blocks", () => BindTemplate(odt, DocumentFormat.Odt));
+        yield return new Scenario("rewrite-pdf-10000-blocks", () => RewritePdf(pdf));
     }
 
     private static long WritePdf(int pages)

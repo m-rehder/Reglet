@@ -107,7 +107,7 @@ internal static class ArabicJoining
 
     /// <summary>
     /// computes the contextual form per character according to the joining algorithm. Letters without
-    /// Verbindung erhalten <see cref="ContextForm.Isolated"/>.
+    /// a joining neighbour get <see cref="ContextForm.Isolated"/>.
     /// </summary>
     public static ContextForm[] ResolveForms(ReadOnlySpan<int> codePoints)
     {

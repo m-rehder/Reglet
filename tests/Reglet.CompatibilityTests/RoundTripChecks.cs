@@ -84,8 +84,8 @@ internal static class RoundTripChecks
         var metadata = new DocumentMetadata
         {
             Title = "Title",
-            Author = "Autor",
-            Subject = "Betreff",
+            Author = "Author",
+            Subject = "Subject",
             Keywords = new[] { "one", "two" },
             Language = "de-DE",
             Created = new DateTimeOffset(2026, 9, 24, 14, 30, 5, TimeSpan.FromHours(2)),
@@ -94,8 +94,8 @@ internal static class RoundTripChecks
         var styled = new Paragraph(new Inline[]
         {
             new TextRun("Normal "),
-            new TextRun("fett") { Bold = true },
-            new TextRun(" kursiv ")
+            new TextRun("bold") { Bold = true },
+            new TextRun(" italic ")
             {
                 Italic = true,
                 FontSize = Length.FromPoints(14),

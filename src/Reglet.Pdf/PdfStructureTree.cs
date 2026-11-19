@@ -60,7 +60,7 @@ internal sealed class PdfStructureTree
 
     /// <summary>
     /// starts a content element (paragraph, heading, figure). Returns the MCID for the
-    /// Marked-Content-Sequenz.
+    /// marked-content sequence.
     /// </summary>
     public int BeginContent(string role, string? alt, int pageObject, int structParents)
     {

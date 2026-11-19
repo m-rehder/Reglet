@@ -164,7 +164,7 @@ internal static class LayoutFidelityChecks
     private static void KeepsCellTextBelowTopBorder()
     {
         // Helvetica capitals with an umlaut reach about 0.9 em; the AFM ascender (0.718) let them cross the border.
-        var page = PageContents(Pdf(new TableBlock([new TableRow(new TableCell("Äpfel"))]))).Single();
+        var page = PageContents(Pdf(new TableBlock([new TableRow(new TableCell("Ångström"))]))).Single();
         var cell = Regex.Match(page, @"(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) re");
         var top = Number(cell.Groups[2].Value) + Number(cell.Groups[4].Value);
         var baseline = Number(Regex.Match(page, @"(-?[\d.]+) (-?[\d.]+) Td").Groups[2].Value);
@@ -183,8 +183,8 @@ internal static class LayoutFidelityChecks
 
     private static void BreaksAtLastBreakOpportunity()
     {
-        var text = Words(Pdf(new Paragraph(new TextRun("Haus\u00ADtuer " + string.Join(' ', Enumerable.Repeat("kurzes", 40))))));
-        Require(Y(text, "Haus") == Y(text, "tuer"), "the line is filled before it breaks.");
+        var text = Words(Pdf(new Paragraph(new TextRun("house\u00ADhold " + string.Join(' ', Enumerable.Repeat("short", 40))))));
+        Require(Y(text, "house") == Y(text, "hold"), "the line is filled before it breaks.");
     }
 
     private static void KeepsRestAfterHyphenInsideLine()
@@ -199,7 +199,7 @@ internal static class LayoutFidelityChecks
 
     private static void KeepsNoBreakSpaceTogether()
     {
-        var pages = Pdf(new Paragraph(new TextRun(string.Join(' ', Enumerable.Repeat("wort", 15)) + " abcdefgh 10 000 km ende")));
+        var pages = Pdf(new Paragraph(new TextRun(string.Join(' ', Enumerable.Repeat("word", 15)) + " abcdefgh 10 000 km end")));
         Require(Words(pages).All(word => word.Text != "km"), "the number and its unit stay together.");
     }
 

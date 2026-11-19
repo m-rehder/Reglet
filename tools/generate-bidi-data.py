@@ -91,7 +91,7 @@ def main(derived_path, brackets_path, mirroring_path, version, out_path):
         out.write("// </auto-generated>\n\n")
         out.write("namespace Reglet;\n\n")
         out.write("internal static partial class BidiData\n{\n")
-        out.write(f"    // {len(ranges)} Bereiche (Standard L ausgelassen), {len(brackets)} Klammerpaare, {len(mirrors)} Spiegelzeichen.\n")
+        out.write(f"    // {len(ranges)} ranges (the default L left out), {len(brackets)} bracket pairs, {len(mirrors)} mirrored characters.\n")
         out.write("    private static readonly (int Start, int End, byte Class)[] Ranges =\n    [\n")
         for start, end, cls in ranges:
             out.write(f"        (0x{start:04X}, 0x{end:04X}, {cls}), // {NAMES[cls]}\n")

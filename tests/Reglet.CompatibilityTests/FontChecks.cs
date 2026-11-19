@@ -45,11 +45,11 @@ internal static class FontChecks
     private static void ReadsFaceInformation()
     {
         var face = FontFace.Load(BuildFont("Probe Sans", "Bold Italic", weight: 700, fsSelection: 0x21));
-        Require(face.FamilyName == "Probe Sans", "Familienname aus name-ID 1.");
-        Require(face.StyleName == "Bold Italic", "Schnittname aus name-ID 2.");
-        Require(face.PostScriptName == "ProbeSans-BoldItalic", "PostScript-Name aus name-ID 6.");
+        Require(face.FamilyName == "Probe Sans", "Family name from name ID 1.");
+        Require(face.StyleName == "Bold Italic", "Style name from name ID 2.");
+        Require(face.PostScriptName == "ProbeSans-BoldItalic", "PostScript name from name ID 6.");
         Require(face.Weight == 700 && face.IsBold && face.IsItalic, "Weight and style from OS/2.");
-        Require(face.GlyphCount == GlyphCount, "Glyphenzahl aus maxp.");
+        Require(face.GlyphCount == GlyphCount, "Glyph count from maxp.");
         Require(face.ToString() == "Probe Sans Bold Italic", "ToString names family and style.");
     }
 
@@ -67,7 +67,7 @@ internal static class FontChecks
 
         Require(Face(0x0002) is { Embedding: FontEmbeddingPermission.Restricted, CanEmbed: false }, "fsType 2: restricted.");
         Require(Face(0x0004).Embedding == FontEmbeddingPermission.PreviewAndPrint, "fsType 4: preview and print.");
-        Require(Face(0x0008).Embedding == FontEmbeddingPermission.Editable, "fsType 8: bearbeitbar.");
+        Require(Face(0x0008).Embedding == FontEmbeddingPermission.Editable, "fsType 8: editable.");
         Require(Face(0x0006).Embedding == FontEmbeddingPermission.PreviewAndPrint, "Several bits: the least restrictive applies.");
         Require(!Face(0x0100).AllowsSubsetting, "fsType bit 8: no subsetting.");
         Require(!Face(0x0200).CanEmbed, "fsType bit 9: only bitmaps, no outlines.");
@@ -109,7 +109,7 @@ internal static class FontChecks
         Require(FontCollection.Empty.Count == 0 && one.Count == 1 && two.Count == 2, "Add yields new collections.");
         Require(one.Contains("PROBE") && one.Match("probe", false, false)?.Face == regular, "Families case-insensitively.");
         Require(two.Match(null, false, false)?.Face == regular, "null stands for the default font.");
-        Require(one.Match("Other", false, false) is null, "Unbekannte Familie ergibt null.");
+        Require(one.Match("Other", false, false) is null, "An unknown family gives null.");
     }
 
     private static void RejectsDuplicateSlot()
@@ -282,7 +282,7 @@ internal static class FontChecks
             "The embedded subset of the default font contains text, heading and marker glyphs.");
     }
 
-    // ---- Hilfen ------------------------------------------------------------------------
+    // ---- Helpers ------------------------------------------------------------------------
 
     private const int GlyphCount = 40;
 

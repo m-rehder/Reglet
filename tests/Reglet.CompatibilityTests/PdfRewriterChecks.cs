@@ -64,12 +64,12 @@ internal static class PdfRewriterChecks
         PdfRewriter.Rewrite(
             new MemoryStream(source),
             output,
-            new DocumentMetadata { Title = "New", Author = "Neu", Language = "en-US" });
+            new DocumentMetadata { Title = "New", Author = "New", Language = "en-US" });
         var rewritten = output.ToArray();
 
         var read = new PdfDocumentReader().Read(new MemoryStream(rewritten)).Document;
         Require(read.Metadata.Title == "New", "The Info title is updated.");
-        Require(read.Metadata.Author == "Neu", "The Info author is updated.");
+        Require(read.Metadata.Author == "New", "The Info author is updated.");
 
         var latin = Encoding.Latin1.GetString(rewritten);
         Require(!latin.Contains("Rewritten", StringComparison.Ordinal), "The old title is gone.");

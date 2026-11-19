@@ -43,8 +43,8 @@ internal static class DocumentStructureChecks
     private static PortableDocument FieldDocument()
         => new(new DocumentMetadata
         {
-            Title = "Felder",
-            CustomProperties = new Dictionary<string, string> { ["Projekt"] = "Reglet", ["Revision"] = "42" },
+            Title = "Fields",
+            CustomProperties = new Dictionary<string, string> { ["Project"] = "Reglet", ["Revision"] = "42" },
         }, new Section(new Paragraph(new Inline[]
         {
             new TextRun("Page "),
@@ -71,7 +71,7 @@ internal static class DocumentStructureChecks
         var body = ReadZipEntry(buffer.ToArray(), "word/document.xml");
 
         Require(body.Contains("PAGE", StringComparison.Ordinal), "DOCX: page number field.");
-        Require(body.Contains("NUMPAGES", StringComparison.Ordinal), "DOCX: Gesamtseitenzahlfeld.");
+        Require(body.Contains("NUMPAGES", StringComparison.Ordinal), "DOCX: page count field.");
         Require(body.Contains("DATE", StringComparison.Ordinal) && body.Contains("2026-09-25", StringComparison.Ordinal), "DOCX: date field with a result.");
     }
 
@@ -82,7 +82,7 @@ internal static class DocumentStructureChecks
         var content = ReadZipEntry(buffer.ToArray(), "content.xml");
 
         Require(content.Contains("<text:page-number", StringComparison.Ordinal), "ODT: page number field.");
-        Require(content.Contains("<text:page-count", StringComparison.Ordinal), "ODT: Gesamtseitenzahlfeld.");
+        Require(content.Contains("<text:page-count", StringComparison.Ordinal), "ODT: page count field.");
         Require(content.Contains("<text:date", StringComparison.Ordinal) && content.Contains("2026-09-25", StringComparison.Ordinal), "ODT: date field.");
     }
 
@@ -93,14 +93,14 @@ internal static class DocumentStructureChecks
         var package = buffer.ToArray();
 
         var custom = ReadZipEntry(package, "docProps/custom.xml");
-        Require(custom.Contains("name=\"Projekt\"", StringComparison.Ordinal) && custom.Contains("Reglet", StringComparison.Ordinal), "DOCX: benutzerdefinierte Eigenschaft.");
+        Require(custom.Contains("name=\"Project\"", StringComparison.Ordinal) && custom.Contains("Reglet", StringComparison.Ordinal), "DOCX: user-defined property.");
         Require(custom.Contains("name=\"Revision\"", StringComparison.Ordinal), "DOCX: second property.");
 
         using var zip = new ZipArchive(new MemoryStream(package), ZipArchiveMode.Read);
-        Require(zip.Entries.Any(entry => entry.FullName == "docProps/custom.xml"), "DOCX: custom.xml vorhanden.");
+        Require(zip.Entries.Any(entry => entry.FullName == "docProps/custom.xml"), "DOCX: custom.xml present.");
         var contentTypes = ReadZipEntry(package, "[Content_Types].xml");
         Require(contentTypes.Contains("custom-properties", StringComparison.Ordinal), "DOCX: content type of the custom properties.");
-        Require(ReadZipEntry(package, "_rels/.rels").Contains("custom-properties", StringComparison.Ordinal), "DOCX: Beziehung zu custom.xml.");
+        Require(ReadZipEntry(package, "_rels/.rels").Contains("custom-properties", StringComparison.Ordinal), "DOCX: relationship to custom.xml.");
     }
 
     private static void WritesCustomPropertiesOdt()
@@ -109,18 +109,18 @@ internal static class DocumentStructureChecks
         new OdtDocumentWriter().WriteAsync(FieldDocument(), buffer).GetAwaiter().GetResult();
         var meta = ReadZipEntry(buffer.ToArray(), "meta.xml");
 
-        Require(meta.Contains("meta:user-defined", StringComparison.Ordinal), "ODT: benutzerdefinierte Eigenschaft.");
-        Require(meta.Contains("meta:name=\"Projekt\"", StringComparison.Ordinal) && meta.Contains("Reglet", StringComparison.Ordinal), "ODT: name and value.");
+        Require(meta.Contains("meta:user-defined", StringComparison.Ordinal), "ODT: user-defined property.");
+        Require(meta.Contains("meta:name=\"Project\"", StringComparison.Ordinal) && meta.Contains("Reglet", StringComparison.Ordinal), "ODT: name and value.");
     }
 
     private static PortableDocument ReferenceFieldsDocument()
-        => new(new DocumentMetadata { Title = "Felder" }, new Section(new Paragraph(new Inline[]
+        => new(new DocumentMetadata { Title = "Fields" }, new Section(new Paragraph(new Inline[]
         {
             new DocPropertyField("Title"),
             new TextRun(" "),
-            new DocVariableField("Projekt"),
+            new DocVariableField("Project"),
             new TextRun(" "),
-            new PageRefField("Ziel"),
+            new PageRefField("Target"),
         })));
 
     private static void WritesReferenceFields()
@@ -129,68 +129,68 @@ internal static class DocumentStructureChecks
         new DocxDocumentWriter().WriteAsync(ReferenceFieldsDocument(), docx).GetAwaiter().GetResult();
         var body = ReadZipEntry(docx.ToArray(), "word/document.xml");
         Require(body.Contains("DOCPROPERTY Title", StringComparison.Ordinal), "DOCX: DOCPROPERTY.");
-        Require(body.Contains("DOCVARIABLE Projekt", StringComparison.Ordinal), "DOCX: DOCVARIABLE.");
-        Require(body.Contains("PAGEREF Ziel", StringComparison.Ordinal), "DOCX: PAGEREF.");
+        Require(body.Contains("DOCVARIABLE Project", StringComparison.Ordinal), "DOCX: DOCVARIABLE.");
+        Require(body.Contains("PAGEREF Target", StringComparison.Ordinal), "DOCX: PAGEREF.");
         // Word does not calculate DOCPROPERTY on open; without a result the field stays empty.
-        Require(body.Contains("<w:t>Felder</w:t>", StringComparison.Ordinal), "DOCX: DOCPROPERTY carries its result.");
+        Require(body.Contains("<w:t>Fields</w:t>", StringComparison.Ordinal), "DOCX: DOCPROPERTY carries its result.");
 
         using var odt = new MemoryStream();
         new OdtDocumentWriter().WriteAsync(ReferenceFieldsDocument(), odt).GetAwaiter().GetResult();
         var content = ReadZipEntry(odt.ToArray(), "content.xml");
         // The title is dc:title, so it is the text:title field; LibreOffice leaves user-defined empty.
-        Require(content.Contains("<text:title>Felder</text:title>", StringComparison.Ordinal), "ODT: DOCPROPERTY Title is text:title.");
-        Require(content.Contains("<text:user-field-get text:name=\"Projekt\"", StringComparison.Ordinal), "ODT: user-field-get.");
-        Require(content.Contains("<text:bookmark-ref text:ref-name=\"Ziel\"", StringComparison.Ordinal), "ODT: bookmark-ref.");
+        Require(content.Contains("<text:title>Fields</text:title>", StringComparison.Ordinal), "ODT: DOCPROPERTY Title is text:title.");
+        Require(content.Contains("<text:user-field-get text:name=\"Project\"", StringComparison.Ordinal), "ODT: user-field-get.");
+        Require(content.Contains("<text:bookmark-ref text:ref-name=\"Target\"", StringComparison.Ordinal), "ODT: bookmark-ref.");
 
         // AUTHOR is text:initial-creator, which shows meta:initial-creator.
         using var authored = new MemoryStream();
-        var withAuthor = ReferenceFieldsDocument() with { Metadata = new DocumentMetadata { Author = "Prüfer" } };
+        var withAuthor = ReferenceFieldsDocument() with { Metadata = new DocumentMetadata { Author = "Reviewer" } };
         new OdtDocumentWriter().WriteAsync(withAuthor, authored).GetAwaiter().GetResult();
-        Require(ReadZipEntry(authored.ToArray(), "meta.xml").Contains(">Prüfer</meta:initial-creator>", StringComparison.Ordinal), "ODT: meta:initial-creator.");
+        Require(ReadZipEntry(authored.ToArray(), "meta.xml").Contains(">Reviewer</meta:initial-creator>", StringComparison.Ordinal), "ODT: meta:initial-creator.");
 
         // The PDF resolves the fields; the title is set, the variable and the bookmark are not.
         using var pdf = new MemoryStream();
         var result = new PdfDocumentWriter().WriteAsync(ReferenceFieldsDocument(), pdf).GetAwaiter().GetResult();
-        Require(PdfStreams.Decompress(pdf.ToArray()).Contains("(Felder) Tj", StringComparison.Ordinal), "PDF: DOCPROPERTY Title is resolved.");
+        Require(PdfStreams.Decompress(pdf.ToArray()).Contains("(Fields) Tj", StringComparison.Ordinal), "PDF: DOCPROPERTY Title is resolved.");
         Require(
-            result.Warnings.Any(warning => warning.Message.Contains("document variable 'Projekt'", StringComparison.Ordinal)),
+            result.Warnings.Any(warning => warning.Message.Contains("document variable 'Project'", StringComparison.Ordinal)),
             "PDF: an unset document variable is reported.");
         Require(
-            result.Warnings.Any(warning => warning.Message.Contains("bookmark 'Ziel'", StringComparison.Ordinal)),
+            result.Warnings.Any(warning => warning.Message.Contains("bookmark 'Target'", StringComparison.Ordinal)),
             "PDF: a page reference to a missing bookmark is reported.");
     }
 
     private static void RoundTripsDocumentVariables()
     {
         var document = new PortableDocument(
-            new DocumentMetadata { Variables = new Dictionary<string, string> { ["Projekt"] = "Reglet", ["Leer"] = string.Empty } },
-            new Section(new Paragraph(new DocVariableField("Projekt"))));
+            new DocumentMetadata { Variables = new Dictionary<string, string> { ["Project"] = "Reglet", ["Empty"] = string.Empty } },
+            new Section(new Paragraph(new DocVariableField("Project"))));
 
         using var docx = new MemoryStream();
         new DocxDocumentWriter().WriteAsync(document, docx).GetAwaiter().GetResult();
         var settings = ReadZipEntry(docx.ToArray(), "word/settings.xml");
-        Require(settings.Contains("<w:docVar w:name=\"Projekt\" w:val=\"Reglet\"", StringComparison.Ordinal), "DOCX: w:docVar.");
+        Require(settings.Contains("<w:docVar w:name=\"Project\" w:val=\"Reglet\"", StringComparison.Ordinal), "DOCX: w:docVar.");
         Require(ReadZipEntry(docx.ToArray(), "word/document.xml").Contains("<w:t>Reglet</w:t>", StringComparison.Ordinal), "DOCX: DOCVARIABLE carries its result.");
         Require(settings.IndexOf("<w:compat>", StringComparison.Ordinal) < settings.IndexOf("<w:docVars>", StringComparison.Ordinal), "DOCX: w:docVars follows w:compat.");
         docx.Position = 0;
         var fromDocx = DocumentReader.Read(docx, DocumentFormat.Docx).Document;
-        Require(fromDocx.Metadata.Variables is { } docxVariables && docxVariables["Projekt"] == "Reglet" && docxVariables["Leer"] == string.Empty, "DOCX: variables are read back.");
+        Require(fromDocx.Metadata.Variables is { } docxVariables && docxVariables["Project"] == "Reglet" && docxVariables["Empty"] == string.Empty, "DOCX: variables are read back.");
 
         // Rewriting a read document keeps a changed variable.
         using var rewritten = new MemoryStream();
-        var changed = fromDocx with { Metadata = fromDocx.Metadata with { Variables = new Dictionary<string, string> { ["Projekt"] = "Neu" } } };
+        var changed = fromDocx with { Metadata = fromDocx.Metadata with { Variables = new Dictionary<string, string> { ["Project"] = "New" } } };
         new DocxDocumentWriter().WriteAsync(changed, rewritten).GetAwaiter().GetResult();
         var rewrittenSettings = ReadZipEntry(rewritten.ToArray(), "word/settings.xml");
-        Require(rewrittenSettings.Contains("w:val=\"Neu\"", StringComparison.Ordinal) && !rewrittenSettings.Contains("Reglet", StringComparison.Ordinal), "DOCX: the model's variables replace the source's.");
+        Require(rewrittenSettings.Contains("w:val=\"New\"", StringComparison.Ordinal) && !rewrittenSettings.Contains("Reglet", StringComparison.Ordinal), "DOCX: the model's variables replace the source's.");
 
         using var odt = new MemoryStream();
         new OdtDocumentWriter().WriteAsync(document, odt).GetAwaiter().GetResult();
         var content = ReadZipEntry(odt.ToArray(), "content.xml");
-        Require(content.Contains("<text:user-field-decl office:value-type=\"string\" office:string-value=\"Reglet\" text:name=\"Projekt\"", StringComparison.Ordinal), "ODT: user-field-decl.");
-        Require(content.Contains("<text:user-field-get text:name=\"Projekt\">Reglet</text:user-field-get>", StringComparison.Ordinal), "ODT: user-field-get shows the value.");
+        Require(content.Contains("<text:user-field-decl office:value-type=\"string\" office:string-value=\"Reglet\" text:name=\"Project\"", StringComparison.Ordinal), "ODT: user-field-decl.");
+        Require(content.Contains("<text:user-field-get text:name=\"Project\">Reglet</text:user-field-get>", StringComparison.Ordinal), "ODT: user-field-get shows the value.");
         odt.Position = 0;
         var fromOdt = DocumentReader.Read(odt, DocumentFormat.Odt).Document;
-        Require(fromOdt.Metadata.Variables is { } odtVariables && odtVariables["Projekt"] == "Reglet", "ODT: variables are read back.");
+        Require(fromOdt.Metadata.Variables is { } odtVariables && odtVariables["Project"] == "Reglet", "ODT: variables are read back.");
     }
 
     private static void ReadsDocxFields()
@@ -202,8 +202,8 @@ internal static class DocumentStructureChecks
 
         var referenceInlines = ReadDocxInlines(ReferenceFieldsDocument());
         Require(referenceInlines.OfType<DocPropertyField>().Any(field => field.Name == "Title"), "DOCX: DOCPROPERTY read.");
-        Require(referenceInlines.OfType<DocVariableField>().Any(field => field.Name == "Projekt"), "DOCX: DOCVARIABLE read.");
-        Require(referenceInlines.OfType<PageRefField>().Any(field => field.BookmarkName == "Ziel"), "DOCX: PAGEREF read.");
+        Require(referenceInlines.OfType<DocVariableField>().Any(field => field.Name == "Project"), "DOCX: DOCVARIABLE read.");
+        Require(referenceInlines.OfType<PageRefField>().Any(field => field.BookmarkName == "Target"), "DOCX: PAGEREF read.");
     }
 
     private static List<Inline> ReadDocxInlines(PortableDocument document)
@@ -227,9 +227,9 @@ internal static class DocumentStructureChecks
         Require(inlines.OfType<DateField>().Any(), "ODT: date field read.");
 
         var referenceInlines = ReadOdtInlines(ReferenceFieldsDocument());
-        Require(referenceInlines.OfType<Field>().Any(field => field.Instruction == "TITLE" && field.Result == "Felder"), "ODT: text:title read.");
-        Require(referenceInlines.OfType<DocVariableField>().Any(field => field.Name == "Projekt"), "ODT: user-field-get read.");
-        Require(referenceInlines.OfType<PageRefField>().Any(field => field.BookmarkName == "Ziel"), "ODT: bookmark-ref read.");
+        Require(referenceInlines.OfType<Field>().Any(field => field.Instruction == "TITLE" && field.Result == "Fields"), "ODT: text:title read.");
+        Require(referenceInlines.OfType<DocVariableField>().Any(field => field.Name == "Project"), "ODT: user-field-get read.");
+        Require(referenceInlines.OfType<PageRefField>().Any(field => field.BookmarkName == "Target"), "ODT: bookmark-ref read.");
     }
 
     private static List<Inline> ReadOdtInlines(PortableDocument document)

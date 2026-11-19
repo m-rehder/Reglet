@@ -150,7 +150,7 @@ internal static class RoundedTableCornerChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

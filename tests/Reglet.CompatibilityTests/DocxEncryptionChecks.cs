@@ -9,7 +9,7 @@ using Reglet;
 /// </summary>
 internal static class DocxEncryptionChecks
 {
-    private const string Password = "Geheim123";
+    private const string Password = "Secret123";
 
     internal static int Run()
     {
@@ -34,8 +34,8 @@ internal static class DocxEncryptionChecks
 
     private static PortableDocument Document()
         => PortableDocument.Create()
-            .Paragraph("Geheim")
-            .Paragraph("Vertraulicher Inhalt mit Umlauten: äöü ß €")
+            .Paragraph("Secret")
+            .Paragraph("Confidential content with special characters: äöü ß €")
             .Build();
 
     private static byte[] Write(PortableDocument document, string? password, int spinCount = 1000)
@@ -67,7 +67,7 @@ internal static class DocxEncryptionChecks
         var text = string.Concat(read.Sections[0].Blocks.OfType<Paragraph>()
             .SelectMany(paragraph => paragraph.Inlines.OfType<TextRun>())
             .Select(run => run.Text));
-        Require(text.Contains("Geheim", StringComparison.Ordinal), "The text survives: " + text);
+        Require(text.Contains("Secret", StringComparison.Ordinal), "The text survives: " + text);
         Require(text.Contains("äöü ß €", StringComparison.Ordinal), "The umlauts survive: " + text);
     }
 
@@ -87,7 +87,7 @@ internal static class DocxEncryptionChecks
     private static void RejectsWrongPasswordAndMissingPassword()
     {
         var encrypted = Write(Document(), Password);
-        Throws<DocumentValidationException>(() => Read(encrypted, "falsch"));
+        Throws<DocumentValidationException>(() => Read(encrypted, "wrong"));
         Throws<DocumentValidationException>(() => Read(encrypted, null));
     }
 
@@ -98,7 +98,7 @@ internal static class DocxEncryptionChecks
         var large = new PortableDocument(
             new DocumentMetadata(),
             new Section(Enumerable.Range(0, 400)
-                .Select(index => (Block)new Paragraph(new TextRun("Absatz " + index.ToString(System.Globalization.CultureInfo.InvariantCulture))))
+                .Select(index => (Block)new Paragraph(new TextRun("Paragraph " + index.ToString(System.Globalization.CultureInfo.InvariantCulture))))
                 .ToList()));
         var plain = Write(large, password: null);
         var encrypted = Write(large, Password, spinCount: 100);
@@ -127,7 +127,7 @@ internal static class DocxEncryptionChecks
     private static void IgnoresThePasswordOfAPlainDocument()
     {
         var plain = Write(Document(), password: null);
-        var read = Read(plain, "egal");
+        var read = Read(plain, "any");
         Require(read.Sections[0].Blocks.Count > 0, "A plain document is read although a password was given.");
     }
 
@@ -218,7 +218,7 @@ internal static class DocxEncryptionChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

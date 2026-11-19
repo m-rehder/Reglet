@@ -139,7 +139,7 @@ internal static class PdfTemplateChecks
     {
         var section = new Section(new Paragraph(new TextRun("Content")))
         {
-            Header = new HeaderFooter(new Paragraph(new TextRun("Eigenkopf"))),
+            Header = new HeaderFooter(new Paragraph(new TextRun("Ownheader"))),
         };
         var document = new PortableDocument(new DocumentMetadata(), section);
         var pdf = Write(document, new PdfWriteOptions
@@ -151,7 +151,7 @@ internal static class PdfTemplateChecks
         });
 
         var content = PdfStreams.Decompress(pdf);
-        Require(content.Contains("Eigenkopf", StringComparison.Ordinal), "The section's own header wins.");
+        Require(content.Contains("Ownheader", StringComparison.Ordinal), "The section's own header wins.");
         Require(!content.Contains("(Template) Tj", StringComparison.Ordinal), "The template header is not drawn additionally.");
     }
 

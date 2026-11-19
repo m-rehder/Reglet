@@ -168,8 +168,8 @@ internal static class PdfSignatureValidatorChecks
     private static byte[] Write(PdfSignatureOptions signature)
     {
         var document = new PortableDocument(
-            new DocumentMetadata { Title = "Validierung" },
-            new Section(new Paragraph(new TextRun("Inhalt für die Signaturprüfung."))));
+            new DocumentMetadata { Title = "Validation" },
+            new Section(new Paragraph(new TextRun("Content for the signature check."))));
 
         using var buffer = new MemoryStream();
         new PdfDocumentWriter()

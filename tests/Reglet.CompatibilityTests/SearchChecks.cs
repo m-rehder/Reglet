@@ -35,19 +35,19 @@ internal static class SearchChecks
     {
         var list = TestLists.List(
             ListKind.Bullet,
-            [new ListItem(new Paragraph(new TextRun("Preisliste ohne MwSt")))]);
+            [new ListItem(new Paragraph(new TextRun("Price list without VAT")))]);
 
         var table = new TableBlock(
         [
-            new TableRow([new TableCell(new Paragraph(new TextRun("Rechnung")))]),
+            new TableRow([new TableCell(new Paragraph(new TextRun("Invoice")))]),
         ]);
 
         return TestLists.Fix(new PortableDocument(
             new DocumentMetadata(),
             new Section(
             [
-                new Heading(HeadingLevel.Level1, new TextRun("Rechnung 2026")),
-                new Paragraph(new TextRun("Die Rechnung enthält MwSt.")),
+                new Heading(HeadingLevel.Level1, new TextRun("Invoice 2026")),
+                new Paragraph(new TextRun("The invoice includes VAT.")),
                 list,
                 table,
             ])));
@@ -55,11 +55,11 @@ internal static class SearchChecks
 
     private static void FindsOccurrences()
     {
-        var matches = DocumentSearch.Find(Document(), new TextQuery("Rechnung"));
+        var matches = DocumentSearch.Find(Document(), new TextQuery("Invoice"));
         Require(matches.Count == 3, "Find: three occurrences.");
         Require(matches[0].SectionIndex == 0, "Find: the section of the occurrence.");
         Require(matches[0].Index == 0, "Find: the position in the run.");
-        Require(matches[0].Text == "Rechnung", "Find: the found text.");
+        Require(matches[0].Text == "Invoice", "Find: the found text.");
         Require(matches[1].Block is Paragraph, "Find: the block of the occurrence.");
         Require(matches[2].Block is Paragraph, "Find: the paragraph in the table cell of the occurrence.");
     }
@@ -67,15 +67,15 @@ internal static class SearchChecks
     private static void ReplacesText()
     {
         var document = Document();
-        var replaced = DocumentSearch.Replace(document, new TextQuery("Rechnung"), "Beleg");
+        var replaced = DocumentSearch.Replace(document, new TextQuery("Invoice"), "Receipt");
         Require(
-            DocumentSearch.Find(replaced, new TextQuery("Rechnung")).Count == 0,
+            DocumentSearch.Find(replaced, new TextQuery("Invoice")).Count == 0,
             "Replace: the old text is gone.");
         Require(
-            DocumentSearch.Find(replaced, new TextQuery("Beleg")).Count == 3,
+            DocumentSearch.Find(replaced, new TextQuery("Receipt")).Count == 3,
             "Replace: the new text is in all three places.");
         Require(
-            DocumentSearch.Find(document, new TextQuery("Rechnung")).Count == 3,
+            DocumentSearch.Find(document, new TextQuery("Invoice")).Count == 3,
             "Replace: the original document is unchanged.");
     }
 
@@ -85,17 +85,17 @@ internal static class SearchChecks
             new DocumentMetadata(),
             new Section(
             [
-                new Paragraph(new Inline[] { new TextRun("vor ") { Bold = true }, new TextRun("nach") }),
+                new Paragraph(new Inline[] { new TextRun("before ") { Bold = true }, new TextRun("after") }),
             ]));
 
-        var replaced = DocumentSearch.Replace(document, new TextQuery("nach"), "neu");
+        var replaced = DocumentSearch.Replace(document, new TextQuery("after"), "new");
         var paragraph = (Paragraph)replaced.Sections[0].Blocks[0];
         Require(paragraph.Inlines.Count == 2, "Replace: two runs.");
         var first = (TextRun)paragraph.Inlines[0];
         var second = (TextRun)paragraph.Inlines[1];
-        Require(first.Text == "vor ", "Replace: the first run is unchanged.");
+        Require(first.Text == "before ", "Replace: the first run is unchanged.");
         Require(first.Bold == true, "Replace: the formatting of the first run is kept.");
-        Require(second.Text == "neu", "Replace: the new text.");
+        Require(second.Text == "new", "Replace: the new text.");
         Require(second.Bold != true, "Replace: the formatting of the second run is kept.");
     }
 
@@ -143,20 +143,20 @@ internal static class SearchChecks
             new DocumentMetadata(),
             new Section(
             [
-                new Paragraph(new TextRun("Rechnung rechnungen RECHNUNG")),
+                new Paragraph(new TextRun("Invoice invoices INVOICE")),
             ]));
 
         Require(
-            DocumentSearch.Find(document, new TextQuery("rechnung")).Count == 3,
+            DocumentSearch.Find(document, new TextQuery("invoice")).Count == 3,
             "Find: without case sensitivity every occurrence is found.");
         Require(
-            DocumentSearch.Find(document, new TextQuery("rechnung") { MatchCase = true }).Count == 1,
+            DocumentSearch.Find(document, new TextQuery("invoice") { MatchCase = true }).Count == 1,
             "Find: with case sensitivity only the exact one is found.");
         Require(
-            DocumentSearch.Find(document, new TextQuery("rechnung") { WholeWord = true }).Count == 2,
+            DocumentSearch.Find(document, new TextQuery("invoice") { WholeWord = true }).Count == 2,
             "Find: only whole words are found.");
         Require(
-            DocumentSearch.Find(document, new TextQuery("Rechn(u)?ng") { IsRegex = true }).Count == 3,
+            DocumentSearch.Find(document, new TextQuery("Invoic(e)?") { IsRegex = true }).Count == 3,
             "Find: the regular expression matches.");
     }
 
@@ -188,8 +188,8 @@ internal static class SearchChecks
         cancelled.Cancel();
         foreach (var search in new Action[]
         {
-            () => DocumentSearch.Find(Document(), new TextQuery("Rechnung"), cancelled.Token),
-            () => DocumentSearch.Replace(Document(), new TextQuery("Rechnung") { IsRegex = true }, "x", cancelled.Token),
+            () => DocumentSearch.Find(Document(), new TextQuery("Invoice"), cancelled.Token),
+            () => DocumentSearch.Replace(Document(), new TextQuery("Invoice") { IsRegex = true }, "x", cancelled.Token),
         })
         {
             try
@@ -205,7 +205,7 @@ internal static class SearchChecks
 
     private static void WritesReplacedDocument()
     {
-        var replaced = DocumentSearch.Replace(Document(), new TextQuery("Rechnung"), "Beleg");
+        var replaced = DocumentSearch.Replace(Document(), new TextQuery("Invoice"), "Receipt");
 
         using var buffer = new MemoryStream();
         new DocxDocumentWriter().WriteAsync(replaced, buffer).GetAwaiter().GetResult();
@@ -214,8 +214,8 @@ internal static class SearchChecks
         var entry = zip.GetEntry("word/document.xml") ?? throw new InvalidOperationException("document.xml missing");
         using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
         var document = reader.ReadToEnd();
-        Require(document.Contains("Beleg", StringComparison.Ordinal), "The replaced text is written.");
-        Require(!document.Contains("Rechnung", StringComparison.Ordinal), "The old text is not written.");
+        Require(document.Contains("Receipt", StringComparison.Ordinal), "The replaced text is written.");
+        Require(!document.Contains("Invoice", StringComparison.Ordinal), "The old text is not written.");
     }
 
     private static void Require(bool condition, string message)

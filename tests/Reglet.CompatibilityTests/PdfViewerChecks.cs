@@ -35,9 +35,9 @@ internal static class PdfViewerChecks
         AssertContains(latin, "/ViewerPreferences");
         AssertContains(latin, "/HideToolbar true");
         AssertContains(latin, "/FitWindow true");
-        Require(!latin.Contains("/HideMenubar", StringComparison.Ordinal), "Nicht gesetzte Flags fehlen.");
-        Require(!latin.Contains("/CenterWindow", StringComparison.Ordinal), "Nicht gesetzte Flags fehlen.");
-        Require(!latin.Contains("/FullScreen", StringComparison.Ordinal), "Nicht gesetzte Flags fehlen.");
+        Require(!latin.Contains("/HideMenubar", StringComparison.Ordinal), "Flags that are not set are absent.");
+        Require(!latin.Contains("/CenterWindow", StringComparison.Ordinal), "Flags that are not set are absent.");
+        Require(!latin.Contains("/FullScreen", StringComparison.Ordinal), "Flags that are not set are absent.");
     }
 
     /// <summary>OF-F02: /PageLayout carries the requested layout.</summary>
@@ -66,14 +66,14 @@ internal static class PdfViewerChecks
         var latin = Encoding.Latin1.GetString(Write(new PdfWriteOptions()));
         AssertContains(latin, "/ViewerPreferences");
         AssertContains(latin, "/DisplayDocTitle true");
-        Require(!latin.Contains("/PageLayout", StringComparison.Ordinal), "Ohne Layout fehlt /PageLayout.");
-        Require(!latin.Contains("/PageMode", StringComparison.Ordinal), "Ohne Modus fehlt /PageMode.");
-        Require(!latin.Contains("/HideToolbar", StringComparison.Ordinal), "Ohne Flags fehlt /HideToolbar.");
+        Require(!latin.Contains("/PageLayout", StringComparison.Ordinal), "Without a layout /PageLayout is absent.");
+        Require(!latin.Contains("/PageMode", StringComparison.Ordinal), "Without a mode /PageMode is absent.");
+        Require(!latin.Contains("/HideToolbar", StringComparison.Ordinal), "Without flags /HideToolbar is absent.");
     }
 
     private static byte[] Write(PdfWriteOptions options)
     {
-        var document = PortableDocument.Create().Paragraph("Hallo").Build();
+        var document = PortableDocument.Create().Paragraph("Hello").Build();
 
         using var buffer = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(document, buffer, options).GetAwaiter().GetResult();

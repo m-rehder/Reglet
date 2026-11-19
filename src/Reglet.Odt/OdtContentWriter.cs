@@ -227,7 +227,7 @@ internal static class OdtContentWriter
 
     /// <summary>
     /// collects the styles of all headers/footers. Prefixes (MT, MP) separate them from the
-    /// Stilen in content.xml.
+    /// styles in content.xml.
     /// </summary>
     internal static BandStyles CollectBandStyles(PortableDocument document)
     {
@@ -513,7 +513,7 @@ internal static class OdtContentWriter
 
             // Like Word: after a manual page break the space before is dropped (also the
             // of the heading style); after a section break Word/LibreOffice reduce
-            // ihn um Typography.SpaceBeforeReductionAtSectionStart (gemessen, „~5 pt“ bei 12 pt).
+            // it by Typography.SpaceBeforeReductionAtSectionStart (measured: about 5 pt at 12 pt).
             if (key.Break is { MasterPage: null })
             {
                 writer.WriteAttributeString("fo", "margin-top", OdtNamespaces.Fo, "0pt");

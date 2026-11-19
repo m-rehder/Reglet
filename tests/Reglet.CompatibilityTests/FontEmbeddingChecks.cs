@@ -27,10 +27,10 @@ internal static class FontEmbeddingChecks
     private static (PortableDocument Document, FontCollection Fonts, byte[] Bytes) Sample()
     {
         var bytes = PdfAChecks.Font();
-        var fonts = FontCollection.Empty.Add("Hallo Sans", FontFace.Load(bytes));
+        var fonts = FontCollection.Empty.Add("Hello Sans", FontFace.Load(bytes));
         var document = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
         {
-            new Paragraph(new TextRun("Hallo") { FontFamily = "Hallo Sans" }),
+            new Paragraph(new TextRun("Hello") { FontFamily = "Hello Sans" }),
         }));
         return (document, fonts, bytes);
     }
@@ -54,7 +54,7 @@ internal static class FontEmbeddingChecks
         new DocxDocumentWriter().WriteAsync(document, buffer, new DocxWriteOptions { EmbeddedFonts = fonts }).GetAwaiter().GetResult();
         using var archive = new ZipArchive(new MemoryStream(buffer.ToArray()));
         var table = Read(archive, "word/fontTable.xml");
-        Require(table.Contains("w:name=\"Hallo Sans\"", StringComparison.Ordinal) && table.Contains("embedRegular", StringComparison.Ordinal), "The font table names the font.");
+        Require(table.Contains("w:name=\"Hello Sans\"", StringComparison.Ordinal) && table.Contains("embedRegular", StringComparison.Ordinal), "The font table names the font.");
         Require(Read(archive, "word/settings.xml").Contains("embedTrueTypeFonts", StringComparison.Ordinal), "The settings switch embedding on.");
         Require(Read(archive, "[Content_Types].xml").Contains("obfuscatedFont", StringComparison.Ordinal), "The content type of .odttf is registered.");
         Require(Read(archive, "word/_rels/fontTable.xml.rels").Contains("fonts/font1.odttf", StringComparison.Ordinal), "The font table points to the file.");

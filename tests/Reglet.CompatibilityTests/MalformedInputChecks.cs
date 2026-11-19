@@ -6,7 +6,7 @@ using Reglet;
 /// <summary>
 /// hardening of the readers against malformed and hostile input as well as correctness for
 /// real files (incremental PDF updates, Word-typical run structures) and in
-/// Ausgabe in fremde Streams.
+/// output into foreign streams.
 /// </summary>
 internal static class MalformedInputChecks
 {
@@ -56,7 +56,7 @@ internal static class MalformedInputChecks
 
     private static void PdfSelfContainedObjectStreamIsRejected()
     {
-        // xref-Stream: Objekt 1 liegt komprimiert in Objekt-Stream 1 (also in sich selbst).
+        // xref stream: object 1 lies compressed in object stream 1 (so inside itself).
         var builder = new StringBuilder("%PDF-1.7\n");
         var xrefOffset = builder.Length;
         var entries = new byte[] { 2, 0, 0, 0, 1, 0, 0 };
@@ -306,12 +306,12 @@ internal static class MalformedInputChecks
         }
 
         var brokenObjectStream = Pdf("<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] >>", "<< /Type /Page /Contents [ 99999999999 0 R ] >>");
-        Expect<DocumentValidationException>(() => ReadPdf(brokenObjectStream), "Fehlerhafte PDF-Struktur ergibt DocumentValidationException.");
+        Expect<DocumentValidationException>(() => ReadPdf(brokenObjectStream), "A malformed PDF structure gives DocumentValidationException.");
     }
 
     private static void OdtWithoutSectionsIsRead()
     {
-        // LibreOffice legt Inhalte direkt in office:text ab, ohne text:section.
+        // LibreOffice puts content directly into office:text, without text:section.
         var odt = Odt("<text:sequence-decls/><text:h text:outline-level='1'>Title</text:h><text:p>Paragraph</text:p>");
         var result = DocumentReader.Read(new MemoryStream(odt), DocumentFormat.Odt);
         Require(result.Document.Sections is [{ Blocks: [Heading, Paragraph] }],
@@ -352,7 +352,7 @@ internal static class MalformedInputChecks
         }
     }
 
-    // ---- Hilfen ------------------------------------------------------------------------
+    // ---- Helpers ------------------------------------------------------------------------
 
     private static ReadResult ReadPdf(byte[] pdf) => DocumentReader.Read(new MemoryStream(pdf), DocumentFormat.Pdf);
 

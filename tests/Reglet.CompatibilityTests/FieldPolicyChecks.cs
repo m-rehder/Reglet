@@ -30,15 +30,15 @@ internal static class FieldPolicyChecks
 
     private static DocumentMetadata Metadata() => new()
     {
-        Title = "Bericht",
+        Title = "Report",
         Created = new DateTimeOffset(2024, 5, 6, 0, 0, 0, TimeSpan.Zero),
-        Variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Autor"] = "Kurz" },
+        Variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Author"] = "Short" },
     };
 
     /// <summary>A cached result is never replaced by the calculated value.</summary>
     private static void CachedResultWinsEverywhere()
     {
-        var fields = new Inline[] { new Field(" DOCPROPERTY Title ", result: "gespeichert") };
+        var fields = new Inline[] { new Field(" DOCPROPERTY Title ", result: "cached") };
         var document = new PortableDocument(Metadata(), new Section(new Paragraph(fields)));
 
         var docx = DocxText(document);
@@ -47,23 +47,23 @@ internal static class FieldPolicyChecks
 
         foreach (var (name, text) in new[] { ("DOCX", docx), ("ODT", odt), ("PDF", pdf) })
         {
-            Require(text.Contains("gespeichert", StringComparison.Ordinal), $"{name}: the cached result is shown: {text}");
-            Require(!text.Contains("Bericht", StringComparison.Ordinal), $"{name}: the cached result is not replaced: {text}");
+            Require(text.Contains("cached", StringComparison.Ordinal), $"{name}: the cached result is shown: {text}");
+            Require(!text.Contains("Report", StringComparison.Ordinal), $"{name}: the cached result is not replaced: {text}");
         }
     }
 
     /// <summary>Every calculated field appears in all three formats, in the same order.</summary>
     private static void SameVisibleResultInAllFormats()
     {
-        var expected = new[] { "Bericht", "Kurz", "2024-05-06", "1", "2", "ja" };
+        var expected = new[] { "Report", "Short", "2024-05-06", "1", "2", "yes" };
         var paragraphs = new[]
         {
             new Paragraph(new Inline[] { new Field(" DOCPROPERTY Title ") }),
-            new Paragraph(new Inline[] { new Field(" DOCVARIABLE Autor ") }),
+            new Paragraph(new Inline[] { new Field(" DOCVARIABLE Author ") }),
             new Paragraph(new Inline[] { new Field(" CREATEDATE \\@ \"yyyy-MM-dd\" ") }),
-            new Paragraph(new Inline[] { new Field(" SEQ Abbildung ") }),
-            new Paragraph(new Inline[] { new Field(" SEQ Abbildung ") }),
-            new Paragraph(new Inline[] { new Field(" IF 1 = 1 \"ja\" \"nein\" ") }),
+            new Paragraph(new Inline[] { new Field(" SEQ Figure ") }),
+            new Paragraph(new Inline[] { new Field(" SEQ Figure ") }),
+            new Paragraph(new Inline[] { new Field(" IF 1 = 1 \"yes\" \"no\" ") }),
         };
         var document = new PortableDocument(Metadata(), new Section(paragraphs));
 
@@ -85,14 +85,14 @@ internal static class FieldPolicyChecks
     {
         var document = new PortableDocument(
             Metadata(),
-            new Section(new Paragraph(new Inline[] { new TextRun("vor"), new Field(" MERGEFIELD Name "), new TextRun("nach") })));
+            new Section(new Paragraph(new Inline[] { new TextRun("before"), new Field(" MERGEFIELD Name "), new TextRun("after") })));
 
         var odt = OdtText(document);
-        Require(odt.Contains("vor", StringComparison.Ordinal) && odt.Contains("nach", StringComparison.Ordinal), "ODT: the neighbours stay.");
+        Require(odt.Contains("before", StringComparison.Ordinal) && odt.Contains("after", StringComparison.Ordinal), "ODT: the neighbours stay.");
         Require(!odt.Contains("Name", StringComparison.Ordinal), "ODT: the field code is not written as text: " + odt);
 
         var pdf = PdfText(document);
-        Require(pdf.Contains("(vor) Tj", StringComparison.Ordinal) && pdf.Contains("(nach) Tj", StringComparison.Ordinal), "PDF: the neighbours stay.");
+        Require(pdf.Contains("(before) Tj", StringComparison.Ordinal) && pdf.Contains("(after) Tj", StringComparison.Ordinal), "PDF: the neighbours stay.");
         Require(!pdf.Contains("Name", StringComparison.Ordinal), "PDF: the field code is not drawn: " + pdf);
 
         using var buffer = new MemoryStream();
@@ -102,13 +102,13 @@ internal static class FieldPolicyChecks
             "PDF: the field without a result is reported.");
 
         var docx = DocxText(document);
-        Require(docx.Contains("vor", StringComparison.Ordinal) && docx.Contains("nach", StringComparison.Ordinal), "DOCX: the neighbours stay.");
+        Require(docx.Contains("before", StringComparison.Ordinal) && docx.Contains("after", StringComparison.Ordinal), "DOCX: the neighbours stay.");
     }
 
     /// <summary><see cref="FieldResolver"/> follows the same rule inside the model.</summary>
     private static void ResolveKeepsThePolicy()
     {
-        var cached = new Field(" DOCPROPERTY Title ", result: "gespeichert");
+        var cached = new Field(" DOCPROPERTY Title ", result: "cached");
         var calculated = new Field(" DOCPROPERTY Title ");
         var unknown = new Field(" MERGEFIELD Name ");
         var document = new PortableDocument(
@@ -120,8 +120,8 @@ internal static class FieldPolicyChecks
         var runs = ((Paragraph)resolved.Sections[0].Blocks[0]).Inlines;
         var fields = runs.OfType<Field>().ToList();
 
-        Require(fields[0].Result == "gespeichert", "FieldResolver: the cached result stays: " + fields[0].Result);
-        Require(fields[1].Result == "Bericht", "FieldResolver: a missing result is calculated: " + fields[1].Result);
+        Require(fields[0].Result == "cached", "FieldResolver: the cached result stays: " + fields[0].Result);
+        Require(fields[1].Result == "Report", "FieldResolver: a missing result is calculated: " + fields[1].Result);
         Require(fields[2].Result is null, "FieldResolver: an unknown value keeps the field without a result.");
         Require(((Field)((Paragraph)document.Sections[0].Blocks[0]).Inlines[1]).Result is null, "FieldResolver: the input document is unchanged.");
     }

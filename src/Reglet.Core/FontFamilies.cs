@@ -3,7 +3,7 @@ namespace Reglet;
 /// <summary>General font category (like the generic CSS families).</summary>
 internal enum GenericFontFamily
 {
-    /// <summary>Serifenschrift (CSS <c>serif</c>).</summary>
+    /// <summary>A serif font (CSS <c>serif</c>).</summary>
     Serif,
 
     /// <summary>Sans-serif font (CSS <c>sans-serif</c>).</summary>

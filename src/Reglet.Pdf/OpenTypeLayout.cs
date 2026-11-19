@@ -11,7 +11,7 @@ namespace Reglet;
 /// <remarks>
 /// the parser works exclusively on the font's raw data, creates no font files
 /// and reports damaged tables as <see cref="FontException"/> instead of silently
-/// scheitern.
+/// failing.
 /// </remarks>
 internal sealed class OpenTypeLayout
 {
@@ -140,7 +140,7 @@ internal sealed class OpenTypeLayout
         var count = U16(lookupOffset + 4, _gsub!.Limit, "Lookup");
         for (var i = 0; i < count; i++)
         {
-            var subtable = U16(lookupOffset + 6 + i * 2, _gsub.Limit, "Lookup-Subtabelle");
+            var subtable = U16(lookupOffset + 6 + i * 2, _gsub.Limit, "lookup subtable");
             var (type, offset) = ResolveSubtable(_data, _gsub.Limit, lookupOffset + subtable, lookupType, gpos: false);
             if (type != 1 || !TryCoverageIndex(offset + U16(offset + 2, _gsub.Limit, "SingleSubst"), _gsub.Limit, glyph, out var index))
             {
@@ -174,7 +174,7 @@ internal sealed class OpenTypeLayout
         var count = U16(lookupOffset + 4, _gsub!.Limit, "Lookup");
         for (var i = 0; i < count; i++)
         {
-            var subtable = U16(lookupOffset + 6 + i * 2, _gsub.Limit, "Lookup-Subtabelle");
+            var subtable = U16(lookupOffset + 6 + i * 2, _gsub.Limit, "lookup subtable");
             var (type, offset) = ResolveSubtable(_data, _gsub.Limit, lookupOffset + subtable, lookupType, gpos: false);
             if (type != 4)
             {
@@ -197,9 +197,9 @@ internal sealed class OpenTypeLayout
             var ligatureCount = U16(set, _gsub.Limit, "LigatureSet");
             for (var ligatureIndex = 0; ligatureIndex < ligatureCount; ligatureIndex++)
             {
-                var candidate = set + U16(set + 2 + ligatureIndex * 2, _gsub.Limit, "Ligatur");
-                var glyph = U16(candidate, _gsub.Limit, "Ligatur");
-                var components = U16(candidate + 2, _gsub.Limit, "Ligatur");
+                var candidate = set + U16(set + 2 + ligatureIndex * 2, _gsub.Limit, "ligature");
+                var glyph = U16(candidate, _gsub.Limit, "ligature");
+                var components = U16(candidate + 2, _gsub.Limit, "ligature");
                 if (components == 0 || start + components > glyphs.Length)
                 {
                     continue;
@@ -208,7 +208,7 @@ internal sealed class OpenTypeLayout
                 var matches = true;
                 for (var component = 1; component < components; component++)
                 {
-                    if (U16(candidate + 2 + component * 2, _gsub.Limit, "Ligatur-Komponente") != glyphs[start + component])
+                    if (U16(candidate + 2 + component * 2, _gsub.Limit, "ligature component") != glyphs[start + component])
                     {
                         matches = false;
                         break;
@@ -240,7 +240,7 @@ internal sealed class OpenTypeLayout
         var count = U16(lookupOffset + 4, _gpos!.Limit, "Lookup");
         for (var i = 0; i < count; i++)
         {
-            var subtable = U16(lookupOffset + 6 + i * 2, _gpos.Limit, "Lookup-Subtabelle");
+            var subtable = U16(lookupOffset + 6 + i * 2, _gpos.Limit, "lookup subtable");
             var (type, offset) = ResolveSubtable(_data, _gpos.Limit, lookupOffset + subtable, lookupType, gpos: true);
             if (type != 2 || !TryPairAdjustment(offset, first, second, out xAdvance, out xPlacement))
             {
@@ -266,7 +266,7 @@ internal sealed class OpenTypeLayout
         var count = U16(lookupOffset + 4, _gpos!.Limit, "Lookup");
         for (var i = 0; i < count; i++)
         {
-            var subtable = U16(lookupOffset + 6 + i * 2, _gpos.Limit, "Lookup-Subtabelle");
+            var subtable = U16(lookupOffset + 6 + i * 2, _gpos.Limit, "lookup subtable");
             var (type, offset) = ResolveSubtable(_data, _gpos.Limit, lookupOffset + subtable, lookupType, gpos: true);
             if (type != 4 || !TryMarkToBase(offset, mark, baseGlyph, out dx, out dy))
             {

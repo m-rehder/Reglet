@@ -143,14 +143,14 @@ internal static class SvgChecks
             "PDF: unsupported stroke-only SVG text is reported.");
 
         using var embeddedBuffer = new MemoryStream();
-        var embeddedSvg = Svg("<text x=\"2\" y=\"20\" font-weight=\"bold\" fill=\"red\">Hallo</text>");
+        var embeddedSvg = Svg("<text x=\"2\" y=\"20\" font-weight=\"bold\" fill=\"red\">Hello</text>");
         var embeddedResult = new PdfDocumentWriter().WriteAsync(Document(embeddedSvg), embeddedBuffer, new PdfWriteOptions
         {
             PdfA = PdfAConformance.PdfA2b,
             Fonts = new Dictionary<string, byte[]> { [""] = PdfAChecks.Font() },
         }).GetAwaiter().GetResult();
         var embeddedPages = DocumentReader.ReadPdfPages(new MemoryStream(embeddedBuffer.ToArray()));
-        Require(embeddedPages.Any(page => page.Contains("Hallo", StringComparison.Ordinal)),
+        Require(embeddedPages.Any(page => page.Contains("Hello", StringComparison.Ordinal)),
             "PDF/A: SVG text uses the embedded font and remains extractable after subsetting: "
             + string.Join(" | ", embeddedPages) + "; " + string.Join("; ", embeddedResult.Warnings.Select(warning => warning.Message)));
         Require(PdfStreams.Decompress(embeddedBuffer.ToArray()).Contains("1 0 0 RG", StringComparison.Ordinal),
@@ -925,7 +925,7 @@ internal static class SvgChecks
     private static void DrawsRotatedAndStretchedText()
     {
         var svg = Svg("<text x=\"20\" y=\"30\" rotate=\"90\">Rot</text>"
-            + "<text x=\"10\" y=\"45\" textLength=\"60\">Breit</text>");
+            + "<text x=\"10\" y=\"45\" textLength=\"60\">Wide</text>");
         using var buffer = new MemoryStream();
         var result = new PdfDocumentWriter().WriteAsync(Document(svg), buffer).GetAwaiter().GetResult();
         var content = PdfStreams.Decompress(buffer.ToArray());

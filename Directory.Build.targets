@@ -33,7 +33,7 @@
     <Error Condition="'@(NativeReference)' != ''"
            Text="Zero-dependency rule broken: native reference(s) in $(MSBuildProjectName): @(NativeReference)" />
     <Error Condition="'@(_ForbiddenReference)' != '' Or '@(COMReference)' != '' Or '@(_ForbiddenFrameworkReference)' != ''"
-           Text="Zero-Dependency verletzt: externe Assembly-/Frameworkreferenz in $(MSBuildProjectName)." />
+           Text="Zero-dependency rule broken: external assembly or framework reference in $(MSBuildProjectName)." />
     <Error Condition="'@(_BundledBinary)' != '' Or '@(_BundledFont)' != '' Or '@(_ForbiddenShippedFile)' != ''"
            Text="Zero-dependency rule broken: bundled binary or font file in $(MSBuildProjectName): @(_BundledBinary) @(_BundledFont) @(_ForbiddenShippedFile)" />
   </Target>

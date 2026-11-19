@@ -50,7 +50,7 @@ internal static class CharacterStyleChecks
 
         var paragraph = new Paragraph(runs);
         return new PortableDocument(
-            new DocumentMetadata { Title = "Zeichenformatvorlagen" },
+            new DocumentMetadata { Title = "Character styles" },
             [new Section([paragraph])])
         {
             CharacterStyles = [style],
@@ -61,7 +61,7 @@ internal static class CharacterStyleChecks
     {
         using var buffer = new MemoryStream();
         new DocxDocumentWriter()
-            .WriteAsync(Document(new TextRun("Betonung") { CharacterStyleName = "Emphasis" }), buffer)
+            .WriteAsync(Document(new TextRun("Emphasis2") { CharacterStyleName = "Emphasis" }), buffer)
             .GetAwaiter().GetResult();
 
         buffer.Position = 0;
@@ -79,7 +79,7 @@ internal static class CharacterStyleChecks
     {
         using var buffer = new MemoryStream();
         new OdtDocumentWriter()
-            .WriteAsync(Document(new TextRun("Betonung") { CharacterStyleName = "Emphasis" }), buffer)
+            .WriteAsync(Document(new TextRun("Emphasis2") { CharacterStyleName = "Emphasis" }), buffer)
             .GetAwaiter().GetResult();
 
         buffer.Position = 0;
@@ -97,7 +97,7 @@ internal static class CharacterStyleChecks
     {
         using var buffer = new MemoryStream();
         new PdfDocumentWriter()
-            .WriteAsync(Document(new TextRun("Betonung") { CharacterStyleName = "Emphasis" }), buffer)
+            .WriteAsync(Document(new TextRun("Emphasis2") { CharacterStyleName = "Emphasis" }), buffer)
             .GetAwaiter().GetResult();
 
         var text = Encoding.Latin1.GetString(buffer.ToArray());
@@ -107,14 +107,14 @@ internal static class CharacterStyleChecks
         buffer.Position = 0;
         var pages = new PdfDocumentReader().ReadPageTexts(buffer);
         Assert(pages.Count == 1, "The PDF has no page.");
-        Assert(pages[0].Contains("Betonung", StringComparison.Ordinal), "The text is missing: " + pages[0]);
+        Assert(pages[0].Contains("Emphasis2", StringComparison.Ordinal), "The text is missing: " + pages[0]);
     }
 
     private static void ReadsCharacterStylesFromDocx()
     {
         using var buffer = new MemoryStream();
         new DocxDocumentWriter()
-            .WriteAsync(Document(new TextRun("Betonung") { CharacterStyleName = "Emphasis" }), buffer)
+            .WriteAsync(Document(new TextRun("Emphasis2") { CharacterStyleName = "Emphasis" }), buffer)
             .GetAwaiter().GetResult();
 
         buffer.Position = 0;
@@ -242,7 +242,7 @@ internal static class CharacterStyleChecks
     {
         using var buffer = new MemoryStream();
         new OdtDocumentWriter()
-            .WriteAsync(Document(new TextRun("Betonung") { CharacterStyleName = "Emphasis" }), buffer)
+            .WriteAsync(Document(new TextRun("Emphasis2") { CharacterStyleName = "Emphasis" }), buffer)
             .GetAwaiter().GetResult();
 
         var document = ReadOdt(buffer.ToArray());
@@ -271,17 +271,17 @@ internal static class CharacterStyleChecks
             + "<style:style style:name='T2' style:family='text' style:text-style-name='Emphasis'/>"
             + "</office:automatic-styles>"
             + "<office:body><office:text><text:p>"
-            + "<text:span text:style-name='T1'>indirekt</text:span>"
+            + "<text:span text:style-name='T1'>indirect</text:span>"
             + "<text:span text:style-name='T2'>alt</text:span>"
-            + "<text:span text:style-name='Emphasis'>direkt</text:span>"
-            + "<text:span text:style-name='Spezial'>speziell</text:span>"
+            + "<text:span text:style-name='Emphasis'>direct</text:span>"
+            + "<text:span text:style-name='Special'>special</text:span>"
             + "</text:p></office:text></office:body>",
             "<office:styles>"
             + "<style:style style:name='Emphasis' style:family='text'>"
             + "<style:text-properties fo:font-weight='bold' fo:font-style='italic'"
             + " fo:color='#CC0000' fo:font-size='14pt'/>"
             + "</style:style>"
-            + "<style:style style:name='Spezial' style:family='text'>"
+            + "<style:style style:name='Special' style:family='text'>"
             + "<style:text-properties style:text-line-through-style='solid'"
             + " style:text-position='super' fo:text-transform='uppercase'"
             + " fo:font-variant='small-caps' text:display='none'/>"
@@ -291,7 +291,7 @@ internal static class CharacterStyleChecks
         AssertStyle(document.CharacterStyles[0]);
 
         var special = document.CharacterStyles[1];
-        Assert(special.Name == "Spezial", "The second style is wrong: " + special.Name);
+        Assert(special.Name == "Special", "The second style is wrong: " + special.Name);
         Assert(special.Strikethrough == TextStrikethrough.Single, "The strikethrough was not read.");
         Assert(special.Baseline == TextBaseline.Superscript, "The baseline was not read.");
         Assert(special.AllCaps == true && special.SmallCaps == true, "The casing was not read.");
@@ -302,7 +302,7 @@ internal static class CharacterStyleChecks
         Assert(runs[0].CharacterStyleName == "Emphasis", "The parent link was not read.");
         Assert(runs[1].CharacterStyleName == "Emphasis", "The legacy reference was not read.");
         Assert(runs[2].CharacterStyleName == "Emphasis", "The direct reference was not read.");
-        Assert(runs[3].CharacterStyleName == "Spezial", "The second reference was not read.");
+        Assert(runs[3].CharacterStyleName == "Special", "The second reference was not read.");
         // Only the reference: the formatting belongs to the style, so a later style change
         // reaches the run (as in DOCX).
         Assert(runs[2].Bold != true && runs[2].Italic != true, "The style formatting was copied into the run.");
@@ -313,7 +313,7 @@ internal static class CharacterStyleChecks
     {
         var source = ReadOdt(OdtPackage(
             "<office:body><office:text><text:p>"
-            + "<text:span text:style-name='Emphasis'>Betonung</text:span>"
+            + "<text:span text:style-name='Emphasis'>Emphasis2</text:span>"
             + "</text:p></office:text></office:body>",
             "<office:styles><style:style style:name='Emphasis' style:family='text'>"
             + "<style:text-properties fo:font-weight='bold'/>"
@@ -364,11 +364,11 @@ internal static class CharacterStyleChecks
             "<office:styles>"
             + "<style:style style:name='Basis' style:family='text'>"
             + "<style:text-properties fo:font-weight='bold' fo:color='#00AA00'/></style:style>"
-            + "<style:style style:name='Abgeleitet' style:family='text' style:parent-style-name='Basis'>"
+            + "<style:style style:name='Derived' style:family='text' style:parent-style-name='Basis'>"
             + "<style:text-properties fo:font-style='italic' fo:color='#CC0000'/></style:style>"
             + "</office:styles>"));
 
-        var derived = document.CharacterStyles.Single(style => style.Name == "Abgeleitet");
+        var derived = document.CharacterStyles.Single(style => style.Name == "Derived");
         Assert(derived.Bold == true, "The inherited bold attribute is missing.");
         Assert(derived.Italic == true, "The own italic attribute is missing.");
         Assert(derived.Color is { } color && color.ToString() == "#CC0000", "The own color must win: " + derived.Color);
@@ -380,14 +380,14 @@ internal static class CharacterStyleChecks
         const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
         var styles = "<w:styles xmlns:w='" + W + "'>"
             + "<w:style w:type='character' w:styleId='Basis'><w:rPr><w:b/><w:color w:val='00AA00'/></w:rPr></w:style>"
-            + "<w:style w:type='character' w:styleId='Abgeleitet'><w:basedOn w:val='Basis'/>"
+            + "<w:style w:type='character' w:styleId='Derived'><w:basedOn w:val='Basis'/>"
             + "<w:rPr><w:i/><w:caps/></w:rPr></w:style>"
             + "</w:styles>";
 
         using var stream = new MemoryStream(DocxPackage(styles));
         var document = new DocxDocumentReader().Read(stream).Document;
 
-        var derived = document.CharacterStyles.Single(style => style.Name == "Abgeleitet");
+        var derived = document.CharacterStyles.Single(style => style.Name == "Derived");
         Assert(derived.Bold == true, "The inherited bold attribute is missing.");
         Assert(derived.Italic == true, "The own italic attribute is missing.");
         Assert(derived.AllCaps == true, "The own caps attribute is missing.");
@@ -421,7 +421,7 @@ internal static class CharacterStyleChecks
     private static void WritesOdtCharacterStyleWithBackgroundAndHighlight()
     {
         var highlight = Color.FromHex("00FF00");
-        var document = Document(new TextRun("Markiert") { CharacterStyleName = "Marker" }) with
+        var document = Document(new TextRun("Marked") { CharacterStyleName = "Marker" }) with
         {
             CharacterStyles =
             [
@@ -492,7 +492,7 @@ internal static class CharacterStyleChecks
         // The run formatting wins over the style: the style is bold, the run is not italic.
         using var buffer = new MemoryStream();
         new PdfDocumentWriter()
-            .WriteAsync(Document(new TextRun("Betonung") { CharacterStyleName = "Emphasis" }), buffer)
+            .WriteAsync(Document(new TextRun("Emphasis2") { CharacterStyleName = "Emphasis" }), buffer)
             .GetAwaiter().GetResult();
 
         var text = Encoding.Latin1.GetString(buffer.ToArray());

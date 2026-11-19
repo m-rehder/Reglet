@@ -26,16 +26,16 @@ internal static class PdfAnnotationChecks
         }
     }
 
-    private static PortableDocument Document(string text = "Inhalt")
+    private static PortableDocument Document(string text = "Content")
         => PortableDocument.Create().Paragraph(text).Build();
 
     private static void WritesAllFourKinds()
     {
         var pdf = Write(Document(), [
-            new PdfAnnotation { Kind = PdfAnnotationKind.Text, Page = 1, X = 10, Y = 700, Content = "Notiz", Author = "Maik", Icon = "Note" },
-            new PdfAnnotation { Kind = PdfAnnotationKind.Highlight, Page = 1, X = 20, Y = 680, Width = 100, Height = 12, Content = "wichtig", Color = Color.FromRgb(0xFF, 0xFF, 0x00) },
+            new PdfAnnotation { Kind = PdfAnnotationKind.Text, Page = 1, X = 10, Y = 700, Content = "Note", Author = "Maik", Icon = "Note" },
+            new PdfAnnotation { Kind = PdfAnnotationKind.Highlight, Page = 1, X = 20, Y = 680, Width = 100, Height = 12, Content = "important", Color = Color.FromRgb(0xFF, 0xFF, 0x00) },
             new PdfAnnotation { Kind = PdfAnnotationKind.Stamp, Page = 1, X = 200, Y = 600, Width = 80, Height = 30, Icon = "Approved" },
-            new PdfAnnotation { Kind = PdfAnnotationKind.FreeText, Page = 1, X = 300, Y = 500, Width = 120, Height = 20, Content = "Freitext" },
+            new PdfAnnotation { Kind = PdfAnnotationKind.FreeText, Page = 1, X = 300, Y = 500, Width = 120, Height = 20, Content = "Free text" },
         ]);
 
         var latin = Encoding.Latin1.GetString(pdf);
@@ -58,15 +58,15 @@ internal static class PdfAnnotationChecks
                 Page = 1,
                 X = 10,
                 Y = 700,
-                Content = "Prüfnotiz",
+                Content = "Review note",
                 Author = "Maik",
                 Subject = "Review",
                 Icon = "Comment",
                 Color = Color.FromRgb(0xFF, 0x00, 0x00),
             },
-            new PdfAnnotation { Kind = PdfAnnotationKind.Highlight, Page = 1, X = 20, Y = 680, Width = 100, Height = 12, Content = "wichtig" },
+            new PdfAnnotation { Kind = PdfAnnotationKind.Highlight, Page = 1, X = 20, Y = 680, Width = 100, Height = 12, Content = "important" },
             new PdfAnnotation { Kind = PdfAnnotationKind.Stamp, Page = 1, X = 200, Y = 600, Width = 80, Height = 30, Icon = "Draft" },
-            new PdfAnnotation { Kind = PdfAnnotationKind.FreeText, Page = 1, X = 300, Y = 500, Width = 120, Height = 20, Content = "Freitext" },
+            new PdfAnnotation { Kind = PdfAnnotationKind.FreeText, Page = 1, X = 300, Y = 500, Width = 120, Height = 20, Content = "Free text" },
         ]);
 
         var annotations = Read(pdf);
@@ -74,7 +74,7 @@ internal static class PdfAnnotationChecks
 
         var note = annotations[0];
         Require(note.Kind == PdfAnnotationKind.Text, "The first annotation is a note.");
-        Require(note.Content == "Prüfnotiz", "The content survives: " + note.Content);
+        Require(note.Content == "Review note", "The content survives: " + note.Content);
         Require(note.Author == "Maik", "The author survives.");
         Require(note.Subject == "Review", "The subject survives.");
         Require(note.Icon == "Comment", "The icon survives: " + note.Icon);
@@ -86,7 +86,7 @@ internal static class PdfAnnotationChecks
         Require(Math.Abs(annotations[1].Width - 100) < 0.01, "The highlight area survives.");
         Require(annotations[2].Kind == PdfAnnotationKind.Stamp, "The third annotation is a stamp.");
         Require(annotations[2].Icon == "Draft", "The stamp name survives: " + annotations[2].Icon);
-        Require(annotations[3].Kind == PdfAnnotationKind.FreeText && annotations[3].Content == "Freitext", "The free text survives.");
+        Require(annotations[3].Kind == PdfAnnotationKind.FreeText && annotations[3].Content == "Free text", "The free text survives.");
     }
 
     /// <summary>Every annotation sits on the page it names.</summary>
@@ -94,17 +94,17 @@ internal static class PdfAnnotationChecks
     {
         var document = new PortableDocument(
             new DocumentMetadata(),
-            new Section(new Block[] { new Paragraph(new TextRun("eins")), new PageBreak(), new Paragraph(new TextRun("zwei")) }));
+            new Section(new Block[] { new Paragraph(new TextRun("one")), new PageBreak(), new Paragraph(new TextRun("two")) }));
 
         var pdf = Write(document, [
-            new PdfAnnotation { Page = 1, Content = "auf Seite eins" },
-            new PdfAnnotation { Page = 2, Content = "auf Seite zwei" },
+            new PdfAnnotation { Page = 1, Content = "on page one" },
+            new PdfAnnotation { Page = 2, Content = "on page two" },
         ]);
 
         var annotations = Read(pdf);
         Require(annotations.Count == 2, "Two annotations are read.");
-        Require(annotations[0].Page == 1 && annotations[0].Content == "auf Seite eins", "The first sits on page 1.");
-        Require(annotations[1].Page == 2 && annotations[1].Content == "auf Seite zwei", "The second sits on page 2.");
+        Require(annotations[0].Page == 1 && annotations[0].Content == "on page one", "The first sits on page 1.");
+        Require(annotations[1].Page == 2 && annotations[1].Content == "on page two", "The second sits on page 2.");
     }
 
     private static void ReportsAMissingPage()
@@ -113,7 +113,7 @@ internal static class PdfAnnotationChecks
         var result = new PdfDocumentWriter()
             .WriteAsync(Document(), buffer, new PdfWriteOptions
             {
-                Annotations = [new PdfAnnotation { Page = 5, Content = "zu weit" }],
+                Annotations = [new PdfAnnotation { Page = 5, Content = "too far" }],
             })
             .GetAwaiter().GetResult();
 
@@ -160,7 +160,7 @@ internal static class PdfAnnotationChecks
             return;
         }
 
-        throw new InvalidOperationException($"Erwartete {typeof(TException).Name} blieb aus.");
+        throw new InvalidOperationException($"Expected {typeof(TException).Name} was not thrown.");
     }
 
     private static void Require(bool condition, string message)

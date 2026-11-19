@@ -45,16 +45,16 @@ internal static class TableConditionalFormatChecks
 
         var table = new TableBlock(
             [
-                new TableRow([new TableCell(new Paragraph(new TextRun("Kopf")))]) { IsHeader = true },
-                new TableRow([new TableCell(new Paragraph(new TextRun("Zeile")))]),
-                new TableRow([new TableCell(new Paragraph(new TextRun("Letzte")))]),
+                new TableRow([new TableCell(new Paragraph(new TextRun("Head")))]) { IsHeader = true },
+                new TableRow([new TableCell(new Paragraph(new TextRun("Line")))]),
+                new TableRow([new TableCell(new Paragraph(new TextRun("Last")))]),
             ])
         {
             Style = style,
         };
 
         return new PortableDocument(
-            new DocumentMetadata { Title = "Bedingte Formate" },
+            new DocumentMetadata { Title = "Conditional formats" },
             [new Section([table])]);
     }
 

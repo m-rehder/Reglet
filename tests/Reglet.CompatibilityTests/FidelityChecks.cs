@@ -104,11 +104,11 @@ internal static class FidelityChecks
         var blocks = new List<Block>();
         for (var i = 0; i < 6; i++)
         {
-            blocks.Add(new Paragraph(new TextRun("Absatz " + i + " (Abstand danach 6 pt, Standard). Direkt darunter folgt eine Überschrift mit 12 pt Abstand davor.")));
-            blocks.Add(new Heading(HeadingLevel.Level2, new TextRun("Überschrift " + i + " (12 pt davor, 6 pt danach)")));
+            blocks.Add(new Paragraph(new TextRun("Paragraph " + i + " (6 pt after, the default). Right below follows a heading with 12 pt before.")));
+            blocks.Add(new Heading(HeadingLevel.Level2, new TextRun("Heading " + i + " (12 pt before, 6 pt after)")));
         }
 
-        File.WriteAllBytes(Path.Combine(directory, "abstand.docx"), WriteDocx(new PortableDocument(new DocumentMetadata(), new Section(blocks))));
+        File.WriteAllBytes(Path.Combine(directory, "spacing.docx"), WriteDocx(new PortableDocument(new DocumentMetadata(), new Section(blocks))));
 
         // ODT checks in LibreOffice: equation alignment, a diagram in the body and in a table cell.
         if (Environment.GetEnvironmentVariable("ODT_FILES") is { Length: > 0 })
@@ -118,19 +118,19 @@ internal static class FidelityChecks
             var odtTable = new TableBlock([new TableRow(new TableCell(new Block[] { EquationChecks.Quadratic() }), new TableCell(new Block[] { DiagramChecks.Sample() }))]);
             var odtDocument = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
             {
-                new Paragraph(new TextRun("Links ausgerichtet:")), left, new Paragraph(new TextRun("Rechts ausgerichtet:")), right,
-                new Paragraph(new TextRun("Diagramm im Text:")), DiagramChecks.Sample(), new Paragraph(new TextRun("In einer Tabelle:")), odtTable,
+                new Paragraph(new TextRun("Left-aligned:")), left, new Paragraph(new TextRun("Right-aligned:")), right,
+                new Paragraph(new TextRun("Diagram in the text:")), DiagramChecks.Sample(), new Paragraph(new TextRun("In a table:")), odtTable,
             }));
-            using var odt = File.Create(Path.Combine(directory, "odt-pruefung.odt"));
+            using var odt = File.Create(Path.Combine(directory, "odt-check.odt"));
             DocumentWriter.WriteAsync(odtDocument, odt, DocumentFormat.Odt).GetAwaiter().GetResult();
         }
 
         // Tracked changes to accept and reject in Word (ADR-0027).
-        File.WriteAllBytes(Path.Combine(directory, "aenderungen.docx"), WriteDocx(RevisionChecks.Sample()));
+        File.WriteAllBytes(Path.Combine(directory, "changes.docx"), WriteDocx(RevisionChecks.Sample()));
 
         // A formula and a diagram in table cells.
         var table = new TableBlock([new TableRow(new TableCell(new Block[] { EquationChecks.Quadratic() }), new TableCell(new Block[] { DiagramChecks.Sample() }))]);
-        File.WriteAllBytes(Path.Combine(directory, "tabelle-formel-diagramm.docx"), WriteDocx(new PortableDocument(new DocumentMetadata(), new Section(new Block[] { table }))));
+        File.WriteAllBytes(Path.Combine(directory, "table-formula-diagram.docx"), WriteDocx(new PortableDocument(new DocumentMetadata(), new Section(new Block[] { table }))));
 
         // An embedded workbook (ADR-0029): WORD_XLSX = a real .xlsx, WORD_XLSX_PNG = its preview picture.
         if (Environment.GetEnvironmentVariable("WORD_XLSX") is { Length: > 0 } xlsx && File.Exists(xlsx))
@@ -142,9 +142,9 @@ internal static class FidelityChecks
                 ProgId = "Excel.Sheet.12",
                 Preview = new ImageBlock(preview, ImageMediaType.Png),
             };
-            File.WriteAllBytes(Path.Combine(directory, "eingebettete-tabelle.docx"), WriteDocx(new PortableDocument(new DocumentMetadata(), new Section(new Block[]
+            File.WriteAllBytes(Path.Combine(directory, "embedded-workbook.docx"), WriteDocx(new PortableDocument(new DocumentMetadata(), new Section(new Block[]
             {
-                new Paragraph(new TextRun("Darunter eine eingebettete Excel-Tabelle (Doppelklick öffnet sie in Excel):")), sheet,
+                new Paragraph(new TextRun("Below is an embedded Excel workbook (double-click opens it in Excel):")), sheet,
             }))));
         }
 
@@ -152,7 +152,7 @@ internal static class FidelityChecks
         if (Environment.GetEnvironmentVariable("WORD_PDF") is { Length: > 0 } wordPdf && File.Exists(wordPdf))
         {
             var recovered = new PdfDocumentReader().Read(File.OpenRead(wordPdf), new PdfReadOptions { RecoverStructure = true, RecoverFormulas = true });
-            File.WriteAllBytes(Path.Combine(directory, "formel-aus-word-pdf.docx"), WriteDocx(recovered.Document));
+            File.WriteAllBytes(Path.Combine(directory, "formula-from-word-pdf.docx"), WriteDocx(recovered.Document));
         }
     }
 
@@ -309,17 +309,17 @@ internal static class FidelityChecks
         var text = new List<Block>();
         for (var i = 0; i < 40; i++)
         {
-            text.Add(new Heading(HeadingLevel.Level2, new TextRun("Abschnitt " + i)));
-            text.Add(new Paragraph(new TextRun(Words("wort", 120 + i * 3))));
+            text.Add(new Heading(HeadingLevel.Level2, new TextRun("Section " + i)));
+            text.Add(new Paragraph(new TextRun(Words("word", 120 + i * 3))));
         }
 
         yield return ("text", new PortableDocument(new DocumentMetadata(), new Section(text)));
 
-        var table = new List<Block> { new Heading(HeadingLevel.Level1, new TextRun("Tabellen")) };
+        var table = new List<Block> { new Heading(HeadingLevel.Level1, new TextRun("Tables")) };
         for (var t = 0; t < 6; t++)
         {
-            table.Add(new TableBlock(Enumerable.Range(0, 25).Select(r => new TableRow(new TableCell("Zeile " + r), new TableCell(Words("w", 4 + r % 5)), new TableCell((r * 7).ToString()))).ToList()));
-            table.Add(new Paragraph(new TextRun(Words("nach", 60))));
+            table.Add(new TableBlock(Enumerable.Range(0, 25).Select(r => new TableRow(new TableCell("Line " + r), new TableCell(Words("w", 4 + r % 5)), new TableCell((r * 7).ToString()))).ToList()));
+            table.Add(new Paragraph(new TextRun(Words("after", 60))));
         }
 
         yield return ("tables", new PortableDocument(new DocumentMetadata(), new Section(table)));
@@ -328,8 +328,8 @@ internal static class FidelityChecks
         var lists = new List<Block>();
         for (var l = 0; l < 12; l++)
         {
-            lists.Add(new Paragraph(new TextRun(Words("vor", 40))));
-            lists.Add(new ListBlock("bul", Enumerable.Range(0, 12).Select(i => new ListItem(new Paragraph(new TextRun(Words("punkt", 6 + i))))).ToList()));
+            lists.Add(new Paragraph(new TextRun(Words("before", 40))));
+            lists.Add(new ListBlock("bul", Enumerable.Range(0, 12).Select(i => new ListItem(new Paragraph(new TextRun(Words("item", 6 + i))))).ToList()));
         }
 
         yield return ("lists", new PortableDocument(new DocumentMetadata(), new Section(lists)) { Numbering = [numbering] });

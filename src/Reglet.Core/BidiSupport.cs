@@ -57,7 +57,7 @@ internal static partial class BidiData
         return BidiClass.L;
     }
 
-    /// <summary>Klammerpaar (UAX #9 N0).</summary>
+    /// <summary>A bracket pair (UAX #9 N0).</summary>
     public static bool TryGetBracket(int codePoint, out int paired, out bool isOpen)
     {
         var low = 0;

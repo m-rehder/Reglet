@@ -6,9 +6,9 @@ public enum TextBaseline
     /// <summary>Normal baseline.</summary>
     Normal,
 
-    /// <summary>Hochgestellt (Superscript).</summary>
+    /// <summary>Superscript.</summary>
     Superscript,
 
-    /// <summary>Tiefgestellt (Subscript).</summary>
+    /// <summary>Subscript.</summary>
     Subscript,
 }

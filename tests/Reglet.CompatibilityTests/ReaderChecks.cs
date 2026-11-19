@@ -227,8 +227,8 @@ internal static class ReaderChecks
         var document = PortableDocument.Create()
             .Metadata(
                 title: "Title",
-                author: "Autor",
-                subject: "Betreff",
+                author: "Author",
+                subject: "Subject",
                 keywords: new[] { "one", "two" },
                 language: "de-DE",
                 created: new DateTimeOffset(2026, 9, 24, 14, 30, 5, TimeSpan.FromHours(2)))
@@ -237,9 +237,9 @@ internal static class ReaderChecks
 
         var metadata = ReadDocx(document).Document.Metadata;
         Require(metadata.Title == "Title", "Title read.");
-        Require(metadata.Author == "Autor", "Author read.");
-        Require(metadata.Subject == "Betreff", "Subject read.");
-        Require(metadata.Language == "de-DE", "Sprache gelesen (dc:language).");
+        Require(metadata.Author == "Author", "Author read.");
+        Require(metadata.Subject == "Subject", "Subject read.");
+        Require(metadata.Language == "de-DE", "Language read (dc:language).");
         Require(metadata.Keywords is { } keys && keys.SequenceEqual(new[] { "one", "two" }),
             "Keywords read.");
         Require(metadata.Created is { } created
@@ -252,9 +252,9 @@ internal static class ReaderChecks
     {
         var document = PortableDocument.Create()
             .Metadata(title: "B")
-            .Paragraph(p => p.Text("Normal ").Bold("fett").Text(" ").Span("kursiv", italic: true, fontSize: Length.FromPoints(14)))
+            .Paragraph(p => p.Text("Normal ").Bold("bold").Text(" ").Span("italic", italic: true, fontSize: Length.FromPoints(14)))
             .PageBreak()
-            .Paragraph("Ende")
+            .Paragraph("End")
             .Build();
 
         var read = ReadDocx(document).Document;
@@ -265,8 +265,8 @@ internal static class ReaderChecks
         var inlines = ((Paragraph)blocks[0]).Inlines;
         Require(inlines.Count == 4, "Four runs.");
         Require(inlines[0] is TextRun r0 && r0.Text == "Normal ", "First run with a space.");
-        Require(inlines[1] is TextRun r1 && r1.Text == "fett" && r1.Bold == true, "Fetter Lauf.");
-        Require(inlines[3] is TextRun r3 && r3.Text == "kursiv" && r3.Italic == true, "Kursiver Lauf.");
+        Require(inlines[1] is TextRun r1 && r1.Text == "bold" && r1.Bold == true, "Bold run.");
+        Require(inlines[3] is TextRun r3 && r3.Text == "italic" && r3.Italic == true, "Italic run.");
         Require(inlines[3] is TextRun r3b && r3b.FontSize?.Points == 14, "Font size read.");
     }
 
@@ -304,7 +304,7 @@ internal static class ReaderChecks
             new Section[]
             {
                 new(new Paragraph(new TextRun("Page "))),
-                new(new Paragraph(new Inline[] { new TextRun("Blatt "), new PageNumberField() })),
+                new(new Paragraph(new Inline[] { new TextRun("Sheet "), new PageNumberField() })),
             });
 
         using var buffer = new MemoryStream();
@@ -344,8 +344,8 @@ internal static class ReaderChecks
         var document = PortableDocument.Create()
             .Metadata(
                 title: "Title",
-                author: "Autor",
-                subject: "Betreff",
+                author: "Author",
+                subject: "Subject",
                 keywords: new[] { "one", "two" },
                 language: "de-DE",
                 created: new DateTimeOffset(2026, 9, 24, 14, 30, 5, TimeSpan.FromHours(2)))
@@ -354,8 +354,8 @@ internal static class ReaderChecks
 
         var metadata = ReadOdt(document).Document.Metadata;
         Require(metadata.Title == "Title", "ODT: title read.");
-        Require(metadata.Author == "Autor", "ODT: author read.");
-        Require(metadata.Subject == "Betreff", "ODT: subject read.");
+        Require(metadata.Author == "Author", "ODT: author read.");
+        Require(metadata.Subject == "Subject", "ODT: subject read.");
         Require(metadata.Language == "de-DE", "ODT: language read.");
         Require(metadata.Keywords is { } keys && keys.SequenceEqual(new[] { "one", "two" }), "ODT: keywords read.");
         Require(metadata.Created is { } created && created == new DateTimeOffset(2026, 9, 24, 14, 30, 5, TimeSpan.FromHours(2)),
@@ -367,7 +367,7 @@ internal static class ReaderChecks
     {
         var document = PortableDocument.Create()
             .Heading("Heading", level: 1)
-            .Paragraph(p => p.Text("Normal ").Bold("fett").Text(" ").Span("kursiv", italic: true))
+            .Paragraph(p => p.Text("Normal ").Bold("bold").Text(" ").Span("italic", italic: true))
             .BulletList("one", "two")
             .NumberedList("first", "second")
             .Table(t => t.Header("A", "B").Row("1", "2"))
@@ -380,12 +380,12 @@ internal static class ReaderChecks
         Require(blocks[2] is ListBlock bullet
             && TestLists.Level(readDocument, bullet).Kind == ListKind.Bullet && bullet.Items.Count == 2, "ODT: bullet list.");
         Require(blocks[3] is ListBlock numbered
-            && TestLists.Level(readDocument, numbered).Kind == ListKind.Number && numbered.Items.Count == 2, "ODT: Nummerierung.");
+            && TestLists.Level(readDocument, numbered).Kind == ListKind.Number && numbered.Items.Count == 2, "ODT: numbering.");
         Require(blocks[4] is TableBlock table && table.Rows.Count == 2 && table.Rows[0].IsHeader, "ODT: table with a header row.");
 
         var inlines = ((Paragraph)blocks[1]).Inlines;
-        Require(inlines.OfType<TextRun>().Any(r => r.Text == "fett" && r.Bold == true), "ODT: fetter Lauf.");
-        Require(inlines.OfType<TextRun>().Any(r => r.Text == "kursiv" && r.Italic == true), "ODT: kursiver Lauf.");
+        Require(inlines.OfType<TextRun>().Any(r => r.Text == "bold" && r.Bold == true), "ODT: bold run.");
+        Require(inlines.OfType<TextRun>().Any(r => r.Text == "italic" && r.Italic == true), "ODT: italic run.");
         Require(inlines.Count >= 3, "ODT: at least text and formatting runs.");
     }
 
@@ -620,12 +620,12 @@ internal static class ReaderChecks
         var source = PortableDocument.Create()
             .Metadata(
                 title: "Title",
-                author: "Autor",
-                subject: "Betreff",
+                author: "Author",
+                subject: "Subject",
                 keywords: new[] { "one", "two" },
                 created: new DateTimeOffset(2026, 9, 24, 14, 30, 5, TimeSpan.Zero))
             .Heading("Heading", level: 1)
-            .Paragraph(p => p.Text("Hallo ").Bold("Welt"))
+            .Paragraph(p => p.Text("Hello ").Bold("World"))
             .Build();
         var document = source with
         {
@@ -641,8 +641,8 @@ internal static class ReaderChecks
 
         var result = ReadPdf(document);
         Require(result.Document.Metadata.Title == "Title", "PDF: title read.");
-        Require(result.Document.Metadata.Author == "Autor", "PDF: author read.");
-        Require(result.Document.Metadata.Subject == "Betreff", "PDF: subject read.");
+        Require(result.Document.Metadata.Author == "Author", "PDF: author read.");
+        Require(result.Document.Metadata.Subject == "Subject", "PDF: subject read.");
         Require(result.Document.Metadata.Keywords is { } keys && keys.SequenceEqual(new[] { "one", "two" }),
             "PDF: keywords read.");
         Require(result.Document.Metadata.Created == new DateTimeOffset(2026, 9, 24, 14, 30, 5, TimeSpan.Zero),
@@ -654,7 +654,7 @@ internal static class ReaderChecks
 
         var text = AllText(result.Document);
         Require(text.Contains("Heading", StringComparison.Ordinal), "PDF: Unicode text read.");
-        Require(text.Contains("Hallo Welt", StringComparison.Ordinal), "PDF: formatted text read.");
+        Require(text.Contains("Hello World", StringComparison.Ordinal), "PDF: formatted text read.");
     }
 
     /// <summary>O04: Identity-H text is decoded via the ToUnicode CMap.</summary>

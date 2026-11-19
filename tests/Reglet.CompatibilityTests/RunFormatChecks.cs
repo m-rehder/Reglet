@@ -229,14 +229,14 @@ internal static class RunFormatChecks
         const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
         var styles = "<w:styles xmlns:w='" + W + "'>"
             + "<w:style w:type='paragraph' w:styleId='Basis'><w:rPr><w:b/><w:color w:val='CC0000'/></w:rPr></w:style>"
-            + "<w:style w:type='paragraph' w:styleId='Zitat'><w:basedOn w:val='Basis'/>"
+            + "<w:style w:type='paragraph' w:styleId='Quote'><w:basedOn w:val='Basis'/>"
             + "<w:rPr><w:i/></w:rPr></w:style>"
-            + "<w:style w:type='character' w:styleId='Klein'><w:rPr><w:sz w:val='16'/></w:rPr></w:style>"
+            + "<w:style w:type='character' w:styleId='Small'><w:rPr><w:sz w:val='16'/></w:rPr></w:style>"
             + "</w:styles>";
-        var body = "<w:p><w:pPr><w:pStyle w:val='Zitat'/></w:pPr>"
-            + "<w:r><w:t>Zitat</w:t></w:r>"
-            + "<w:r><w:rPr><w:rStyle w:val='Klein'/></w:rPr><w:t>klein</w:t></w:r>"
-            + "<w:r><w:rPr><w:i w:val='0'/></w:rPr><w:t>aufrecht</w:t></w:r></w:p>";
+        var body = "<w:p><w:pPr><w:pStyle w:val='Quote'/></w:pPr>"
+            + "<w:r><w:t>Quote</w:t></w:r>"
+            + "<w:r><w:rPr><w:rStyle w:val='Small'/></w:rPr><w:t>small</w:t></w:r>"
+            + "<w:r><w:rPr><w:i w:val='0'/></w:rPr><w:t>upright</w:t></w:r></w:p>";
 
         using var stream = new MemoryStream(DocxPackage(styles, body));
         var document = new DocxDocumentReader().Read(stream).Document;
@@ -247,7 +247,7 @@ internal static class RunFormatChecks
             "The paragraph style carries the inherited run formatting.");
         Require(paragraph.Style.TextColor?.ToString() == "#CC0000", "The paragraph style carries the inherited color.");
         Require(runs[0].Bold is null && runs[0].Color is null, "The run took the formatting of the style.");
-        Require(runs[1].CharacterStyleName == "Klein" && runs[1].FontSize is null,
+        Require(runs[1].CharacterStyleName == "Small" && runs[1].FontSize is null,
             "The character style formatting was baked into the run.");
         Require(document.CharacterStyles.Single().FontSize?.Points == 8, "The character style lost its formatting.");
         Require(runs[2].Italic == false, "The own italic-off of the run is read.");
@@ -258,7 +258,7 @@ internal static class RunFormatChecks
         var written = ReadZipEntry(docxBuffer.ToArray(), "word/document.xml");
         Require(!written.Contains("<w:b />", StringComparison.Ordinal), "DOCX: the run repeats the style formatting.");
         var writtenStyles = ReadZipEntry(docxBuffer.ToArray(), "word/styles.xml");
-        var start = writtenStyles.IndexOf("w:styleId=\"Zitat\"", StringComparison.Ordinal);
+        var start = writtenStyles.IndexOf("w:styleId=\"Quote\"", StringComparison.Ordinal);
         var style = writtenStyles[start..];
         style = style[..Math.Max(0, style.IndexOf("</w:style>", StringComparison.Ordinal))];
         // The source definitions are adopted, so the bold stays in the parent style.
@@ -277,26 +277,26 @@ internal static class RunFormatChecks
     {
         const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
         var styles = "<w:styles xmlns:w='" + W + "'>"
-            + "<w:style w:type='character' w:styleId='Betonung'><w:rPr><w:b/></w:rPr></w:style>"
+            + "<w:style w:type='character' w:styleId='Emphasis2'><w:rPr><w:b/></w:rPr></w:style>"
             + "</w:styles>";
-        var body = "<w:p><w:r><w:rPr><w:rStyle w:val='Betonung'/></w:rPr><w:t>Text</w:t></w:r></w:p>";
+        var body = "<w:p><w:r><w:rPr><w:rStyle w:val='Emphasis2'/></w:rPr><w:t>Text</w:t></w:r></w:p>";
 
         using var stream = new MemoryStream(DocxPackage(styles, body));
         var read = new DocxDocumentReader().Read(stream).Document;
 
         // The user replaces the character style: no bold, italic instead.
-        var edited = read with { CharacterStyles = [new CharacterStyle("Betonung") { Italic = true }] };
+        var edited = read with { CharacterStyles = [new CharacterStyle("Emphasis2") { Italic = true }] };
 
         using var docxBuffer = new MemoryStream();
         new DocxDocumentWriter().WriteAsync(edited, docxBuffer).GetAwaiter().GetResult();
         var docxStyles = ReadZipEntry(docxBuffer.ToArray(), "word/styles.xml");
-        var start = docxStyles.IndexOf("w:styleId=\"Betonung\"", StringComparison.Ordinal);
+        var start = docxStyles.IndexOf("w:styleId=\"Emphasis2\"", StringComparison.Ordinal);
         var style = docxStyles[start..];
         style = style[..Math.Max(0, style.IndexOf("</w:style>", StringComparison.Ordinal))];
         Require(style.Contains("<w:i />", StringComparison.Ordinal) && !style.Contains("<w:b />", StringComparison.Ordinal),
             "DOCX: the edited character style is written.");
         var docxBody = ReadZipEntry(docxBuffer.ToArray(), "word/document.xml");
-        Require(docxBody.Contains("w:rStyle w:val=\"Betonung\"", StringComparison.Ordinal),
+        Require(docxBody.Contains("w:rStyle w:val=\"Emphasis2\"", StringComparison.Ordinal),
             "DOCX: the run still references the style.");
         Require(!docxBody.Contains("<w:b />", StringComparison.Ordinal),
             "DOCX: the run kept the old formatting of the style.");
@@ -304,13 +304,13 @@ internal static class RunFormatChecks
         using var odtBuffer = new MemoryStream();
         new OdtDocumentWriter().WriteAsync(edited, odtBuffer).GetAwaiter().GetResult();
         var odtStyles = ReadZipEntry(odtBuffer.ToArray(), "styles.xml");
-        var odtStart = odtStyles.IndexOf("style:name=\"Betonung\"", StringComparison.Ordinal);
+        var odtStart = odtStyles.IndexOf("style:name=\"Emphasis2\"", StringComparison.Ordinal);
         var odtStyle = odtStyles[odtStart..];
         odtStyle = odtStyle[..Math.Max(0, odtStyle.IndexOf("</style:style>", StringComparison.Ordinal))];
         Require(odtStyle.Contains("fo:font-style=\"italic\"", StringComparison.Ordinal),
             "ODT: the edited character style is written.");
         var odtContent = ReadZipEntry(odtBuffer.ToArray(), "content.xml");
-        Require(odtContent.Contains("parent-style-name=\"Betonung\"", StringComparison.Ordinal),
+        Require(odtContent.Contains("parent-style-name=\"Emphasis2\"", StringComparison.Ordinal),
             "ODT: the span references the character style.");
         Require(!odtContent.Contains("fo:font-weight=\"bold\"", StringComparison.Ordinal),
             "ODT: the span kept the old formatting of the style.");
@@ -329,11 +329,11 @@ internal static class RunFormatChecks
     {
         const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
         var styles = "<w:styles xmlns:w='" + W + "'>"
-            + "<w:style w:type='paragraph' w:styleId='Zitat'><w:rPr><w:b/></w:rPr></w:style>"
+            + "<w:style w:type='paragraph' w:styleId='Quote'><w:rPr><w:b/></w:rPr></w:style>"
             + "</w:styles>";
-        var body = "<w:p><w:pPr><w:pStyle w:val='Zitat'/></w:pPr>"
-            + "<w:r><w:t>fett</w:t></w:r>"
-            + "<w:r><w:rPr><w:b w:val='0'/></w:rPr><w:t>aufrecht</w:t></w:r></w:p>";
+        var body = "<w:p><w:pPr><w:pStyle w:val='Quote'/></w:pPr>"
+            + "<w:r><w:t>bold</w:t></w:r>"
+            + "<w:r><w:rPr><w:b w:val='0'/></w:rPr><w:t>upright</w:t></w:r></w:p>";
 
         using var stream = new MemoryStream(DocxPackage(styles, body));
         var read = new DocxDocumentReader().Read(stream).Document;
@@ -349,7 +349,7 @@ internal static class RunFormatChecks
             [
                 read.Sections[0] with
                 {
-                    Blocks = [new Paragraph(paragraph.Inlines) { Style = paragraph.Style with { StyleName = "Zitat" } }],
+                    Blocks = [new Paragraph(paragraph.Inlines) { Style = paragraph.Style with { StyleName = "Quote" } }],
                 },
             ],
         };
@@ -357,7 +357,7 @@ internal static class RunFormatChecks
         new DocxDocumentWriter().WriteAsync(edited, buffer).GetAwaiter().GetResult();
 
         var written = ReadZipEntry(buffer.ToArray(), "word/document.xml");
-        Require(written.Contains("<w:pStyle w:val=\"Zitat\" />", StringComparison.Ordinal),
+        Require(written.Contains("<w:pStyle w:val=\"Quote\" />", StringComparison.Ordinal),
             "DOCX: the paragraph references its style.");
         Require(written.Contains("<w:b w:val=\"0\" />", StringComparison.Ordinal),
             "DOCX: the explicit bold off of the run is kept: " + written);
@@ -374,19 +374,19 @@ internal static class RunFormatChecks
     {
         const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
         var styles = "<w:styles xmlns:w='" + W + "'>"
-            + "<w:style w:type='paragraph' w:styleId='Zitat'>"
+            + "<w:style w:type='paragraph' w:styleId='Quote'>"
             + "<w:pPr><w:jc w:val='center'/><w:spacing w:before='240'/></w:pPr>"
             + "<w:rPr><w:b/></w:rPr>"
             + "</w:style></w:styles>";
-        var body = "<w:p><w:pPr><w:pStyle w:val='Zitat'/></w:pPr><w:r><w:t>inherited</w:t></w:r></w:p>"
-            + "<w:p><w:pPr><w:pStyle w:val='Zitat'/><w:jc w:val='left'/></w:pPr>"
+        var body = "<w:p><w:pPr><w:pStyle w:val='Quote'/></w:pPr><w:r><w:t>inherited</w:t></w:r></w:p>"
+            + "<w:p><w:pPr><w:pStyle w:val='Quote'/><w:jc w:val='left'/></w:pPr>"
             + "<w:r><w:t>direct</w:t></w:r></w:p>";
 
         using var stream = new MemoryStream(DocxPackage(styles, body));
         var read = new DocxDocumentReader().Read(stream).Document;
         var paragraphs = read.Sections[0].Blocks.OfType<Paragraph>().ToArray();
         Require(paragraphs.Length == 2, "Both body paragraphs are read.");
-        Require(paragraphs[0].Style.StyleName == "Zitat",
+        Require(paragraphs[0].Style.StyleName == "Quote",
             "DOCX: the body paragraph keeps the reference to its named style.");
         Require(paragraphs[0].Style.Alignment == TextAlignment.Center,
             "DOCX: the inherited alignment is resolved on the paragraph.");
@@ -400,7 +400,7 @@ internal static class RunFormatChecks
             [
                 new ParagraphStyle
                 {
-                    StyleName = "Zitat",
+                    StyleName = "Quote",
                     Alignment = TextAlignment.Right,
                     SpaceBefore = Length.FromPoints(12),
                     Italic = true,
@@ -414,7 +414,7 @@ internal static class RunFormatChecks
         var docx = XDocument.Parse(ReadZipEntry(docxBuffer.ToArray(), "word/document.xml"));
         var written = docx.Descendants(w + "p").Where(p => p.Descendants(w + "t").Any()).ToArray();
         Require(written.Length == 2, "DOCX: both paragraphs are written.");
-        Require(written.All(p => (string?)p.Element(w + "pPr")?.Element(w + "pStyle")?.Attribute(w + "val") == "Zitat"),
+        Require(written.All(p => (string?)p.Element(w + "pPr")?.Element(w + "pStyle")?.Attribute(w + "val") == "Quote"),
             "DOCX: both paragraphs reference the named style.");
         Require(!written[0].Descendants(w + "jc").Any(),
             "DOCX: the inherited alignment is not repeated as direct formatting.");
@@ -427,7 +427,7 @@ internal static class RunFormatChecks
 
         var docxStyles = XDocument.Parse(ReadZipEntry(docxBuffer.ToArray(), "word/styles.xml"));
         var zitat = docxStyles.Descendants(w + "style")
-            .First(style => (string?)style.Attribute(w + "styleId") == "Zitat");
+            .First(style => (string?)style.Attribute(w + "styleId") == "Quote");
         Require((string?)zitat.Descendants(w + "jc").Single().Attribute(w + "val") == "right",
             "DOCX: the edited alignment is written into the style definition.");
         Require((string?)zitat.Descendants(w + "spacing").Single().Attribute(w + "before") == "240",
@@ -441,10 +441,10 @@ internal static class RunFormatChecks
         XNamespace styleNs = "urn:oasis:names:tc:opendocument:xmlns:style:1.0";
         var odt = XDocument.Parse(ReadZipEntry(odtBuffer.ToArray(), "content.xml"));
         var odtParagraphs = odt.Descendants(text + "p").Where(p => p.Value.Length > 0).ToArray();
-        Require((string?)odtParagraphs[0].Attribute(text + "style-name") == "Zitat",
+        Require((string?)odtParagraphs[0].Attribute(text + "style-name") == "Quote",
             "ODT: the paragraph references the named style.");
         var automaticName = (string?)odtParagraphs[1].Attribute(text + "style-name");
-        Require(automaticName is not null and not "Zitat",
+        Require(automaticName is not null and not "Quote",
             "ODT: a paragraph with direct formatting gets an automatic style.");
         var automatic = odt.Descendants(styleNs + "style")
             .First(item => (string?)item.Attribute(styleNs + "name") == automaticName);
@@ -452,15 +452,15 @@ internal static class RunFormatChecks
             "ODT: the direct alignment wins over the edited style: " + automatic);
 
         var odtStyles = XDocument.Parse(ReadZipEntry(odtBuffer.ToArray(), "styles.xml"));
-        var odtZitat = odtStyles.Descendants(styleNs + "style")
-            .First(item => (string?)item.Attribute(styleNs + "name") == "Zitat");
-        var properties = odtZitat.Element(styleNs + "paragraph-properties");
+        var odtQuote = odtStyles.Descendants(styleNs + "style")
+            .First(item => (string?)item.Attribute(styleNs + "name") == "Quote");
+        var properties = odtQuote.Element(styleNs + "paragraph-properties");
         Require((string?)properties?.Attribute(fo + "text-align") == "end",
             "ODT: the edited alignment is written into the style definition.");
         Require((string?)properties?.Attribute(fo + "margin-top") == "12pt",
             "ODT: the edited spacing is written into the style definition.");
-        Require(odtZitat.Element(styleNs + "text-properties") is null
-                || !odtZitat.Element(styleNs + "text-properties")!.Attributes()
+        Require(odtQuote.Element(styleNs + "text-properties") is null
+                || !odtQuote.Element(styleNs + "text-properties")!.Attributes()
                     .Any(attribute => attribute.Value.Contains("bold", StringComparison.Ordinal)),
             "ODT: the edited style no longer sets bold.");
 
@@ -519,7 +519,7 @@ internal static class RunFormatChecks
     private static PortableDocument StyledDocument()
         => new(
             new DocumentMetadata(),
-            new Section(new Paragraph(new TextRun("Warnung")) { Style = WarnStyle() }))
+            new Section(new Paragraph(new TextRun("Warning")) { Style = WarnStyle() }))
         {
             Styles = [WarnStyle()],
         };

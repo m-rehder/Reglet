@@ -29,7 +29,7 @@ internal static class PdfFilterChecks
 
     private static void DecodesAscii85()
     {
-        // Bekannter Vektor: "Man " ist "9jqo^".
+        // Known vector: "Man " is "9jqo^".
         var decoded = Decode("ASCII85Decode", "9jqo^~>");
         Require(decoded.AsSpan().SequenceEqual("Man "u8), "ASCII85: 'Man ' dekodiert.");
     }
@@ -54,7 +54,7 @@ internal static class PdfFilterChecks
         var decoded = Decode("LZWDecode", packed);
         Require(
             decoded.AsSpan().SequenceEqual(new byte[] { 45, 45, 45, 45, 45, 65, 45, 45, 45, 66 }),
-            "LZW: Spec-Vektor '-----A---B'.");
+            "LZW: the vector of the specification '-----A---B'.");
     }
 
     private static void DecodesPngUpPredictor()
