@@ -23,7 +23,7 @@ internal static class HyphenationLanguagesChecks
 
     private static void LoadsEveryLanguage()
     {
-        Require(HyphenationLanguages.Available.Count >= 13, "At least thirteen languages ship.");
+        Require(HyphenationLanguages.Available.Count >= 24, "At least 24 languages ship.");
         foreach (var language in HyphenationLanguages.Available)
         {
             Require(HyphenationLanguages.Load(language).Count > 100, $"The patterns of '{language}' load.");
@@ -55,6 +55,18 @@ internal static class HyphenationLanguagesChecks
         Require(german.SequenceEqual([3, 6, 10]), "German: Sil-ben-tren-nung (" + string.Join(",", german) + ").");
         Require(HyphenationLanguages.Load("de").BreakPositions("Donaudampfschifffahrt").Contains(5), "German: a compound is broken at its joint (Donau-).");
         Require(HyphenationLanguages.Load("fr").BreakPositions("informatique").Count > 0, "French words are broken.");
+
+        // The European languages added for 1.0: a common long word of each is broken, also in Greek and Cyrillic.
+        foreach (var (language, word) in new[]
+        {
+            ("sk", "nemocnica"), ("lt", "kalbotyra"), ("et", "raamatukogu"), ("uk", "бібліотека"), ("sl", "knjižnica"),
+            ("el", "βιβλιοθήκη"), ("be", "бібліятэка"), ("sq", "kompjuteri"), ("gl", "biblioteca"), ("bg", "библиотека"),
+            ("eu", "liburutegia"),
+        })
+        {
+            var breaks = HyphenationLanguages.Load(language).BreakPositions(word);
+            Require(breaks.Count > 0 && breaks.All(position => position > 0 && position < word.Length), $"{language}: '{word}' is broken ({string.Join(",", breaks)}).");
+        }
     }
 
     private static void BreaksAPdfWithTheShippedPatterns()

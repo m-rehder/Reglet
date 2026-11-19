@@ -38,7 +38,7 @@ Further PDF options are optional:
 
 - `Hyphenation` (`HyphenationPatterns`): the words are broken at the positions that the
   patterns of the caller allow (Liang algorithm, TeX format). The optional package
-  `Reglet.Hyphenation` ships the TeX patterns of 13 languages (`HyphenationLanguages.Load("de")`);
+  `Reglet.Hyphenation` ships the TeX patterns of 24 languages (`HyphenationLanguages.Load("de")`);
   the other packages ship none. The soft hyphen (`U+00AD`) in the text is a break opportunity in every format.
 - `Signature` (`PdfSignatureOptions`): the document is signed with the private key of a
   certificate (RSA); the PDF carries a detached CMS SignedData (RFC 5652) in its signature

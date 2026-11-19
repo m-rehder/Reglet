@@ -599,7 +599,8 @@ interoperability checks, or the ongoing consistency task — not missing code.
   `OfficeSmokeChecks` covers a LibreOffice-produced PDF; Word-produced, signed and encrypted
   documents remain.
 - Hyphenation patterns ship only in the optional package `Reglet.Hyphenation` (de-1996, de-1901,
-  de-CH-1901, en-US, en-GB, fr, es, it, nl, pt, pl, da, nb: the MIT or freely redistributable patterns of
+  de-CH-1901, en-US, en-GB, fr, es, it, nl, pt, pl, da, nb, sk, lt, et, uk, sl, el-monoton, be, sq, gl, bg,
+  eu: the MIT or freely redistributable patterns of
   `hyph-utf8`; the LPPL-only and GPL patterns are left out). The PDF uses them or the caller's; the target
   program uses its own dictionary (ODT/DOCX). See [Known limits](#known-limits).
 - [ ] Signatures and protection: check interoperability of the existing procedures. ODT encryption

@@ -44,6 +44,15 @@ constraint makes disproportionate:
      languages as text resources (`HyphenationLanguages.Load`); only patterns that are MIT or
      freely redistributable are included, with their notices in `THIRD-PARTY-NOTICES.md`. The other
      packages still ship no pattern data.
+   - *Revised 2026-11-19 (Reglet 1.0):* eleven more European languages, 24 in all: Slovak, Lithuanian,
+     Albanian and Belarusian (MIT), Estonian, Ukrainian, Slovenian and Modern Greek (monotonic) (MIT
+     chosen of their alternatives), Galician (Unlicense), Bulgarian (a BSD-like permission) and Basque (a
+     permissive notice). Still left out: LPPL-only (Swedish, Russian, Catalan, Croatian, Turkish, Thai),
+     GPL/LGPL (Czech, Latvian, Indonesian, Irish, Serbian Cyrillic, Hungarian), and patterns without a
+     clear licence (Finnish, Romanian). The hyphen minimums come from the `typesetting` (else
+     `generation`) values of each file's header. Adding Ukrainian found a parser bug: pattern characters
+     other than letters and the point (hyphen, apostrophe) were skipped, which made other patterns that
+     suppressed breaks; as in TeX, every character but a digit now belongs to the pattern.
    What stays a boundary: the quality of the hyphenation depends on the patterns; the library
    downloads none and the core packages ship none.
 3. **AD04 follows [ADR-0006](ADR-0006-encryption-signatures.md):** PDF signing is

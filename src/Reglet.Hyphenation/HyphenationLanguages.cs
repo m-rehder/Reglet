@@ -26,6 +26,17 @@ public static class HyphenationLanguages
         ("pl", 2, 2),
         ("da", 2, 2),
         ("nb", 2, 2),
+        ("sk", 2, 3),
+        ("lt", 2, 2),
+        ("et", 2, 3),
+        ("uk", 2, 2),
+        ("sl", 2, 2),
+        ("el-monoton", 1, 1),
+        ("be", 2, 2),
+        ("sq", 2, 2),
+        ("gl", 2, 2),
+        ("bg", 2, 2),
+        ("eu", 2, 2),
     ];
 
     /// <summary>Regional and short names that map to a language of the package.</summary>
@@ -46,6 +57,18 @@ public static class HyphenationLanguages
         ["da-DK"] = "da",
         ["nb-NO"] = "nb",
         ["no"] = "nb",
+        ["sk-SK"] = "sk",
+        ["lt-LT"] = "lt",
+        ["et-EE"] = "et",
+        ["uk-UA"] = "uk",
+        ["sl-SI"] = "sl",
+        ["el"] = "el-monoton",
+        ["el-GR"] = "el-monoton",
+        ["be-BY"] = "be",
+        ["sq-AL"] = "sq",
+        ["gl-ES"] = "gl",
+        ["bg-BG"] = "bg",
+        ["eu-ES"] = "eu",
     };
 
     private static readonly ConcurrentDictionary<string, HyphenationPatterns> Cache = new(StringComparer.OrdinalIgnoreCase);

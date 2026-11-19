@@ -13,7 +13,7 @@ writers as a dependency. Advanced users can reference individual packages.
 | `Reglet.Docx` | DOCX writer |
 | `Reglet.Odt` | ODT writer |
 | `Reglet.Pdf` | PDF writer |
-| `Reglet.Hyphenation` | Optional: TeX hyphenation patterns of 13 languages (depends on `Core` only; the facade does not pull it in) |
+| `Reglet.Hyphenation` | Optional: TeX hyphenation patterns of 24 languages (depends on `Core` only; the facade does not pull it in) |
 
 ```csharp
 var document = PortableDocument.Create()

@@ -266,8 +266,10 @@ public sealed class HyphenationPatterns
                     continue;
                 }
 
-                // A point marks the word border (".ach4"); the word is padded with points to match it.
-                if (!char.IsLetter(character) && character != '.')
+                // As in TeX, every character but a digit belongs to the pattern: a point marks the word border
+                // (".ach4"; the word is padded with points), and hyphens or apostrophes (Ukrainian "обі3в'4є")
+                // are part of words. Skipping them would make a different pattern that suppresses breaks.
+                if (char.IsWhiteSpace(character))
                 {
                     continue;
                 }

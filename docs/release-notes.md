@@ -11,7 +11,8 @@ dependencies beyond the base class library.
 - Text: character formatting (fonts, sizes, colours, highlight, underline styles, strikethrough, sub- and superscript,
   small capitals, spacing, effects), paragraph formatting (alignment, indents, spacing, line spacing, borders, shading,
   tab stops, keep rules), named paragraph and character styles, lists with numbering definitions, links and bookmarks,
-  right-to-left scripts (Unicode bidirectional algorithm), hyphenation (optional package).
+  right-to-left scripts (Unicode bidirectional algorithm), hyphenation for the PDF with the patterns of 24
+  languages (optional package `Reglet.Hyphenation`).
 - Layout: page sizes, orientation and margins per section, section breaks, headers and footers (first, even, odd),
   text columns, footnotes and endnotes, table of contents, table of figures, index, fields (page, page count, date,
   document properties), line numbering, page borders.
