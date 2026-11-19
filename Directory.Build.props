@@ -1,0 +1,72 @@
+<Project>
+
+  <!--
+    Shared settings for all production and test projects under src/ and tests/.
+  -->
+  <PropertyGroup>
+    <!--
+      The only target framework. Further targets are added only when they can be built
+      and tested without additional packages.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+
+    <!-- Nullable reference types in all projects. -->
+    <Nullable>enable</Nullable>
+
+    <!--
+      Implicit usings are enabled in all projects on purpose, so they are the same
+      everywhere. The SDK provides a small, documented set for net10.0 (System,
+      System.Collections.Generic, System.IO, System.Linq, ...); everything else needs
+      an explicit using.
+    -->
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!--
+      Warnings are errors, in the production projects and on purpose also in the test
+      project, so that no warning goes unnoticed.
+    -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!--
+      Deterministic builds. ContinuousIntegrationBuild is set only in CI (CI=true), so
+      that local paths do not change the binaries.
+    -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    Package metadata. One package per project: the facade Reglet and the packages
+    Reglet.Core/Fonts/Docx/Odt/Pdf/Html/Hyphenation. Repository metadata and symbols
+    (snupkg) are set so that the sources stay traceable.
+  -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Authors>Maik Rehder</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/m-rehder/Reglet</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/m-rehder/Reglet</PackageProjectUrl>
+    <PackageIcon>icon.png</PackageIcon>
+    <Copyright>Copyright (c) 2026 Maik Rehder</Copyright>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Create, read and convert Word (DOCX), LibreOffice (ODT), PDF and HTML documents in .NET, with no dependencies beyond the base class library.</Description>
+    <PackageTags>docx;odt;pdf;html;word;libreoffice;documents;office;report;invoice;mail-merge</PackageTags>
+
+    <!-- Packing checks the public API and the target frameworks. -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+
+    <!-- XML documentation file; a missing comment is an error. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)README.md')">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)docs/logo/reglet-128.png" Pack="true" PackagePath="/icon.png" Visible="false" />
+  </ItemGroup>
+
+</Project>

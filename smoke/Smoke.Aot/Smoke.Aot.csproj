@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- T03: Native-AOT-Publish-Test. Die RID folgt der Host-Plattform der SDK. -->
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Reglet.Core">
+      <HintPath>..\..\src\Reglet.Core\bin\Release\net10.0\Reglet.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Fonts">
+      <HintPath>..\..\src\Reglet.Fonts\bin\Release\net10.0\Reglet.Fonts.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Docx">
+      <HintPath>..\..\src\Reglet.Docx\bin\Release\net10.0\Reglet.Docx.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Odt">
+      <HintPath>..\..\src\Reglet.Odt\bin\Release\net10.0\Reglet.Odt.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Pdf">
+      <HintPath>..\..\src\Reglet.Pdf\bin\Release\net10.0\Reglet.Pdf.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet">
+      <HintPath>..\..\src\Reglet\bin\Release\net10.0\Reglet.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

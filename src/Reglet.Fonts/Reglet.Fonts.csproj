@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsShippedLibrary>true</IsShippedLibrary>
+    <Description>TrueType and OpenType fonts supplied by the caller for Reglet: validation, font information and font collections with bold and italic faces. Contains no font files.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reglet.Core\Reglet.Core.csproj" />
+  </ItemGroup>
+
+</Project>

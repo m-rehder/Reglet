@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reglet Live-Vorschau</title>
+  <base href="/" />
+  <style>
+    body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: #f4f4f4; color: #222; }
+    main { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 16px; height: 100vh; padding: 16px; box-sizing: border-box; }
+    section { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+    textarea { flex: 1; font: 14px/1.5 ui-monospace, monospace; padding: 8px; resize: none; }
+    .preview { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow: auto; border: 1px solid #ccc; background: #525659; }
+    .preview iframe { flex: 1; border: 0; background: #fff; }
+    .preview canvas { display: block; width: 100%; background: #fff; }
+    .status { color: #555; font-size: 13px; }
+    .error { color: #b00020; white-space: pre-wrap; }
+    @media (max-width: 720px) { main { grid-template-columns: 1fr; height: auto; } .preview { min-height: 70vh; } textarea { min-height: 40vh; } }
+  </style>
+</head>
+<body>
+  <div id="app">Lädt …</div>
+  <script>
+    // Native viewer on desktop; pdf.js where the browser has none or shows only page 1
+    // (iOS Safari reports a viewer but renders the iframe as a static image). ?viewer=pdfjs forces it.
+    const pdfjsUrl = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/";
+    const forced = new URLSearchParams(location.search).get("viewer");
+    const useNative = forced ? forced === "native"
+      : navigator.pdfViewerEnabled && !matchMedia("(pointer: coarse)").matches;
+    let pdfjs;
+    let generation = 0;
+
+    // A dynamic import takes no integrity attribute, so the CDN file is checked here (SHA-256, base64).
+    async function verified(file, expected) {
+      const content = await (await fetch(pdfjsUrl + file)).arrayBuffer();
+      const digest = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest("SHA-256", content))));
+      if (digest !== expected) throw new Error(`pdf.js: unexpected content of ${file}`);
+      return URL.createObjectURL(new Blob([content], { type: "text/javascript" }));
+    }
+
+    window.showPdf = async (host, bytes) => {
+      if (useNative) {
+        const frame = host.querySelector("iframe") ?? host.appendChild(Object.assign(document.createElement("iframe"), { title: "PDF-Vorschau" }));
+        const old = frame.dataset.url;
+        frame.dataset.url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+        frame.src = frame.dataset.url + "#view=FitH";
+        if (old) URL.revokeObjectURL(old);
+        return;
+      }
+
+      const run = ++generation;
+      pdfjs ??= await import(await verified("pdf.min.mjs", "J/wqBXoA+SpDNK0G4X29clmRKVTp+392QAvMpf0ZCpw=")).then(async module => {
+        module.GlobalWorkerOptions.workerSrc = await verified("pdf.worker.min.mjs", "G6oYRMicgKWyeXyRbnWrKSVL5G2OnLU8tjZNeq2EvjY=");
+        return module;
+      });
+      const doc = await pdfjs.getDocument({ data: bytes }).promise;
+      try {
+        // Render off-screen and swap at the end so the preview does not flicker while typing.
+        const pages = [];
+        for (let number = 1; number <= doc.numPages; number++) {
+          const page = await doc.getPage(number);
+          const scale = host.clientWidth / page.getViewport({ scale: 1 }).width * devicePixelRatio;
+          const viewport = page.getViewport({ scale });
+          const canvas = Object.assign(document.createElement("canvas"), { width: viewport.width, height: viewport.height });
+          canvas.setAttribute("role", "img");
+          canvas.setAttribute("aria-label", `Seite ${number} von ${doc.numPages}`);
+          await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+          if (run !== generation) return; // a newer PDF is on its way
+          pages.push(canvas);
+        }
+        host.replaceChildren(...pages);
+      } finally {
+        doc.destroy();
+      }
+    };
+  </script>
+  <script src="_framework/blazor.webassembly.js"></script>
+</body>
+</html>

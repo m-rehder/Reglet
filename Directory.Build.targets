@@ -1,0 +1,71 @@
+<Project>
+
+  <!-- Only net10.0 is allowed. -->
+  <Target Name="ValidateTargetFramework"
+          BeforeTargets="Build"
+          Condition="'$(TargetFramework)' != 'net10.0'">
+    <Error Text="Only 'net10.0' is allowed as target framework (found: '$(TargetFramework)')." />
+  </Target>
+
+  <!--
+    Zero-dependency rule. Shipped projects (IsShippedLibrary=true) must not contain
+    package or native references. Applies to every build on every platform;
+    build/check-zero-dependency.sh also checks for native binaries under src/.
+  -->
+  <Target Name="ValidateZeroDependency"
+          BeforeTargets="Build"
+          Condition="'$(IsShippedLibrary)' == 'true'">
+    <ItemGroup>
+      <_ForbiddenFrameworkReference Include="@(FrameworkReference)"
+                                    Condition="'%(FrameworkReference.Identity)' != 'Microsoft.NETCore.App'" />
+      <_ForbiddenReference Include="@(Reference)"
+                           Condition="'%(Reference.FrameworkReferenceName)' != 'Microsoft.NETCore.App'" />
+      <_BundledBinary Include="$(MSBuildProjectDirectory)/**/*.dll;$(MSBuildProjectDirectory)/**/*.so;$(MSBuildProjectDirectory)/**/*.dylib;$(MSBuildProjectDirectory)/**/*.a;$(MSBuildProjectDirectory)/**/*.lib"
+                      Exclude="$(MSBuildProjectDirectory)/bin/**;$(MSBuildProjectDirectory)/obj/**" />
+      <_BundledFont Include="$(MSBuildProjectDirectory)/**/*.ttf;$(MSBuildProjectDirectory)/**/*.otf;$(MSBuildProjectDirectory)/**/*.ttc;$(MSBuildProjectDirectory)/**/*.woff;$(MSBuildProjectDirectory)/**/*.woff2"
+                    Exclude="$(MSBuildProjectDirectory)/bin/**;$(MSBuildProjectDirectory)/obj/**" />
+      <_ShippedFile Include="@(Content);@(None);@(EmbeddedResource)" />
+      <_ForbiddenShippedFile Include="@(_ShippedFile)"
+        Condition="'%(_ShippedFile.Extension)' == '.dll' Or '%(_ShippedFile.Extension)' == '.so' Or '%(_ShippedFile.Extension)' == '.dylib' Or '%(_ShippedFile.Extension)' == '.a' Or '%(_ShippedFile.Extension)' == '.lib' Or '%(_ShippedFile.Extension)' == '.ttf' Or '%(_ShippedFile.Extension)' == '.otf' Or '%(_ShippedFile.Extension)' == '.ttc' Or '%(_ShippedFile.Extension)' == '.woff' Or '%(_ShippedFile.Extension)' == '.woff2'" />
+    </ItemGroup>
+    <Error Condition="'@(PackageReference)' != ''"
+           Text="Zero-dependency rule broken: package reference(s) in $(MSBuildProjectName): @(PackageReference)" />
+    <Error Condition="'@(NativeReference)' != ''"
+           Text="Zero-dependency rule broken: native reference(s) in $(MSBuildProjectName): @(NativeReference)" />
+    <Error Condition="'@(_ForbiddenReference)' != '' Or '@(COMReference)' != '' Or '@(_ForbiddenFrameworkReference)' != ''"
+           Text="Zero-Dependency verletzt: externe Assembly-/Frameworkreferenz in $(MSBuildProjectName)." />
+    <Error Condition="'@(_BundledBinary)' != '' Or '@(_BundledFont)' != '' Or '@(_ForbiddenShippedFile)' != ''"
+           Text="Zero-dependency rule broken: bundled binary or font file in $(MSBuildProjectName): @(_BundledBinary) @(_BundledFont) @(_ForbiddenShippedFile)" />
+  </Target>
+
+  <!--
+    Project dependencies are checked on the evaluated MSBuild items, which also catches
+    imported and multi-line references.
+      Core           -> (none)
+      Fonts          -> Core
+      Docx, Odt      -> Core, Fonts (embeds fonts, ADR-0021)
+      Hyphenation    -> Core (optional patterns; the facade does not reference it)
+      Pdf            -> Core, Fonts (embeds the fonts of Fonts)
+      Html           -> Core
+      Reglet   -> Core, Fonts, Docx, Odt, Pdf, Html (Facade)
+  -->
+  <Target Name="ValidateProjectDependencyBoundaries"
+          BeforeTargets="Build"
+          Condition="'$(IsShippedLibrary)' == 'true'">
+    <ItemGroup>
+      <_DisallowedProjectReference Include="@(ProjectReference)"
+        Condition="'$(MSBuildProjectName)' == 'Reglet.Core'" />
+      <_DisallowedProjectReference Include="@(ProjectReference)"
+        Condition="('$(MSBuildProjectName)' == 'Reglet.Fonts' Or '$(MSBuildProjectName)' == 'Reglet.Hyphenation') And '%(ProjectReference.Filename)' != 'Reglet.Core'" />
+      <_DisallowedProjectReference Include="@(ProjectReference)"
+        Condition="('$(MSBuildProjectName)' == 'Reglet.Docx' Or '$(MSBuildProjectName)' == 'Reglet.Odt' Or '$(MSBuildProjectName)' == 'Reglet.Pdf') And '%(ProjectReference.Filename)' != 'Reglet.Core' And '%(ProjectReference.Filename)' != 'Reglet.Fonts'" />
+      <_DisallowedProjectReference Include="@(ProjectReference)"
+        Condition="'$(MSBuildProjectName)' == 'Reglet' And '%(ProjectReference.Filename)' != 'Reglet.Core' And '%(ProjectReference.Filename)' != 'Reglet.Fonts' And '%(ProjectReference.Filename)' != 'Reglet.Docx' And '%(ProjectReference.Filename)' != 'Reglet.Odt' And '%(ProjectReference.Filename)' != 'Reglet.Pdf' And '%(ProjectReference.Filename)' != 'Reglet.Html'" />
+      <_DisallowedProjectReference Include="@(ProjectReference)"
+        Condition="'$(MSBuildProjectName)' == 'Reglet.Html' And '%(ProjectReference.Filename)' != 'Reglet.Core'" />
+    </ItemGroup>
+    <Error Condition="'@(_DisallowedProjectReference)' != ''"
+           Text="Project dependency not allowed in $(MSBuildProjectName): @(_DisallowedProjectReference)" />
+  </Target>
+
+</Project>

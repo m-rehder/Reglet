@@ -1,0 +1,32 @@
+# Round-trip corpus manifest (AF03).
+#
+# One case per line:  id | format | allowed-losses | check
+#   format:         docx | odt | pdf
+#   allowed-losses: '-' for none, otherwise a comma-separated list of ZIP part names that are
+#                   allowed to disappear (a documented known deviation). The gate fails on any
+#                   loss not listed here, and it also fails on a listed loss that no longer
+#                   occurs, so the allowlist is removed once preservation is implemented.
+#   check:          'parts' (package preservation) or 'text' (extracted page text unchanged)
+#
+# The case bytes are generated in code (RoundTripCorpus); only the classification lives here.
+# DOCX and ODT now preserve unknown package parts / open+save, so no allowlist entries remain.
+
+docx-generated | docx | - | parts
+odt-generated | odt | - | parts
+docx-unknown-part | docx | - | parts
+docx-unmodelled-body | docx | - | verbatim
+docx-edit-unmodelled | docx | - | preserve-block
+docx-edit-unmodelled-styled | docx | - | preserve-block
+docx-edit-unmodelled-insert | docx | - | preserve-insert
+odt-edit-unmodelled | odt | - | preserve-block
+odt-edit-unmodelled-heading | odt | - | preserve-block
+odt-edit-unmodelled-insert | odt | - | preserve-insert
+odt-edit-unmodelled-multisection | odt | - | preserve-block
+odt-edit-unmodelled-formatted | odt | - | preserve-block
+odt-edit-unmodelled-list | odt | - | preserve-block
+odt-edit-unmodelled-table | odt | - | preserve-block
+odt-edit-unmodelled-formatted-table | odt | - | preserve-block
+odt-edit-unmodelled-table-level-formatted | odt | - | preserve-block
+odt-edit-unmodelled-broken-table | odt | - | preserve-block
+odt-unknown-part | odt | - | verbatim
+pdf-generated | pdf | - | text

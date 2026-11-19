@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Reglet\Reglet.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Core\Reglet.Core.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Fonts\Reglet.Fonts.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Docx\Reglet.Docx.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Odt\Reglet.Odt.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Pdf\Reglet.Pdf.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Html\Reglet.Html.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Hyphenation\Reglet.Hyphenation.csproj" />
+  </ItemGroup>
+
+</Project>

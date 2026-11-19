@@ -1,0 +1,17 @@
+{
+  "declaration": "Shipped Reglet libraries use only the .NET Base Class Library: no package references, no native libraries, no bundled font files.",
+  "shippedProjects": [
+    "src/Reglet.Core/Reglet.Core.csproj",
+    "src/Reglet/Reglet.csproj",
+    "src/Reglet.Docx/Reglet.Docx.csproj",
+    "src/Reglet.Odt/Reglet.Odt.csproj",
+    "src/Reglet.Pdf/Reglet.Pdf.csproj",
+    "src/Reglet.Html/Reglet.Html.csproj",
+    "src/Reglet.Fonts/Reglet.Fonts.csproj",
+    "src/Reglet.Hyphenation/Reglet.Hyphenation.csproj"
+  ],
+  "forbiddenReferences": ["PackageReference", "NativeReference", "COMReference"],
+  "forbiddenExternalAssemblies": true,
+  "allowedFrameworkReferences": ["Microsoft.NETCore.App"],
+  "bundledFonts": false
+}

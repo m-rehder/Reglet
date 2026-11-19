@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # The job token must be able to create the release and upload its assets.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # V01: provide the signing certificate from the secret (base64-encoded .pfx).
+      - name: Provide signing certificate
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.SIGNING_CERT_BASE64 }}" ]; then
+            printf '%s' "${{ secrets.SIGNING_CERT_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/signing.pfx"
+            echo "REGLET_SIGN_CERT=$RUNNER_TEMP/signing.pfx" >> "$GITHUB_ENV"
+          fi
+
+      # V02/V04: check, pack, sign, produce checksums and upload packages to the registry.
+      - name: Build, check and publish release
+        shell: bash
+        env:
+          REGLET_SIGN_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+          REGLET_TIMESTAMPER: ${{ vars.TIMESTAMPER }}
+          REGLET_NUGET_SOURCE: ${{ vars.NUGET_SOURCE }}
+          REGLET_NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+        run: build/release.sh "${GITHUB_REF_NAME#v}"
+
+      # V02: Gitea release for the tag with the changelog section and the packed artifacts.
+      - name: Create Gitea release
+        shell: bash
+        env:
+          GITEA_API_URL: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: build/gitea-release.sh "${GITHUB_REF_NAME#v}"

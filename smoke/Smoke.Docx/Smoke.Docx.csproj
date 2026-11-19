@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Reglet.Core">
+      <HintPath>..\..\src\Reglet.Core\bin\Release\net10.0\Reglet.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Docx">
+      <HintPath>..\..\src\Reglet.Docx\bin\Release\net10.0\Reglet.Docx.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

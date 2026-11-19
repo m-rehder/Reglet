@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <!-- Blazor WebAssembly smoke test: creates DOCX, ODT and PDF in the browser (build/run-wasm.sh). -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Nur die Smoke-App nutzt Pakete; die ausgelieferte Library bleibt paketfrei. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Reglet.Core">
+      <HintPath>..\..\src\Reglet.Core\bin\Release\net10.0\Reglet.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Fonts">
+      <HintPath>..\..\src\Reglet.Fonts\bin\Release\net10.0\Reglet.Fonts.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Docx">
+      <HintPath>..\..\src\Reglet.Docx\bin\Release\net10.0\Reglet.Docx.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Odt">
+      <HintPath>..\..\src\Reglet.Odt\bin\Release\net10.0\Reglet.Odt.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Pdf">
+      <HintPath>..\..\src\Reglet.Pdf\bin\Release\net10.0\Reglet.Pdf.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet">
+      <HintPath>..\..\src\Reglet\bin\Release\net10.0\Reglet.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

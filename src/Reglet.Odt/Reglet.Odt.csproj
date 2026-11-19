@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsShippedLibrary>true</IsShippedLibrary>
+    <Description>ODT (OpenDocument 1.3) reader and writer for Reglet.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reglet.Core\Reglet.Core.csproj" />
+    <ProjectReference Include="..\Reglet.Fonts\Reglet.Fonts.csproj" />
+  </ItemGroup>
+
+</Project>

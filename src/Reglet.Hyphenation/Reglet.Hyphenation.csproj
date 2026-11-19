@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsShippedLibrary>true</IsShippedLibrary>
+    <Description>Optional hyphenation patterns for Reglet: the TeX patterns (hyph-utf8) of several languages, embedded unchanged, for hyphenation in PDF output (PdfWriteOptions.Hyphenation).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reglet.Core\Reglet.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Patterns\*.pat.txt" LogicalName="Reglet.Hyphenation.%(Filename)%(Extension)" />
+    <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

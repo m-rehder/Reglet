@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <!-- Live preview demo: the PDF is created and shown in the browser (dotnet run). -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Only the demo uses packages; the shipped library stays free of them. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.11" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Reglet.Core">
+      <HintPath>..\..\src\Reglet.Core\bin\Release\net10.0\Reglet.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Fonts">
+      <HintPath>..\..\src\Reglet.Fonts\bin\Release\net10.0\Reglet.Fonts.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Docx">
+      <HintPath>..\..\src\Reglet.Docx\bin\Release\net10.0\Reglet.Docx.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Odt">
+      <HintPath>..\..\src\Reglet.Odt\bin\Release\net10.0\Reglet.Odt.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Pdf">
+      <HintPath>..\..\src\Reglet.Pdf\bin\Release\net10.0\Reglet.Pdf.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet.Html">
+      <HintPath>..\..\src\Reglet.Html\bin\Release\net10.0\Reglet.Html.dll</HintPath>
+    </Reference>
+    <Reference Include="Reglet">
+      <HintPath>..\..\src\Reglet\bin\Release\net10.0\Reglet.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

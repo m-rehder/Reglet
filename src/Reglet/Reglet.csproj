@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsShippedLibrary>true</IsShippedLibrary>
+    <Description>Reglet: create, read and convert DOCX, ODT, PDF and HTML documents. The facade with the builder, DocumentWriter and DocumentReader.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reglet.Core\Reglet.Core.csproj" />
+    <ProjectReference Include="..\Reglet.Fonts\Reglet.Fonts.csproj" />
+    <ProjectReference Include="..\Reglet.Docx\Reglet.Docx.csproj" />
+    <ProjectReference Include="..\Reglet.Odt\Reglet.Odt.csproj" />
+    <ProjectReference Include="..\Reglet.Html\Reglet.Html.csproj" />
+    <ProjectReference Include="..\Reglet.Pdf\Reglet.Pdf.csproj" />
+  </ItemGroup>
+
+</Project>
