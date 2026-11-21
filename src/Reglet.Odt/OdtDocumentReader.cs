@@ -2483,12 +2483,16 @@ public sealed class OdtDocumentReader : IDocumentReader
             return null;
         }
 
+        // Charged to the media budget: every reference becomes its own copy of the data.
         byte[] data;
-        using (var content = ReaderGuard.OpenBounded(entry))
-        using (var buffer = new MemoryStream())
+        try
         {
-            content.CopyTo(buffer);
-            data = buffer.ToArray();
+            data = context.Media.Read(entry, ReaderGuard.MaxDecodedBytes);
+        }
+        catch (DocumentValidationException)
+        {
+            Warn(context.Warnings, $"ODT: the embedded object '{name}' exceeds the size limit and is not mapped.");
+            return null;
         }
 
         ImageBlock? preview = null;

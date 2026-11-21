@@ -554,9 +554,9 @@ internal static class MalformedInputChecks
 
     private static void MediaReferencesShareOneBudget()
     {
-        // One media part referenced 40 times: each reference becomes its own copy. A valid 16 MiB PNG (a few KB in the
-        // package) made 640 MiB; the document budget stops reading before that and leaves the rest out with a warning.
-        const int references = 40;
+        // One media part referenced 24 times: each reference becomes its own copy. A valid 16 MiB PNG (a few KB in the
+        // package) made 384 MiB; the document budget stops reading before that and leaves the rest out with a warning.
+        const int references = 24;
         var small = Png(1, 1, 2, [0, 0, 0, 0], []);
         var large = Png(1, 1, 2, [0, 0, 0, 0], [("zzZz", new byte[16 * 1024 * 1024])]);
         var document = new PortableDocument(new DocumentMetadata(), new Section(Enumerable.Range(0, references)
@@ -568,6 +568,27 @@ internal static class MalformedInputChecks
             var images = read.Document.Sections[0].Blocks.OfType<ImageBlock>().Count();
             Require(images is > 0 and < references, $"{format}: the media budget stops reading copies of one part ({images} of {references} read).");
             Require(read.Warnings.Count > 0, $"{format}: the media left out are reported.");
+            read = null;
+            GC.Collect(); // each read holds up to the 512 MiB budget; free it before the next one
+        }
+
+        // The same for the data of embedded OLE objects (up to 256 MiB each).
+        var ole = new byte[16 * 1024 * 1024];
+        new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 }.CopyTo(ole, 0);
+        var objects = new PortableDocument(new DocumentMetadata(), new Section(Enumerable.Range(0, references)
+            .Select(_ => (Block)new EmbeddedObject(ole.AsMemory(0, 16), EmbeddedObjectKind.OleStorage, Length.FromPoints(10), Length.FromPoints(10))).ToList()));
+        foreach (var (format, isData) in new (DocumentFormat, Func<string, bool>)[]
+        {
+            (DocumentFormat.Docx, name => name.StartsWith("word/embeddings/oleObject", StringComparison.Ordinal)),
+            (DocumentFormat.Odt, name => name.StartsWith("Object ", StringComparison.Ordinal) && !name.Contains('/', StringComparison.Ordinal)),
+        })
+        {
+            var package = ReplaceEntries(Write(objects, format), isData, ole);
+            var read = DocumentReader.Read(new MemoryStream(package), format);
+            var count = read.Document.Sections[0].Blocks.OfType<EmbeddedObject>().Count();
+            Require(count is > 0 and < references, $"{format}: the media budget also covers embedded object data ({count} of {references} read).");
+            read = null;
+            GC.Collect();
         }
     }
 

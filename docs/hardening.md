@@ -25,7 +25,7 @@ The readers treat every file as untrusted:
   256 MiB; a text run in ODT to `ResourceLimits.Default.MaxTextLength` characters. ToUnicode
   ranges are trimmed to the readable 2-byte codes.
 - **Media:** images, previews, charts and embedded objects of one DOCX or ODT may decompress to at most
-  512 MiB in total, counted per reference (each reference becomes its own copy). Further media are left out
+  256 MiB in total, counted per reference (each reference becomes its own copy). Further media are left out
   with a warning; the budget is charged before decompressing, so nothing beyond it is unpacked.
 - **Cycles and depth:** PDF page trees are checked for cycles and a depth of 256; object
   streams must not themselves be compressed. A stack overflow, which would terminate the

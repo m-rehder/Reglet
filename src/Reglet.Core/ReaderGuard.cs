@@ -152,11 +152,11 @@ internal static class ReaderGuard
 
     /// <summary>
     /// Bytes the media parts of one document (images, previews, charts, embedded objects) may decompress to in
-    /// total: as much as a source file may hold (images are stored compressed, so a real document stays below it).
-    /// Every reference counts: each becomes its own copy, so one part referenced ten thousand times would otherwise
-    /// take ten thousand times its size.
+    /// total (256 MiB, as much as one decoded part may hold). Every reference counts: each becomes its own copy, so
+    /// one part referenced ten thousand times would otherwise take ten thousand times its size; the document model
+    /// keeps further copies, so a read can occupy several times the budget.
     /// </summary>
-    public const long MaxMediaBytesPerDocument = MaxInputBytes;
+    public const long MaxMediaBytesPerDocument = MaxDecodedBytes;
 
     /// <summary>The media budget of one read; see <see cref="MaxMediaBytesPerDocument"/>.</summary>
     public sealed class MediaBudget

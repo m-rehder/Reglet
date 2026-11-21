@@ -1711,12 +1711,16 @@ public sealed class DocxDocumentReader : IDocumentReader
                 return true;
             }
 
+            // Charged to the media budget: every reference becomes its own copy of the data.
             byte[] data;
-            using (var content = ReaderGuard.OpenBounded(dataEntry))
-            using (var buffer = new MemoryStream())
+            try
             {
-                content.CopyTo(buffer);
-                data = buffer.ToArray();
+                data = resources.Media.Read(dataEntry, ReaderGuard.MaxDecodedBytes);
+            }
+            catch (DocumentValidationException)
+            {
+                Warn(warnings, $"DOCX: the embedded object '{label}' exceeds the size limit and is not mapped.");
+                return true;
             }
 
             ImageBlock? preview = null;
