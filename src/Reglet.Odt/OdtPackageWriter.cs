@@ -29,10 +29,16 @@ internal sealed class OdtPackageWriter : IDisposable
     {
     }
 
-    public OdtPackageWriter(Stream output, OdtEncryptionOptions? encryption)
+    private readonly InvalidXmlCharacterBehavior _xmlBehavior;
+
+    /// <param name="output">The package stream.</param>
+    /// <param name="encryption">The encryption, or null.</param>
+    /// <param name="xmlBehavior">What every XML part does with a character XML 1.0 does not allow.</param>
+    public OdtPackageWriter(Stream output, OdtEncryptionOptions? encryption, InvalidXmlCharacterBehavior xmlBehavior = InvalidXmlCharacterBehavior.Replace)
     {
         ArgumentNullException.ThrowIfNull(output);
         _encryption = encryption;
+        _xmlBehavior = xmlBehavior;
         _archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true);
 
         // ODF package rule: mimetype MUST be the first entry and uncompressed.
@@ -65,7 +71,7 @@ internal sealed class OdtPackageWriter : IDisposable
             var entry = _archive.CreateEntry(partName, CompressionLevel.Optimal);
             entry.LastWriteTime = FixedTimestamp;
             using (var stream = entry.Open())
-            using (var writer = XmlWriter.Create(stream, XmlSettings))
+            using (var writer = new CleaningXmlWriter(XmlWriter.Create(stream, XmlSettings), _xmlBehavior))
             {
                 WriteChecked(writer, write);
             }
@@ -75,7 +81,7 @@ internal sealed class OdtPackageWriter : IDisposable
         }
 
         using var buffer = new MemoryStream();
-        using (var writer = XmlWriter.Create(buffer, XmlSettings))
+        using (var writer = new CleaningXmlWriter(XmlWriter.Create(buffer, XmlSettings), _xmlBehavior))
         {
             WriteChecked(writer, write);
         }

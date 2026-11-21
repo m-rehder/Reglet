@@ -41,6 +41,7 @@ internal static class MalformedInputChecks
             PdfPagesAreBounded();
             WritersRaiseNoRawExceptions();
             EncryptedOdtIsBounded();
+            InvalidCharactersInNamesAreReplaced();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -756,6 +757,39 @@ internal static class MalformedInputChecks
         {
             var html = DocumentReader.Read(new MemoryStream(Encoding.UTF8.GetBytes(source)), DocumentFormat.Html);
             Require(html.Document.Sections[0].Blocks.Count >= 2, "HTML: a block inside a link is read: " + source);
+        }
+    }
+
+    private static void InvalidCharactersInNamesAreReplaced()
+    {
+        // Names, field codes and the language went to the XmlWriter uncleaned: one such character failed the whole
+        // document although InvalidXmlCharacterBehavior.Replace is the default.
+        const string Bad = "a\uDC00b\u0001c";
+        var document = new PortableDocument(
+            new DocumentMetadata { Language = Bad },
+            new Section(new Paragraph([
+                new Bookmark("b" + Bad), new TextRun("x"), new BookmarkEnd("b" + Bad),
+                new Field("PAGE " + Bad, "1"), new DocPropertyField("p" + Bad), new DocVariableField("v" + Bad),
+                new PageRefField("b" + Bad), new IndexEntry("i\uDC00x"), new TextRun("y") { CharacterStyleName = "c" + Bad },
+            ]) { Style = new ParagraphStyle { StyleName = "s" + Bad } }));
+        foreach (var format in new[] { DocumentFormat.Docx, DocumentFormat.Odt })
+        {
+            using (var zip = new ZipArchive(new MemoryStream(Write(document, format))))
+            {
+                foreach (var entry in zip.Entries.Where(entry => entry.FullName.EndsWith(".xml", StringComparison.Ordinal) || entry.FullName.EndsWith(".rels", StringComparison.Ordinal)))
+                {
+                    using var stream = entry.Open();
+                    XDocument.Load(stream);
+                }
+            }
+
+            Expect<DocumentValidationException>(() =>
+            {
+                using var output = new MemoryStream();
+                DocumentWriter.WriteAsync(document, output, format, format == DocumentFormat.Docx
+                    ? new DocxWriteOptions { InvalidXmlCharacters = InvalidXmlCharacterBehavior.Fail }
+                    : new OdtWriteOptions { InvalidXmlCharacters = InvalidXmlCharacterBehavior.Fail }).GetAwaiter().GetResult();
+            }, $"{format}: Fail still fails.");
         }
     }
 

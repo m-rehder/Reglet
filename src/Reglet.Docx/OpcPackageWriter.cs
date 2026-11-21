@@ -25,9 +25,14 @@ internal sealed class OpcPackageWriter : IDisposable
     private readonly Dictionary<string, List<OpcRelationship>> _relationships = new(StringComparer.Ordinal);
     private readonly HashSet<string> _writtenParts = new(StringComparer.Ordinal);
 
-    public OpcPackageWriter(Stream output)
+    private readonly InvalidXmlCharacterBehavior _xmlBehavior;
+
+    /// <param name="output">The package stream.</param>
+    /// <param name="xmlBehavior">What every XML part does with a character XML 1.0 does not allow.</param>
+    public OpcPackageWriter(Stream output, InvalidXmlCharacterBehavior xmlBehavior = InvalidXmlCharacterBehavior.Replace)
     {
         ArgumentNullException.ThrowIfNull(output);
+        _xmlBehavior = xmlBehavior;
 
         _archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true);
         AddDefault("rels", OpcNamespaces.RelationshipsContentType);
@@ -162,7 +167,7 @@ internal sealed class OpcPackageWriter : IDisposable
         var entry = _archive.CreateEntry(partName, CompressionLevel.Optimal);
         entry.LastWriteTime = FixedTimestamp;
         using var stream = entry.Open();
-        using var writer = XmlWriter.Create(stream, XmlSettings);
+        using var writer = new CleaningXmlWriter(XmlWriter.Create(stream, XmlSettings), _xmlBehavior);
         try
         {
             write(writer);

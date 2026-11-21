@@ -27,7 +27,7 @@ internal static class OdtPackageBuilder
 
         ReportUnsupported(document, handler);
 
-        using var package = new OdtPackageWriter(output, options.Encryption);
+        using var package = new OdtPackageWriter(output, options.Encryption, options.InvalidXmlCharacters);
 
         var preservedBlocks = ComputePreservedBlocks(
             document, SourceStylesPreserved(document), out var sourceStyles, out var coveredBlocks);

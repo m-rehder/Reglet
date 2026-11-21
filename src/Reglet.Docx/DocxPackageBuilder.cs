@@ -52,7 +52,7 @@ internal static class DocxPackageBuilder
             handler.Report($"DOCX: {reference.Message}");
         }
 
-        using var package = new OpcPackageWriter(output);
+        using var package = new OpcPackageWriter(output, options.InvalidXmlCharacters);
 
         RegisterParts(package, document.Metadata.MacroProject is not null);
         RegisterRelationships(package);
