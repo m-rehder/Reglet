@@ -403,7 +403,14 @@ public sealed partial class PdfDocumentReader : IDocumentReader
                 warnings.Add(new ReadWarning("PDF: characters without a ToUnicode mapping were replaced with U+FFFD."));
             }
 
-            var size = ReadMediaBox(file, page.MediaBox) ?? PageSize.A4;
+            var mediaBox = ReadMediaBox(file, page.MediaBox);
+            if (mediaBox is null && page.MediaBox is not null
+                && !warnings.Any(warning => warning.Message.Contains("MediaBox", StringComparison.Ordinal)))
+            {
+                warnings.Add(new ReadWarning($"PDF: a page has an invalid /MediaBox (empty or larger than {MaxPageExtent} units); A4 is used."));
+            }
+
+            var size = mediaBox ?? PageSize.A4;
             if (recover && segments.Where(segment => !segment.Rule && !segment.Path).All(segment => segment.Image >= 0) && segments.Any(segment => !segment.Rule && !segment.Path)
                 && !warnings.Any(warning => warning.Message.Contains("OCR", StringComparison.Ordinal)))
             {
@@ -679,6 +686,12 @@ public sealed partial class PdfDocumentReader : IDocumentReader
 
     private static void Write(Stream output, byte[] data) => output.Write(data, 0, data.Length);
 
+    /// <summary>
+    /// The largest page side a PDF may have (ISO 32000-1, annex C: 14,400 units). The structure recovery walks a page
+    /// in steps of one point, so a side of hundreds of millions from a damaged file kept it busy indefinitely.
+    /// </summary>
+    private const double MaxPageExtent = 14_400;
+
     private static PageSize? ReadMediaBox(PdfFile file, PdfValue? mediaBox)
     {
         if (file.Array(mediaBox) is not { } box || box.Items.Count != 4)
@@ -699,7 +712,7 @@ public sealed partial class PdfDocumentReader : IDocumentReader
 
         var width = Math.Abs(values[2] - values[0]);
         var height = Math.Abs(values[3] - values[1]);
-        return width > 0 && height > 0
+        return width is > 0 and <= MaxPageExtent && height is > 0 and <= MaxPageExtent
             ? new PageSize(Length.FromPoints(width), Length.FromPoints(height))
             : null;
     }

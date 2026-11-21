@@ -31,6 +31,8 @@ The readers treat every file as untrusted:
   span from a file to it, because the writers lay out a span cell by cell.
 - **SVG:** one conversion draws at most 250,000 elements, repeated `<use>` references included (each level of
   references can multiply the work tenfold below the depth limit); the rest is left out with a warning.
+- **PDF page size:** a `/MediaBox` side above 14,400 units (ISO 32000-1, annex C) or an empty one is replaced by A4
+  with a warning; the structure recovery walks a page in steps of one point.
 - **Cycles and depth:** PDF page trees are checked for cycles and a depth of 256; object
   streams must not themselves be compressed. A stack overflow, which would terminate the
   process, is thereby excluded.

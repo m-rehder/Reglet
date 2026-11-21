@@ -34,6 +34,7 @@ internal static class MalformedInputChecks
             SignatureReadersRejectDamagedPackages();
             HugeCellSpansAreBounded();
             SvgReferencesAreBudgeted();
+            HugeMediaBoxDoesNotStallRecovery();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -658,6 +659,26 @@ internal static class MalformedInputChecks
         var result = DocumentWriter.WriteAsync(document, output, DocumentFormat.Pdf).GetAwaiter().GetResult();
         Require(watch.Elapsed < TimeSpan.FromSeconds(30), $"SVG: the element budget ends the conversion quickly ({watch.Elapsed}).");
         Require(result.Warnings.Any(warning => warning.Message.Contains("elements", StringComparison.Ordinal)), "SVG: the cut is reported.");
+    }
+
+    private static void HugeMediaBoxDoesNotStallRecovery()
+    {
+        // Found by fuzzing: one digit in /MediaBox turned 595.27559 into 595027559. The structure recovery looks for a
+        // column gutter in steps of one point across the page, so it ran for hours on a two-column page.
+        var columns = new Section(Enumerable.Range(0, 40).Select(i => (Block)new Paragraph(new TextRun($"Paragraph {i} " + string.Join(' ', Enumerable.Repeat("column text", 15))))).ToList())
+        {
+            TextColumns = 2,
+        };
+        var pdf = Write(new PortableDocument(new DocumentMetadata(), columns), DocumentFormat.Pdf);
+        var text = Encoding.Latin1.GetString(pdf);
+        Require(text.Contains("595.27559", StringComparison.Ordinal), "Test setup: the page width is in the file.");
+        var damaged = Encoding.Latin1.GetBytes(text.Replace("595.27559", "595027559", StringComparison.Ordinal));
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var read = new PdfDocumentReader().Read(new MemoryStream(damaged), new PdfReadOptions { RecoverStructure = true });
+        Require(watch.Elapsed < TimeSpan.FromSeconds(30), $"PDF: a huge MediaBox does not stall the recovery ({watch.Elapsed}).");
+        Require(read.Warnings.Any(warning => warning.Message.Contains("MediaBox", StringComparison.Ordinal)), "PDF: the invalid MediaBox is reported.");
+        Require(read.Document.Sections[0].PageSize.Width.Points < 1000, "PDF: A4 is used instead.");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)
