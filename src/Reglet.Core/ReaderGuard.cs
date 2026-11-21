@@ -196,6 +196,36 @@ internal static class ReaderGuard
     }
 
     /// <summary>
+    /// Reads every entry of a package whose signatures are checked (they may cover any part), bounded by the input
+    /// limit and in total by <see cref="MaxDecodedBytes"/>. Two entries with the same name fail like a damaged package.
+    /// </summary>
+    public static Dictionary<string, byte[]> ReadPackageParts(byte[] package, string what)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        if (package.Length > MaxInputBytes)
+        {
+            throw new DocumentValidationException($"{what}: the file exceeds the input size limit.");
+        }
+
+        using var zip = new ZipArchive(new MemoryStream(package, writable: false), ZipArchiveMode.Read);
+        if (zip.Entries.Sum(entry => entry.Length) > MaxDecodedBytes)
+        {
+            throw new DocumentValidationException($"{what}: the package exceeds the decoded size limit.");
+        }
+
+        var parts = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+        long remaining = MaxDecodedBytes;
+        foreach (var entry in zip.Entries)
+        {
+            var data = ReadBoundedBytes(entry, remaining);
+            remaining -= data.Length;
+            parts.Add(entry.FullName, data);
+        }
+
+        return parts;
+    }
+
+    /// <summary>
     /// Guards recursive descent over foreign structures (nested tables, lists, PDF arrays):
     /// instead of a <see cref="StackOverflowException"/>, which would terminate the whole
     /// process, a deeply nested input fails with a catchable exception.

@@ -61,29 +61,7 @@ public static class DocxSignatureReader
 
     private static IReadOnlyList<DocxSignatureInfo> ReadPackage(byte[] package, DocxSignatureReadOptions options)
     {
-        if (package.Length > ReaderGuard.MaxInputBytes)
-        {
-            throw new DocumentValidationException("DOCX signature: the file exceeds the input size limit.");
-        }
-
-        using var zip = new ZipArchive(new MemoryStream(package, writable: false), ZipArchiveMode.Read);
-        var parts = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-        long remaining = ReaderGuard.MaxDecodedBytes;
-        foreach (var entry in zip.Entries)
-        {
-            if (entry.Length > remaining)
-            {
-                throw new DocumentValidationException("DOCX signature: the package exceeds the decoded size limit.");
-            }
-            remaining -= entry.Length;
-        }
-        remaining = ReaderGuard.MaxDecodedBytes;
-        foreach (var entry in zip.Entries)
-        {
-            var data = ReaderGuard.ReadBoundedBytes(entry, remaining);
-            remaining -= data.Length;
-            parts.Add(entry.FullName, data);
-        }
+        var parts = ReaderGuard.ReadPackageParts(package, "DOCX signature");
 
         var result = new List<DocxSignatureInfo>();
         foreach (var (name, data) in parts)
@@ -224,13 +202,9 @@ public static class DocxSignatureReader
         DocxSignatureReadOptions options,
         List<string> problems)
     {
-        using var chain = new X509Chain();
-        chain.ChainPolicy.RevocationMode = options.RevocationMode;
-        chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
-        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-        chain.ChainPolicy.CustomTrustStore.AddRange(options.TrustedRoots.ToArray());
-
-        // The certificates of KeyInfo are the intermediate CAs the signature carries.
+        // The certificates of KeyInfo are the intermediate CAs the signature carries; an unreadable one is already
+        // reported by the certificate reading and only left out here.
+        var carried = new List<X509Certificate2>();
         foreach (var encoded in signature
             .Element(Ds + "KeyInfo")
             ?.Element(Ds + "X509Data")
@@ -241,37 +215,14 @@ public static class DocxSignatureReader
         {
             try
             {
-                var extra = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(encoded));
-                if (!chain.ChainPolicy.ExtraStore.Contains(extra))
-                {
-                    chain.ChainPolicy.ExtraStore.Add(extra);
-                }
+                carried.Add(X509CertificateLoader.LoadCertificate(Convert.FromBase64String(encoded)));
             }
-            catch (CryptographicException)
+            catch (Exception exception) when (exception is CryptographicException or FormatException)
             {
-                // Already reported by the certificate reading.
             }
         }
 
-        try
-        {
-            if (chain.Build(certificate))
-            {
-                return true;
-            }
-        }
-        catch (CryptographicException exception)
-        {
-            problems.Add("The certificate chain could not be built: " + exception.Message);
-            return false;
-        }
-
-        foreach (var status in chain.ChainStatus)
-        {
-            problems.Add($"{status.Status}: {status.StatusInformation.Trim()}");
-        }
-
-        return false;
+        return CertificateChain.Check(certificate, carried, options.TrustedRoots, options.RevocationMode, time: null, problems);
     }
 
     /// <summary>the signed properties of the signature object (#idSignedProperties).</summary>

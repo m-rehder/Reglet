@@ -33,6 +33,7 @@ internal static class DocxSignatureChecks
             KeepsAnEarlierSignatureValid();
             DoesNotTrustAnUncheckedManifest();
             EvaluatesTheChain();
+            IgnoresAnUnreadableCarriedCertificate();
             ValidatesWithLxmlWhenConfigured();
             Console.WriteLine("DOCX signature (OF-E02): all checks passed.");
             return 0;
@@ -383,6 +384,30 @@ internal static class DocxSignatureChecks
     }
 
     /// <summary>The certificate chain is evaluated against the trusted roots of the read options.</summary>
+    /// <summary>
+    /// A carried certificate in KeyInfo that is not Base64: the chain check caught only cryptographic errors, so the
+    /// FormatException failed the whole read instead of leaving that certificate out.
+    /// </summary>
+    private static void IgnoresAnUnreadableCarriedCertificate()
+    {
+        using var certificate = Certificate("CN=Carrier");
+        var signed = Write(Document(), new DocxWriteOptions { Signature = new DocxSignatureOptions(certificate) });
+        var damaged = ReplaceEntry(signed, "_xmlsignatures/sig1.xml", data =>
+        {
+            var text = Encoding.UTF8.GetString(data);
+            var end = text.IndexOf("</X509Certificate>", StringComparison.Ordinal) + "</X509Certificate>".Length;
+            var prefix = text.LastIndexOf('<', text.IndexOf("X509Certificate>", StringComparison.Ordinal)) + 1;
+            var tag = text[prefix..text.IndexOf("X509Certificate>", prefix, StringComparison.Ordinal)];
+            return Encoding.UTF8.GetBytes(text.Insert(end, $"<{tag}X509Certificate>not Base64!</{tag}X509Certificate>"));
+        });
+
+        var info = DocxSignatureReader.Read(damaged, new DocxSignatureReadOptions
+        {
+            TrustedRoots = [X509CertificateLoader.LoadCertificate(certificate.RawData)],
+        }).Single();
+        Require(info.IsTrusted == true, "The unreadable carried certificate is left out: " + string.Join(" | ", info.ChainProblems));
+    }
+
     private static void EvaluatesTheChain()
     {
         using var certificate = Certificate("CN=Chain Signer");

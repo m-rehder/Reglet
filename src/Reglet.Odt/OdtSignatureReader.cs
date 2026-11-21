@@ -44,31 +44,7 @@ public static class OdtSignatureReader
 
     private static IReadOnlyList<OdtSignatureInfo> ReadPackage(byte[] package)
     {
-        if (package.Length > ReaderGuard.MaxInputBytes)
-        {
-            throw new DocumentValidationException("ODT signature: the file exceeds the input size limit.");
-        }
-
-        using var archive = new ZipArchive(new MemoryStream(package, writable: false), ZipArchiveMode.Read);
-        var parts = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-        long remaining = ReaderGuard.MaxDecodedBytes;
-        foreach (var entry in archive.Entries)
-        {
-            if (entry.Length > remaining)
-            {
-                throw new DocumentValidationException("ODT signature: the package exceeds the decoded size limit.");
-            }
-
-            remaining -= entry.Length;
-        }
-
-        remaining = ReaderGuard.MaxDecodedBytes;
-        foreach (var entry in archive.Entries)
-        {
-            var data = ReaderGuard.ReadBoundedBytes(entry, remaining);
-            remaining -= data.Length;
-            parts[entry.FullName] = data;
-        }
+        var parts = ReaderGuard.ReadPackageParts(package, "ODT signature");
 
         if (!parts.TryGetValue(OdtSignatureWriter.SignaturePartName, out var signatureFile))
         {

@@ -303,42 +303,7 @@ public static class PdfSignatureReader
         PdfSignatureReadOptions options,
         DateTimeOffset? verifiedTime,
         List<string> problems)
-    {
-        using var chain = new X509Chain();
-        chain.ChainPolicy.RevocationMode = options.RevocationMode;
-        chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
-        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-        chain.ChainPolicy.CustomTrustStore.AddRange(options.TrustedRoots.ToArray());
-        if (verifiedTime is { } time)
-        {
-            chain.ChainPolicy.VerificationTime = time.UtcDateTime;
-        }
-
-        foreach (var other in embedded)
-        {
-            chain.ChainPolicy.ExtraStore.Add(other);
-        }
-
-        try
-        {
-            if (chain.Build(certificate))
-            {
-                return true;
-            }
-        }
-        catch (CryptographicException exception)
-        {
-            problems.Add("The certificate chain could not be built: " + exception.Message);
-            return false;
-        }
-
-        foreach (var status in chain.ChainStatus)
-        {
-            problems.Add($"{status.Status}: {status.StatusInformation.Trim()}");
-        }
-
-        return false;
-    }
+        => CertificateChain.Check(certificate, embedded, options.TrustedRoots, options.RevocationMode, verifiedTime, problems);
 }
 
 /// <summary>the result of reading one signature or document timestamp of a PDF.</summary>
