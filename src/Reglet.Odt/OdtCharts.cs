@@ -108,7 +108,8 @@ internal static class OdtCharts
         writer.WriteEndElement();
     }
 
-    private static string Column(int index) => ((char)('A' + index)).ToString();
+    // A … Z, AA … AZ, BA …: the reader takes up to three letters.
+    private static string Column(int index) => (index < 26 ? string.Empty : Column((index / 26) - 1)) + (char)('A' + (index % 26));
 
     // The address form of ODF: absolute, the table name only before the first cell ("local-table.$B$2:.$B$5").
     private static string Range(int firstColumn, int firstRow, int lastColumn, int lastRow)

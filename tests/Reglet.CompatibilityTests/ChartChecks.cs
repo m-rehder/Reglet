@@ -14,6 +14,7 @@ internal static class ChartChecks
             WritesDocx();
             WritesOdt();
             ReadsCharts();
+            ManySeriesRoundTrip();
             KeepsChartsWhenChanged();
             ReportsAChartItCannotMap();
             Console.WriteLine("Charts: all checks passed.");
@@ -251,6 +252,23 @@ internal static class ChartChecks
         Require(read.Title == original.Title && read.CategoryAxisTitle == original.CategoryAxisTitle && read.ValueAxisTitle == original.ValueAxisTitle, label + ": titles");
         Require(read.Minimum == original.Minimum && read.Maximum == original.Maximum && read.Stacked == original.Stacked && read.AltText == original.AltText, label + ": limits, stacking, alt text");
         Require(Math.Abs(read.Width.Points - original.Width.Points) < 0.5 && Math.Abs(read.Height.Points - original.Height.Points) < 0.5, label + ": size");
+    }
+
+    private static void ManySeriesRoundTrip()
+    {
+        // ODT column letters ran from A to Z and then on to '[': series 26 and later (scatter: 13) had no valid address.
+        foreach (var kind in new[] { ChartKind.Column, ChartKind.Scatter })
+        {
+            var series = Enumerable.Range(0, 30).Select(i => new ChartSeries("s" + i, [i, i + 0.5], kind == ChartKind.Scatter ? [1.0, 2.0] : null)).ToList();
+            var chart = new Chart(kind, series, kind == ChartKind.Scatter ? null : ["a", "b"]);
+            foreach (var format in new[] { DocumentFormat.Odt, DocumentFormat.Docx })
+            {
+                var read = Read(Write(new PortableDocument(new DocumentMetadata(), new Section(chart)), format, out _), format);
+                var back = read.Document.Sections[0].Blocks.OfType<Chart>().Single();
+                Require(back.Series.Count == 30 && back.Series[29].Name == "s29" && back.Series[29].Values.SequenceEqual([29, 29.5]),
+                    $"{format} {kind}: thirty series round-trip.");
+            }
+        }
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format, out WriteResult result)
