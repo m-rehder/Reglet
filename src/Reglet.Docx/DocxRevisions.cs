@@ -11,7 +11,7 @@ namespace Reglet;
 internal static class DocxRevisions
 {
     /// <summary>Remembers which changes of the body have an end.</summary>
-    public static void Prepare(DocxWriteContext context, RevisionScan.RevisionInfo info)
+    public static void Prepare(DocxWriteContext context, MarkScan.MarkInfo<TrackedChange> info)
     {
         context.RevisionBody.UnionWith(info.Body);
         context.RevisionEnded = info.EndedIds;

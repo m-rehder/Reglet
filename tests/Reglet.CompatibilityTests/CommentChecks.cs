@@ -11,6 +11,7 @@ internal static class CommentChecks
             KeepsValues();
             RejectsInvalidReplies();
             WritesDocx();
+            WritesCommentInHyperlink();
             ReadsDocx();
             KeepsCommentsWhenChanged();
             ReportsCommentsItCannotWrite();
@@ -180,6 +181,19 @@ internal static class CommentChecks
         Require(zip.GetEntry("word/comments.xml") is not null && zip.GetEntry("word/commentsExtended.xml") is null, "DOCX: no extended part for plain comments.");
         using var none = new System.IO.Compression.ZipArchive(new MemoryStream(Write(new PortableDocument(new DocumentMetadata(), new Section(new Paragraph([new TextRun("t")]))), DocumentFormat.Docx, out _)));
         Require(none.GetEntry("word/comments.xml") is null, "DOCX: no comments part without comments.");
+    }
+
+    private static void WritesCommentInHyperlink()
+    {
+        // The comment scan did not look into hyperlinks, unlike the revision scan.
+        var link = new Hyperlink("https://example.com", new Inline[] { new Comment(0, "Ann", "x"), new TextRun("link"), new CommentEnd(0) });
+        var document = new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new Inline[] { link })));
+        var docx = Write(document, DocumentFormat.Docx, out var result);
+        Require(!result.HasWarnings && Count(Part(docx, "word/comments.xml"), "<w:comment ") == 1, "DOCX: a comment in a hyperlink is written.");
+        var read = Read(docx, DocumentFormat.Docx).Document.Sections[0].Blocks.OfType<Paragraph>().Single().Inlines;
+        Require(read.OfType<Hyperlink>().SelectMany(h => h.Inlines).Concat(read).OfType<Comment>().Count() == 1, "DOCX: the comment in a hyperlink is read back.");
+        var odt = Write(document, DocumentFormat.Odt, out result);
+        Require(!result.HasWarnings && Count(OdtContent(odt), "<office:annotation ") == 1, "ODT: a comment in a hyperlink is written.");
     }
 
     private static void RequireSame(Comment found, Comment expected, string label)

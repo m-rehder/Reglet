@@ -33,7 +33,7 @@ internal static class OdtComments
     }
 
     /// <summary>Gives every comment of the body its annotation name (a comment first, then its replies).</summary>
-    public static void Prepare(OdtParagraphStyles styles, CommentScan.CommentInfo info)
+    public static void Prepare(OdtParagraphStyles styles, MarkScan.MarkInfo<Comment> info)
     {
         // Not the "__Annotation__N_hash" names of LibreOffice, so they cannot clash with preserved source annotations.
         var next = 0;

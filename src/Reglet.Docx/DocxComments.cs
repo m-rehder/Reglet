@@ -21,7 +21,7 @@ internal static class DocxComments
     internal sealed record Entry(Comment Comment, bool IsReply);
 
     /// <summary>Gives every comment of the body its id in the comments part (a parent first, then its replies).</summary>
-    public static void Prepare(DocxWriteContext context, CommentScan.CommentInfo info)
+    public static void Prepare(DocxWriteContext context, MarkScan.MarkInfo<Comment> info)
     {
         var next = 0;
         foreach (var comment in info.Body)
