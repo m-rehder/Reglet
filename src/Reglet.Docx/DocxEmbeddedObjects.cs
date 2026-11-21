@@ -26,7 +26,7 @@ internal static class DocxEmbeddedObjects
     {
         var result = new Dictionary<EmbeddedObject, Parts>(ReferenceEqualityComparer.Instance);
         var number = 0;
-        foreach (var obj in document.Sections.SelectMany(section => DocxCharts.Enumerate<EmbeddedObject>(section.Blocks)))
+        foreach (var obj in document.Sections.SelectMany(section => BlockScan.Enumerate<EmbeddedObject>(section.Blocks)))
         {
             number++;
             var isOle = obj.Kind == EmbeddedObjectKind.OleStorage;

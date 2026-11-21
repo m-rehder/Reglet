@@ -3964,7 +3964,7 @@ internal static class DocxPackageBuilder
     {
         var relationships = new Dictionary<Chart, string>(ReferenceEqualityComparer.Instance);
         var number = 0;
-        foreach (var chart in document.Sections.SelectMany(section => DocxCharts.Enumerate<Chart>(section.Blocks)))
+        foreach (var chart in document.Sections.SelectMany(section => BlockScan.Enumerate<Chart>(section.Blocks)))
         {
             var partName = $"word/charts/chart{++number}.xml";
             package.AddOverride("/" + partName, DocxCharts.ChartContentType);

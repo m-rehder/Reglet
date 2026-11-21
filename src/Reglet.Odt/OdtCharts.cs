@@ -24,48 +24,12 @@ internal static class OdtCharts
         return ids;
     }
 
-    /// <summary>All blocks of type <typeparamref name="T"/> in document order (also in tables, lists and text boxes).</summary>
+    /// <summary>All blocks of type <typeparamref name="T"/> in document order (also in tables, lists, text boxes and diagrams).</summary>
     internal static IEnumerable<T> Enumerate<T>(IEnumerable<Block> blocks)
         where T : Block
-    {
-        foreach (var block in blocks)
-        {
-            switch (block)
-            {
-                case T item:
-                    yield return item;
-                    break;
-                case TableBlock table:
-                    foreach (var inner in Enumerate<T>(table.Rows.SelectMany(row => row.Cells).SelectMany(cell => cell.Blocks)))
-                    {
-                        yield return inner;
-                    }
-
-                    break;
-                case ListBlock list:
-                    foreach (var inner in Enumerate<T>(list.Items.SelectMany(item => item.Blocks)))
-                    {
-                        yield return inner;
-                    }
-
-                    break;
-                case DrawingShape { Content: { } content }:
-                    foreach (var inner in Enumerate<T>(content))
-                    {
-                        yield return inner;
-                    }
-
-                    break;
-                case Diagram diagram:
-                    foreach (var inner in Enumerate<T>(OdtDiagrams.Shapes(diagram).SelectMany(placed => placed.Shape.Content ?? []).ToList()))
-                    {
-                        yield return inner;
-                    }
-
-                    break;
-            }
-        }
-    }
+        => BlockScan.Enumerate<T>(blocks, block => block is Diagram diagram
+            ? OdtDiagrams.Shapes(diagram).SelectMany(placed => placed.Shape.Content ?? []).ToList()
+            : null);
 
     internal static bool HasChart(IEnumerable<Block> blocks) => Enumerate<Chart>(blocks).Any();
 

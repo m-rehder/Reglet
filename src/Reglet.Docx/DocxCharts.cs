@@ -16,42 +16,6 @@ internal static class DocxCharts
     private const string DrawingMain = DocxConstants.DrawingMainNamespace;
     private const string RelationshipsNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
-    /// <summary>All blocks of type <typeparamref name="T"/> in document order (also in tables, lists and text boxes).</summary>
-    internal static IEnumerable<T> Enumerate<T>(IEnumerable<Block> blocks)
-        where T : Block
-    {
-        foreach (var block in blocks)
-        {
-            switch (block)
-            {
-                case T item:
-                    yield return item;
-                    break;
-                case TableBlock table:
-                    foreach (var inner in Enumerate<T>(table.Rows.SelectMany(row => row.Cells).SelectMany(cell => cell.Blocks)))
-                    {
-                        yield return inner;
-                    }
-
-                    break;
-                case ListBlock list:
-                    foreach (var inner in Enumerate<T>(list.Items.SelectMany(item => item.Blocks)))
-                    {
-                        yield return inner;
-                    }
-
-                    break;
-                case DrawingShape { Content: { } content }:
-                    foreach (var inner in Enumerate<T>(content))
-                    {
-                        yield return inner;
-                    }
-
-                    break;
-            }
-        }
-    }
-
     /// <summary>The paragraph with the inline chart that points at the relationship.</summary>
     internal static void WriteInline(XmlWriter writer, Chart chart, string relationshipId, int drawingId, InvalidXmlCharacterBehavior xmlBehavior, long availableWidth)
     {
