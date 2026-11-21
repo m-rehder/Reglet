@@ -111,6 +111,9 @@ public static class PdfSignatureReader
         IReadOnlyList<X509Certificate2> extra;
         DateTimeOffset? signingTime = ParseDate(Text(file, signature, "M"));
         DateTimeOffset? timestampTime = null;
+        X509Certificate2? stampAuthority = null;
+        IReadOnlyList<X509Certificate2> stampCertificates = [];
+        var stampSound = false;
 
         byte[] Digest(HashAlgorithmName name) => PdfCmsVerifier.HashData(name, covered());
 
@@ -129,7 +132,9 @@ public static class PdfSignatureReader
             signingTime = cms.SigningTime ?? signingTime;
             if (cms.TimestampToken is { } token)
             {
-                timestampTime = PdfCmsVerifier.VerifyTimestamp(token, cms.SignatureValue, problems, out _, out _);
+                var before = problems.Count;
+                timestampTime = PdfCmsVerifier.VerifyTimestamp(token, cms.SignatureValue, problems, out stampAuthority, out stampCertificates);
+                stampSound = problems.Count == before;
             }
         }
 
@@ -137,8 +142,23 @@ public static class PdfSignatureReader
         if (certificate is not null && options.TrustedRoots.Count > 0)
         {
             // The chain is judged at the verified time-stamp time, or now: a signing time that the
-            // signer claims by itself must not decide whether its certificate was valid.
-            trusted = CheckChain(certificate, extra, options, timestampTime, chainProblems);
+            // signer claims by itself must not decide whether its certificate was valid. A time-stamp
+            // counts only when it is sound and its authority chains to a trusted root too; otherwise
+            // anyone holding an expired key could stamp a time when the certificate was still valid.
+            var chainTime = timestampTime;
+            if (!isTimestamp && timestampTime is not null)
+            {
+                var authorityProblems = new List<string>();
+                if (!stampSound || stampAuthority is null
+                    || !CheckChain(stampAuthority, stampCertificates, options, timestampTime, authorityProblems))
+                {
+                    chainProblems.Add("The time-stamp authority is not trusted; the chain is judged at the current time.");
+                    chainProblems.AddRange(authorityProblems.Select(problem => "Time-stamp authority: " + problem));
+                    chainTime = null;
+                }
+            }
+
+            trusted = CheckChain(certificate, extra, options, chainTime, chainProblems);
         }
 
         return info with

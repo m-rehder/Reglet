@@ -22,6 +22,7 @@ internal static class PdfSignatureReaderChecks
             ChecksTimestampOfBaselineT();
             RejectsTimestampForOtherSignature();
             ChecksDocumentTimestamp();
+            TrustsATimestampOnlyFromATrustedAuthority();
             JudgesTrustOnlyWithRoots();
             Console.WriteLine("PDF signature reader: all checks passed.");
             return 0;
@@ -33,13 +34,13 @@ internal static class PdfSignatureReaderChecks
         }
     }
 
-    private static X509Certificate2 Certificate(string name)
+    private static X509Certificate2 Certificate(string name, DateTimeOffset? notBefore = null, DateTimeOffset? notAfter = null)
     {
         using var rsa = RSA.Create(2048);
         var request = new CertificateRequest("CN=" + name, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
         request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
-        var created = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(30));
+        var created = request.CreateSelfSigned(notBefore ?? DateTimeOffset.UtcNow.AddDays(-1), notAfter ?? DateTimeOffset.UtcNow.AddDays(30));
 
         // Keep the private key with the certificate beyond the disposal of the local key.
         return X509CertificateLoader.LoadPkcs12(created.Export(X509ContentType.Pfx, "x"), "x", X509KeyStorageFlags.Exportable);
@@ -195,8 +196,26 @@ internal static class PdfSignatureReaderChecks
         Require(untrusted.IsTrusted == false && untrusted.IsValid, "Another root does not trust it, the signature itself stays valid.");
     }
 
+    /// <summary>
+    /// A signer certificate that expired five days ago, and a time-stamp from an authority nobody trusts that claims a
+    /// time ten days ago. The chain used to be judged at that time, so the expired certificate counted as trusted.
+    /// </summary>
+    private static void TrustsATimestampOnlyFromATrustedAuthority()
+    {
+        using var expired = Certificate("Reglet Expired Signer", DateTimeOffset.UtcNow.AddDays(-30), DateTimeOffset.UtcNow.AddDays(-5));
+        using var authority = Certificate("Reglet Self-Made TSA", DateTimeOffset.UtcNow.AddDays(-60));
+        var bytes = Sign(expired, pades: true, timestamp: Authority(authority, time: DateTime.UtcNow.AddDays(-10)));
+
+        var foreign = PdfSignatureReader.Read(bytes, new PdfSignatureReadOptions { TrustedRoots = [expired] }).Single();
+        Require(foreign.IsTrusted == false, "An untrusted authority does not move the check date: " + string.Join("; ", foreign.ChainProblems));
+        Require(foreign.ChainProblems.Any(problem => problem.Contains("time-stamp authority", StringComparison.Ordinal)), "The untrusted authority is reported.");
+
+        var trusted = PdfSignatureReader.Read(bytes, new PdfSignatureReadOptions { TrustedRoots = [expired, authority] }).Single();
+        Require(trusted.IsTrusted == true, "A trusted authority's time decides the check date: " + string.Join("; ", trusted.ChainProblems));
+    }
+
     /// <summary>A time-stamp authority (RFC 3161) that signs the requested imprint with its certificate.</summary>
-    private static PdfTimestampOptions Authority(X509Certificate2 certificate, byte[]? imprintOverride = null)
+    private static PdfTimestampOptions Authority(X509Certificate2 certificate, byte[]? imprintOverride = null, DateTime? time = null)
         => new()
         {
             Responder = request =>
@@ -209,7 +228,7 @@ internal static class PdfSignatureReaderChecks
                         ? imprint.Raw
                         : PdfDer.Sequence(PdfDer.Sequence(PdfDer.Oid("2.16.840.1.101.3.4.2.1"), PdfDer.Null()), PdfDer.OctetString(imprintOverride)),
                     PdfDer.Integer(42),
-                    PdfDer.Tlv(0x18, Encoding.ASCII.GetBytes(DateTime.UtcNow.ToString("yyyyMMddHHmmss'Z'", System.Globalization.CultureInfo.InvariantCulture))));
+                    PdfDer.Tlv(0x18, Encoding.ASCII.GetBytes((time ?? DateTime.UtcNow).ToString("yyyyMMddHHmmss'Z'", System.Globalization.CultureInfo.InvariantCulture))));
                 return PdfDer.Sequence(PdfDer.Sequence(PdfDer.Integer(0)), Token(certificate, info));
             },
         };
