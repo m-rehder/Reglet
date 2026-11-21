@@ -1,0 +1,24 @@
+# Reglet
+
+> .NET 10 library that creates, reads and converts DOCX, ODT, PDF and HTML documents from one format-neutral model, with no dependencies beyond the base class library.
+
+- Install: `dotnet add package Reglet` (facade). `Reglet.Core`, `Reglet.Docx`, `Reglet.Odt`, `Reglet.Pdf`, `Reglet.Html`, `Reglet.Fonts` and `Reglet.Hyphenation` can be used on their own.
+- Build a document with `PortableDocument.Create()`, write it with `DocumentWriter.WriteAsync(document, "out.pdf")` (format from the extension), read one with `DocumentReader`.
+- Documents are immutable; all lengths are stored in points (`Length`).
+- Unicode text in PDF needs caller-provided TrueType fonts (`PdfWriteOptions.FontCollection`).
+
+## Docs
+
+- [API reference](docs/api-reference.md): every public type and member, one line each with signature and summary; search it instead of reading it whole
+- [README](README.md): overview, install, quick start
+- [Guide](docs/guide.md): writer options per format, fonts, templates
+- [Example gallery](docs/examples.md): 40 runnable examples, from Hello World to invoice and report, with paths to their code
+- [Feature matrix](docs/feature-matrix.md): what each format supports, known limits
+
+## Optional
+
+- [Fields](docs/fields.md): how fields (page numbers, TOC, references) are calculated and cached
+- [Units](docs/units.md): lengths, defaults, typography
+- [Hardening](docs/hardening.md): resource limits and safe handling of untrusted input
+- [Native AOT and trimming](docs/aot-trimming.md)
+- [Architecture decisions](docs/decisions/README.md): why things are the way they are
