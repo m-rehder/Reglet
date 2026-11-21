@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Reglet" Version="1.9.0" />
+    <PackageReference Include="Reglet" Version="1.0.0" />
   </ItemGroup>
 
 </Project>
