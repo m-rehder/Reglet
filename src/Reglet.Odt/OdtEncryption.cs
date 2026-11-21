@@ -136,9 +136,8 @@ internal static class OdtEncryption
 
         XDocument manifest;
         using (var stream = ReaderGuard.OpenBounded(manifestEntry))
-        using (var reader = System.Xml.XmlReader.Create(stream, ReaderGuard.SafeXml))
         {
-            manifest = XDocument.Load(ReaderGuard.LimitXmlDepth(reader));
+            manifest = ReaderGuard.LoadXml(stream);
         }
 
         var encrypted = new Dictionary<string, XElement>(StringComparer.Ordinal);

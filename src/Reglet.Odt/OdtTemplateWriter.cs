@@ -82,7 +82,7 @@ internal static class OdtTemplateWriter
 
         var contentEntry = source.GetEntry(ContentPart)
             ?? throw new DocumentValidationException("The ODT template contains no content.xml.");
-        var content = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(contentEntry));
+        var content = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(contentEntry));
 
         var bodyBlocks = document.Sections.SelectMany(section => section.Blocks).ToList();
         var bindings = new Dictionary<string, TemplateContent>(template.Placeholders, StringComparer.Ordinal);
@@ -142,7 +142,7 @@ internal static class OdtTemplateWriter
             handler.Report("ODT: rounded table corners are not supported; the table is written with square corners.");
         }
 
-        var stylesXml = source.GetEntry(StylesPart) is { } stylesEntry ? TemplatePackage.LoadXml(TemplatePackage.ReadEntry(stylesEntry)) : null;
+        var stylesXml = source.GetEntry(StylesPart) is { } stylesEntry ? ReaderGuard.LoadXml(TemplatePackage.ReadEntry(stylesEntry)) : null;
         var stylesChanged = false;
         if (options.AutoHyphenation && stylesXml is not null)
         {
@@ -248,7 +248,7 @@ internal static class OdtTemplateWriter
         ReportMissingBindings(template, found, handler);
 
         var manifestEntry = source.GetEntry(ManifestPart);
-        var manifest = manifestEntry is null ? null : TemplatePackage.LoadXml(TemplatePackage.ReadEntry(manifestEntry));
+        var manifest = manifestEntry is null ? null : ReaderGuard.LoadXml(TemplatePackage.ReadEntry(manifestEntry));
         if (source.GetEntry(OdtSignatureWriter.SignaturePartName) is not null)
         {
             handler.Report("ODT: the signature of the template is removed; it does not cover the filled document.");

@@ -1990,7 +1990,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             try
             {
                 var bytes = resources.Media.Read(entry, ResourceLimits.Default.MaxImageBytes);
-                root = TemplatePackage.LoadXml(bytes).Root!;
+                root = ReaderGuard.LoadXml(bytes).Root!;
             }
             catch (DocumentValidationException)
             {
@@ -3370,20 +3370,7 @@ public sealed class DocxDocumentReader : IDocumentReader
         }
 
         using var stream = ReaderGuard.OpenBounded(entry);
-        return LoadXml(stream);
-    }
-
-    /// <summary>Loads XML without DTD and entity processing (protection against XXE).</summary>
-    private static XElement LoadXml(Stream stream)
-    {
-        using var reader = XmlReader.Create(
-            stream,
-            new XmlReaderSettings
-            {
-                DtdProcessing = System.Xml.DtdProcessing.Prohibit,
-                XmlResolver = null,
-            });
-        return XElement.Load(ReaderGuard.LimitXmlDepth(reader));
+        return ReaderGuard.LoadXml(stream).Root;
     }
 
     private sealed record SectionProps(

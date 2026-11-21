@@ -90,7 +90,7 @@ internal static class DocxPreservedPackageWriter
     /// <summary>The content types without the VBA project; the main part is a plain document again.</summary>
     private static XElement StripMacroTypes(ZipArchiveEntry entry)
     {
-        var types = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Root!;
+        var types = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root!;
         foreach (var element in types.Elements().ToList())
         {
             var contentType = element.Attribute("ContentType")?.Value;
@@ -109,7 +109,7 @@ internal static class DocxPreservedPackageWriter
 
     private static XElement StripMacroRelationship(ZipArchiveEntry entry)
     {
-        var relationships = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Root!;
+        var relationships = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root!;
         relationships.Elements().Where(r => r.Attribute("Type")?.Value == DocxConstants.VbaProjectRelationship).Remove();
         return relationships;
     }
@@ -121,7 +121,7 @@ internal static class DocxPreservedPackageWriter
         DocxWriteOptions options,
         IReadOnlyDictionary<string, string>? variables)
     {
-        var settings = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Root;
+        var settings = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root;
         if (settings is null)
         {
             using var content = ReaderGuard.OpenBounded(entry);

@@ -318,7 +318,7 @@ internal static class DocxPackageBuilder
             }
 
             XNamespace w = DocxConstants.WordprocessingML;
-            foreach (var comment in TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Descendants(w + "comment"))
+            foreach (var comment in ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Descendants(w + "comment"))
             {
                 if (comment.Attribute(w + "id")?.Value is { } id
                     && int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value >= 0)
@@ -352,7 +352,7 @@ internal static class DocxPackageBuilder
                 return result;
             }
 
-            var xml = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry));
+            var xml = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry));
             foreach (var element in xml.Root?.Elements() ?? Enumerable.Empty<XElement>())
             {
                 var partName = element.Attribute("PartName")?.Value;
@@ -458,7 +458,7 @@ internal static class DocxPackageBuilder
         using var stream = new MemoryStream(bytes.ToArray(), writable: false);
         using var source = new ZipArchive(stream, ZipArchiveMode.Read);
         return source.GetEntry(DocxConstants.StylesPart) is { } entry
-            ? TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Root
+            ? ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root
             : null;
     }
 
@@ -522,7 +522,7 @@ internal static class DocxPackageBuilder
             var relsName = OpcPackageWriter.RelsPartName(DocxConstants.DocumentPart);
             if (archive.GetEntry(relsName) is { } relsEntry)
             {
-                sourceRelationships = ReadSourceRelationships(TemplatePackage.LoadXml(TemplatePackage.ReadEntry(relsEntry)));
+                sourceRelationships = ReadSourceRelationships(ReaderGuard.LoadXml(TemplatePackage.ReadEntry(relsEntry)));
             }
         }
         catch (Exception exception) when (exception is InvalidDataException or XmlException)
@@ -677,7 +677,7 @@ internal static class DocxPackageBuilder
             }
 
             XNamespace w = DocxConstants.WordprocessingML;
-            var document = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry));
+            var document = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry));
             var body = document.Root?.Element(w + "body");
             return new SourceDocumentInfo(
                 body,
@@ -922,7 +922,7 @@ internal static class DocxPackageBuilder
 
         try
         {
-            return TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry));
+            return ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry));
         }
         catch (Exception exception) when (exception is InvalidDataException or XmlException)
         {
@@ -1176,7 +1176,7 @@ internal static class DocxPackageBuilder
         using var stream = new MemoryStream(bytes.ToArray(), writable: false);
         using var source = new ZipArchive(stream, ZipArchiveMode.Read);
         return source.GetEntry(DocxConstants.SettingsPart) is { } entry
-            ? TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Root
+            ? ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root
             : null;
     }
 
@@ -3760,7 +3760,7 @@ internal static class DocxPackageBuilder
                 return null;
             }
 
-            var root = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Root;
+            var root = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root;
             if (root is null)
             {
                 return null;

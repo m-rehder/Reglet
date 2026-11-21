@@ -22,18 +22,6 @@ internal static class TemplatePackage
         return memory.ToArray();
     }
 
-    /// <summary>Loads XML without DTD and entity processing (protection against XXE).</summary>
-    public static XDocument LoadXml(byte[] data)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-
-        using var stream = new MemoryStream(data, writable: false);
-        using var reader = XmlReader.Create(
-            stream,
-            new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
-        return XDocument.Load(ReaderGuard.LimitXmlDepth(reader));
-    }
-
     /// <summary>Serializes an XML document compactly with an XML declaration as UTF-8 without a BOM.</summary>
     public static byte[] SaveXml(XDocument document)
     {

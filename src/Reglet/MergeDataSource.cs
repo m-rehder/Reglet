@@ -86,7 +86,7 @@ public static class MergeDataSource
         XDocument document;
         try
         {
-            using var xml = XmlReader.Create(reader, SafeXml);
+            using var xml = XmlReader.Create(reader, ReaderGuard.SafeXml);
             document = XDocument.Load(ReaderGuard.LimitXmlDepth(xml), LoadOptions.None);
         }
         catch (System.Xml.XmlException exception)
@@ -382,15 +382,11 @@ public static class MergeDataSource
     /// <summary>Last column of an xlsx sheet (XFD); a larger reference would allocate unbounded empty cells.</summary>
     private const int MaxExcelColumns = 16384;
 
-    /// <summary>XML of a data source without DTD and entity processing (protection against XXE).</summary>
-    private static readonly XmlReaderSettings SafeXml = new() { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null };
-
     private static XDocument LoadXml(Stream stream)
     {
         try
         {
-            using var reader = XmlReader.Create(stream, SafeXml);
-            return XDocument.Load(ReaderGuard.LimitXmlDepth(reader));
+            return ReaderGuard.LoadXml(stream);
         }
         catch (XmlException exception)
         {

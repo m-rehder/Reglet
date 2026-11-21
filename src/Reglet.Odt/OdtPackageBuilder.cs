@@ -133,7 +133,7 @@ internal static class OdtPackageBuilder
 
             XNamespace office = OdtNamespaces.Office;
             XNamespace text = OdtNamespaces.Text;
-            var root = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Root;
+            var root = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root;
             var body = root?.Element(office + "body")?.Element(office + "text");
             if (body is null)
             {
@@ -640,7 +640,7 @@ internal static class OdtPackageBuilder
         var data = TemplatePackage.ReadEntry(entry);
         if (autoHyphenation && partName == "styles.xml")
         {
-            var styles = TemplatePackage.LoadXml(data);
+            var styles = ReaderGuard.LoadXml(data);
             OdtStylesWriter.EnsureHyphenation(styles);
             data = TemplatePackage.SaveXml(styles);
         }
@@ -691,7 +691,7 @@ internal static class OdtPackageBuilder
             return result;
         }
 
-        var manifest = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry));
+        var manifest = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry));
         XNamespace ns = OdtNamespaces.Manifest;
         foreach (var fileEntry in manifest.Root?.Elements(ns + "file-entry") ?? Enumerable.Empty<XElement>())
         {

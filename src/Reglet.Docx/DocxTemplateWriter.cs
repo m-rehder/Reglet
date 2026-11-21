@@ -71,7 +71,7 @@ internal static class DocxTemplateWriter
 
         var documentEntry = source.GetEntry(DocxConstants.DocumentPart)
             ?? throw new DocumentValidationException("The DOCX template contains no word/document.xml.");
-        var documentXml = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(documentEntry));
+        var documentXml = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(documentEntry));
 
         var bodyBlocks = document.Sections.SelectMany(section => section.Blocks).ToList();
         var bindings = new Dictionary<string, TemplateContent>(template.Placeholders, StringComparer.Ordinal);
@@ -133,7 +133,7 @@ internal static class DocxTemplateWriter
             if (!bands.ContainsKey(part))
             {
                 var entry = source.GetEntry(part) ?? throw new DocumentValidationException($"DOCX: header or footer part '{part}' is missing.");
-                bands.Add(part, TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)));
+                bands.Add(part, ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)));
             }
         }
         var nextRelationshipId = MaxRelationshipId(documentRels) + 1;
@@ -144,16 +144,16 @@ internal static class DocxTemplateWriter
         var hyperlinkRelationships = RegisterHyperlinks(documentRels, hyperlinkTargets, ref nextRelationshipId);
 
         var numberingEntry = source.GetEntry(DocxConstants.NumberingPart);
-        var numbering = numberingEntry is null ? null : TemplatePackage.LoadXml(TemplatePackage.ReadEntry(numberingEntry));
+        var numbering = numberingEntry is null ? null : ReaderGuard.LoadXml(TemplatePackage.ReadEntry(numberingEntry));
         var (firstNumId, maxAbstractNumId) = NumberingIds(numbering);
         var hasLists = insertedBlocks.Any(AnyList);
 
         var footnotesEntry = source.GetEntry(DocxConstants.FootnotesPart);
-        var footnotes = footnotesEntry is null ? null : TemplatePackage.LoadXml(TemplatePackage.ReadEntry(footnotesEntry));
+        var footnotes = footnotesEntry is null ? null : ReaderGuard.LoadXml(TemplatePackage.ReadEntry(footnotesEntry));
         var endnotesEntry = source.GetEntry(DocxConstants.EndnotesPart);
-        var endnotes = endnotesEntry is null ? null : TemplatePackage.LoadXml(TemplatePackage.ReadEntry(endnotesEntry));
+        var endnotes = endnotesEntry is null ? null : ReaderGuard.LoadXml(TemplatePackage.ReadEntry(endnotesEntry));
         var commentsEntry = source.GetEntry("word/comments.xml");
-        var comments = commentsEntry is null ? null : TemplatePackage.LoadXml(TemplatePackage.ReadEntry(commentsEntry));
+        var comments = commentsEntry is null ? null : ReaderGuard.LoadXml(TemplatePackage.ReadEntry(commentsEntry));
         var safeFootnotes = SafeNoteIds(footnotes, "footnote");
         var safeEndnotes = SafeNoteIds(endnotes, "endnote");
         var safeComments = SafeCommentIds(comments);
@@ -343,7 +343,7 @@ internal static class DocxTemplateWriter
                     data = TemplatePackage.SaveXml(contentTypes);
                     break;
                 case "_rels/.rels" when source.Entries.Any(item => item.FullName.StartsWith(DocxSignatureWriter.Folder, StringComparison.OrdinalIgnoreCase)):
-                    var packageRelationships = TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry));
+                    var packageRelationships = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry));
                     packageRelationships.Root?.Elements()
                         .Where(element => (string?)element.Attribute("Type") == DocxSignatureWriter.OriginRelationship)
                         .Remove();
@@ -594,7 +594,7 @@ internal static class DocxTemplateWriter
         ZipArchive source, PortableDocument document, IReadOnlyList<Block> insertedBlocks, InvalidXmlCharacterBehavior xmlBehavior)
     {
         if (source.GetEntry(DocxConstants.StylesPart) is not { } entry
-            || TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)) is not { Root: { } root } styles)
+            || ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)) is not { Root: { } root } styles)
         {
             return null;
         }
@@ -623,7 +623,7 @@ internal static class DocxTemplateWriter
     /// <summary>The default language of the template's styles, if it states one.</summary>
     private static string? TemplateLanguage(ZipArchive source)
         => source.GetEntry(DocxConstants.StylesPart) is { } entry
-            ? (string?)TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry)).Descendants(W + "lang").FirstOrDefault()?.Attribute(W + "val")
+            ? (string?)ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Descendants(W + "lang").FirstOrDefault()?.Attribute(W + "val")
             : null;
 
     private static int MaxDrawingId(XDocument document)
@@ -1005,7 +1005,7 @@ internal static class DocxTemplateWriter
     private static XDocument LoadOrCreate(ZipArchive source, string partName, XName rootName)
     {
         var entry = source.GetEntry(partName);
-        return entry is null ? new XDocument(new XElement(rootName)) : TemplatePackage.LoadXml(TemplatePackage.ReadEntry(entry));
+        return entry is null ? new XDocument(new XElement(rootName)) : ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry));
     }
 
     private static XElement FragmentElement(Action<XmlWriter> write)

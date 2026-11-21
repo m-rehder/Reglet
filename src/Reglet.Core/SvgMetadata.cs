@@ -23,14 +23,7 @@ internal static class SvgMetadata
         XDocument document;
         try
         {
-            var settings = new XmlReaderSettings
-            {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-            };
-            using var stream = new MemoryStream(data.ToArray(), writable: false);
-            using var reader = XmlReader.Create(stream, settings);
-            document = XDocument.Load(ReaderGuard.LimitXmlDepth(reader));
+            document = ReaderGuard.LoadXml(data.ToArray());
         }
         catch (XmlException)
         {

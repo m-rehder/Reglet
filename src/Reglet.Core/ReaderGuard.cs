@@ -61,7 +61,20 @@ internal static class ReaderGuard
     /// </summary>
     public static XmlReader LimitXmlDepth(XmlReader reader) => new DepthLimitedXmlReader(reader);
 
-    /// <summary>Parses a foreign XML text without DTD processing and within the depth limit.</summary>
+    /// <summary>
+    /// Loads a foreign XML part without DTD processing and within the depth limit. Every reader loads foreign XML
+    /// through these three methods: each extra copy of the settings is a place to forget the protection.
+    /// </summary>
+    public static XDocument LoadXml(Stream stream)
+    {
+        using var reader = XmlReader.Create(stream, SafeXml);
+        return XDocument.Load(LimitXmlDepth(reader));
+    }
+
+    /// <summary>Loads foreign XML bytes; see <see cref="LoadXml(Stream)"/>.</summary>
+    public static XDocument LoadXml(byte[] data) => LoadXml(new MemoryStream(data, writable: false));
+
+    /// <summary>Parses a foreign XML text; see <see cref="LoadXml(Stream)"/>.</summary>
     public static XDocument ParseXml(string xml)
     {
         using var text = new StringReader(xml);

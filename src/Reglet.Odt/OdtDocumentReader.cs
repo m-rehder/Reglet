@@ -2430,7 +2430,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         XElement root;
         try
         {
-            root = TemplatePackage.LoadXml(context.Media.Read(entry, ResourceLimits.Default.MaxImageBytes)).Root!;
+            root = ReaderGuard.LoadXml(context.Media.Read(entry, ResourceLimits.Default.MaxImageBytes)).Root!;
         }
         catch (Exception exception) when (exception is DocumentValidationException or System.Xml.XmlException)
         {
@@ -3247,10 +3247,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         }
 
         using var stream = ReaderGuard.OpenBounded(entry);
-        using var reader = XmlReader.Create(
-            stream,
-            new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
-        return XElement.Load(ReaderGuard.LimitXmlDepth(reader));
+        return ReaderGuard.LoadXml(stream).Root;
     }
 
     private sealed record SectionProps(
