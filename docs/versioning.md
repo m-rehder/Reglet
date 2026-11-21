@@ -42,13 +42,15 @@ section is missing.
 2. `docs/release-notes.md`: `## Unreleased` → `## X.Y.Z`.
 3. Green gates: `build/release.sh X.Y.Z` builds, tests, checks, packs, signs and produces
    checksums (see [packaging.md](packaging.md)).
-4. Push the tag `vX.Y.Z`; the release workflow
-   ([.gitea/workflows/release.yml](../.gitea/workflows/release.yml)) runs `build/release.sh`,
-   which uploads the packages to the Gitea package registry, and then `build/gitea-release.sh`,
-   which creates the Gitea release with the extracted changelog and attaches the packages and
-   `SHA256SUMS`. If the release already exists (e.g. created by hand), only missing assets are
-   attached, so the step can be repeated. The workflow needs an online Actions runner with the
-   label `ubuntu-latest`; without one the run stays queued.
+4. Push the tag `vX.Y.Z` to both remotes; the release workflow
+   ([.github/workflows/release.yml](../.github/workflows/release.yml)) runs on GitHub and on Gitea
+   (Gitea Actions reads `.github/workflows` too). It runs `build/release.sh`, which uploads the
+   packages only where the variable `NUGET_SOURCE` is set (set it on one server, so nothing is
+   published twice), and then creates the release of that server: on GitHub with `gh release
+   create`, on Gitea with `build/gitea-release.sh` (if the Gitea release already exists, e.g.
+   created by hand, only missing assets are attached). Both attach the packages and `SHA256SUMS`
+   with the extracted changelog. On Gitea the workflow needs an online runner with the label
+   `ubuntu-latest`; without one the run stays queued.
 
 The tag workflow expects the following configuration in the repository:
 

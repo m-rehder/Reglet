@@ -10,8 +10,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Only platforms with a registered runner (a Linux runner on the Pi); a job for a
-        # platform without a runner stays queued forever.
+        # Runs on GitHub and on a self-hosted Gitea runner (Gitea Actions reads .github/workflows
+        # too); the Gitea runner is Linux only, and a job without a matching runner stays queued.
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -36,7 +36,7 @@ jobs:
           <?xml version="1.0" encoding="UTF-8" standalone="no"?>
           <AutomatedInstallation langpack="eng">
             <com.izforge.izpack.panels.htmlhello.HTMLHelloPanel id="welcome"/>
-            <com.izforge.izpack.panels.target.TargetPanel id="install_dir"><installpath>/opt/verapdf</installpath></com.izforge.izpack.panels.target.TargetPanel>
+            <com.izforge.izpack.panels.target.TargetPanel id="install_dir"><installpath>/tmp/verapdf</installpath></com.izforge.izpack.panels.target.TargetPanel>
             <com.izforge.izpack.panels.packs.PacksPanel id="sdk_pack_select">
               <pack index="0" name="veraPDF GUI" selected="true"/>
               <pack index="1" name="veraPDF Mac and *nix Scripts" selected="true"/>
@@ -46,11 +46,11 @@ jobs:
           </AutomatedInstallation>
           EOF
           java -jar /tmp/verapdf-installer/*/verapdf-izpack-installer-*.jar /tmp/verapdf-auto.xml
-          /opt/verapdf/verapdf --version
+          /tmp/verapdf/verapdf --version
 
       - name: Compatibility checks
         env:
-          REGLET_VERAPDF: /opt/verapdf/verapdf
+          REGLET_VERAPDF: /tmp/verapdf/verapdf
         run: dotnet run --project tests/Reglet.CompatibilityTests --configuration Release
 
       - name: Zero-Dependency
@@ -95,8 +95,10 @@ jobs:
         shell: bash
         run: build/check-aot-safety.sh
 
+      # The thresholds in build/benchmarks.txt are measured on the self-hosted runner; GitHub's shared
+      # runners vary too much for them.
       - name: Benchmarks
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && github.server_url != 'https://github.com'
         shell: bash
         run: build/run-benchmarks.sh
 

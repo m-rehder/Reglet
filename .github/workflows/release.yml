@@ -36,8 +36,21 @@ jobs:
           REGLET_NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
         run: build/release.sh "${GITHUB_REF_NAME#v}"
 
-      # V02: Gitea release for the tag with the changelog section and the packed artifacts.
+      # V02: the release for the tag with the changelog section and the packed artifacts, on the
+      # server the workflow runs on. Packages are pushed to NuGet only where NUGET_SOURCE is set.
+      - name: Create GitHub release
+        if: github.server_url == 'https://github.com'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          build/release-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --title "Reglet $version" --notes-file "$RUNNER_TEMP/notes.md" \
+            artifacts/packages/*.nupkg artifacts/packages/*.snupkg artifacts/packages/SHA256SUMS
+
       - name: Create Gitea release
+        if: github.server_url != 'https://github.com'
         shell: bash
         env:
           GITEA_API_URL: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
