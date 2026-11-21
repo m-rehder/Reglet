@@ -132,4 +132,16 @@ public sealed record TableCell
 
     /// <summary>Custom cell borders; null means the table borders.</summary>
     public ParagraphBorders? Borders { get; init; }
+
+    /// <summary>a copy with other blocks and every other property kept (used by the tree rebuilds).</summary>
+    internal TableCell WithBlocks(IEnumerable<Block> blocks) => new(blocks)
+    {
+        Alignment = Alignment,
+        VerticalAlignment = VerticalAlignment,
+        Background = Background,
+        Borders = Borders,
+        ColumnSpan = ColumnSpan,
+        RowSpan = RowSpan,
+        Padding = Padding,
+    };
 }

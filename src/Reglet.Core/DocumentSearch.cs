@@ -309,41 +309,20 @@ public static class DocumentSearch
                         var blocks = ReplaceBlocks(cell.Blocks, matcher, replacement);
                         var replaced = ReferenceEquals(blocks, cell.Blocks)
                             ? cell
-                            : new TableCell(blocks)
-                            {
-                                Alignment = cell.Alignment,
-                                VerticalAlignment = cell.VerticalAlignment,
-                                Background = cell.Background,
-                                Borders = cell.Borders,
-                                ColumnSpan = cell.ColumnSpan,
-                                RowSpan = cell.RowSpan,
-                                Padding = cell.Padding,
-                            };
+                            : cell.WithBlocks(blocks);
                         rowChanged |= !ReferenceEquals(replaced, cell);
                         cells.Add(replaced);
                     }
 
                     var replacedRow = rowChanged
-                        ? new TableRow(cells)
-                        {
-                            IsHeader = row.IsHeader,
-                            Height = row.Height,
-                            HeightRule = row.HeightRule,
-                        }
+                        ? row.WithCells(cells)
                         : row;
                     changed |= !ReferenceEquals(replacedRow, row);
                     rows.Add(replacedRow);
                 }
 
                 return changed
-                    ? new TableBlock(rows)
-                    {
-                        ColumnWidths = table.ColumnWidths,
-                        Border = table.Border,
-                        CellPadding = table.CellPadding,
-                        WidthPercent = table.WidthPercent,
-                        Style = table.Style,
-                    }
+                    ? table.WithRows(rows)
                     : table;
             }
 

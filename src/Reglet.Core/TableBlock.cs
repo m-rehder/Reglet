@@ -100,4 +100,15 @@ public sealed class TableBlock : Block
     /// has no direct value; header and banded-row backgrounds are conditional formats.
     /// </summary>
     public TableStyle? Style { get; init; }
+
+    /// <summary>a copy with other rows and every other property kept (used by the tree rebuilds).</summary>
+    internal TableBlock WithRows(IEnumerable<TableRow> rows) => new(rows)
+    {
+        ColumnWidths = ColumnWidths,
+        Border = Border,
+        CornerRadius = CornerRadius,
+        CellPadding = CellPadding,
+        WidthPercent = WidthPercent,
+        Style = Style,
+    };
 }

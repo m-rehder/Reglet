@@ -41,4 +41,12 @@ public sealed record TableRow
 
     /// <summary>Rule for the row height.</summary>
     public TableRowHeightRule HeightRule { get; init; } = TableRowHeightRule.Auto;
+
+    /// <summary>a copy with other cells and every other property kept (used by the tree rebuilds).</summary>
+    internal TableRow WithCells(IEnumerable<TableCell> cells) => new(cells)
+    {
+        IsHeader = IsHeader,
+        Height = Height,
+        HeightRule = HeightRule,
+    };
 }

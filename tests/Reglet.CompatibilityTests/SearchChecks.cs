@@ -15,6 +15,7 @@ internal static class SearchChecks
             FindsOccurrences();
             ReplacesText();
             KeepsFormatting();
+            KeepsTableProperties();
             KeepsCharacterStyleWhenSplittingRuns();
             SearchesNestedBlocks();
             HonoursQueryOptions();
@@ -77,6 +78,20 @@ internal static class SearchChecks
         Require(
             DocumentSearch.Find(document, new TextQuery("Invoice")).Count == 3,
             "Replace: the original document is unchanged.");
+    }
+
+    private static void KeepsTableProperties()
+    {
+        // Each tree rebuild copied the table by hand and three of the four forgot CornerRadius.
+        var table = new TableBlock([new TableRow([new TableCell(new Paragraph(new TextRun("Invoice")))])])
+        {
+            CornerRadius = Length.FromPoints(6),
+        };
+        var document = new PortableDocument(new DocumentMetadata(), new Section([table]));
+        var replaced = DocumentSearch.Replace(document, new TextQuery("Invoice"), "Receipt");
+        var copy = (TableBlock)replaced.Sections[0].Blocks[0];
+        Require(!ReferenceEquals(copy, table), "Replace: the table is rebuilt.");
+        Require(copy.CornerRadius == Length.FromPoints(6), "Replace: the corner radius is kept.");
     }
 
     private static void KeepsFormatting()
