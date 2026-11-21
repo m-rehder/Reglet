@@ -181,6 +181,11 @@ public static class MergeDataSource
             {
                 var reference = cell.Attribute("r")?.Value;
                 var column = ColumnIndex(reference);
+                if (header is not null && column >= header.Count)
+                {
+                    continue; // no field: padding up to it would cost up to 16,384 cells per row
+                }
+
                 while (cells.Count < column)
                 {
                     cells.Add(string.Empty);
@@ -274,6 +279,9 @@ public static class MergeDataSource
             {
                 if (header is not null) throw new InvalidDataException("The Excel range has a duplicate header row.");
                 header = cells.Select(value => value ?? "").ToArray();
+                // Columns after the last field name are never read: rows then cost the fields, not the range width.
+                header = header[..Math.Max(1, Array.FindLastIndex(header, name => name.Length > 0) + 1)];
+                lastColumn = firstColumn + header.Length - 1;
                 continue;
             }
             if (header is null) throw new InvalidDataException("The Excel range's header row is missing or out of order.");

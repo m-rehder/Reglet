@@ -19,6 +19,7 @@ internal static class MergeDataSourceChecks
             ReadsExcel();
             ReadsFirstExcelSheetInWorkbookOrder();
             ReadsExcelNamedRange();
+            WideExcelRowsStayCheap();
             RejectsInvalidInput();
             Console.WriteLine("Merge data sources (AJ03): all checks passed.");
             return 0;
@@ -204,6 +205,33 @@ internal static class MergeDataSourceChecks
         Throws<InvalidDataException>(() => MergeDataSource.FromExcel(buffer, "missing"));
         buffer.Position = 0;
         Throws<InvalidDataException>(() => MergeDataSource.FromExcel(buffer, "Bad"));
+    }
+
+    private static void WideExcelRowsStayCheap()
+    {
+        // Each row was padded up to its highest column: one cell in XFD made every row 16,384 cells wide.
+        var sheet = new StringBuilder("<worksheet><sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Name</t></is></c></row>");
+        for (var row = 2; row <= 30_000; row++)
+        {
+            sheet.Append($"<row r=\"{row}\"><c r=\"A{row}\" t=\"inlineStr\"><is><t>x</t></is></c><c r=\"XFD{row}\"/></row>");
+        }
+
+        using var buffer = new MemoryStream();
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteEntry(archive, "xl/workbook.xml", "<workbook xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"Sheet1\" r:id=\"rId1\"/></sheets>"
+                + "<definedNames><definedName name=\"All\">Sheet1!$A$1:$XFD$30000</definedName></definedNames></workbook>");
+            WriteEntry(archive, "xl/_rels/workbook.xml.rels", "<Relationships><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/></Relationships>");
+            WriteEntry(archive, "xl/worksheets/sheet1.xml", sheet.Append("</sheetData></worksheet>").ToString());
+        }
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        buffer.Position = 0;
+        var rows = MergeDataSource.FromExcel(buffer);
+        buffer.Position = 0;
+        var named = MergeDataSource.FromExcel(buffer, "All");
+        Require(rows.Count == 29_999 && named.Count == 29_999 && rows[0]["Name"] == "x" && named[^1]["Name"] == "x", "Excel: wide rows are read.");
+        Require(watch.Elapsed < TimeSpan.FromSeconds(2), $"Excel: wide rows cost the fields, not the sheet width ({watch.Elapsed}).");
     }
 
     private static void WriteEntry(ZipArchive archive, string name, string content)
