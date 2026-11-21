@@ -192,6 +192,12 @@ public static class DocxSignatureReader
             }
         }
 
+        // A signature that covers no part of the package proves nothing about the document.
+        if (signedParts.Count == 0)
+        {
+            problems.Add($"{partName}: the signature covers no part of the package.");
+        }
+
         // The chain: only with trusted roots; the certificates of KeyInfo build the path.
         bool? trusted = null;
         var chainProblems = new List<string>();
@@ -283,6 +289,13 @@ public static class DocxSignatureReader
         {
             problems.Add($"{partName}: the signed properties '{uri}' are missing.");
             return;
+        }
+
+        // An OPC signature as Word writes it lists the parts in a manifest inside the signed object; only the manifest
+        // itself is checked here, not the parts it names, so such a signature must not count as valid.
+        if (target.Descendants(Ds + "Manifest").Elements(Ds + "Reference").Any())
+        {
+            problems.Add($"{partName}: the parts listed in the manifest of '{uri}' cannot be verified (OPC signature with a manifest, as Word writes it).");
         }
 
         if (!DigestMatches(XmlCanonicalizer.Canonicalize(target), digest))

@@ -31,6 +31,7 @@ internal static class DocxSignatureChecks
             RejectsInvalidOptions();
             CanonicalizesStably();
             KeepsAnEarlierSignatureValid();
+            DoesNotTrustAnUncheckedManifest();
             EvaluatesTheChain();
             ValidatesWithLxmlWhenConfigured();
             Console.WriteLine("DOCX signature (OF-E02): all checks passed.");
@@ -139,6 +140,59 @@ internal static class DocxSignatureChecks
         Require(
             signature.Problems.Any(problem => problem.Contains("word/document.xml", StringComparison.Ordinal)),
             "The problem names the part: " + string.Join(" | ", signature.Problems));
+    }
+
+    /// <summary>
+    /// An OPC signature as Word writes it: SignedInfo references the package object, whose manifest names the part
+    /// digests. The reader checked only the object, so a changed document.xml still read as valid with no signed part.
+    /// </summary>
+    private static void DoesNotTrustAnUncheckedManifest()
+    {
+        using var rsa = RSA.Create(2048);
+        using var certificate = new CertificateRequest("CN=Word Signer", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1)
+            .CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+        var plain = Plain();
+        byte[] documentXml = [];
+        _ = ReplaceEntry(plain, "word/document.xml", data => documentXml = data);
+
+        XNamespace ds = "http://www.w3.org/2000/09/xmldsig#";
+        var packageObject = new XElement(ds + "Object", new XAttribute("Id", "idPackageObject"),
+            new XElement(ds + "Manifest",
+                new XElement(ds + "Reference", new XAttribute("URI", "/word/document.xml?ContentType=application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"),
+                    new XElement(ds + "DigestMethod", new XAttribute("Algorithm", "http://www.w3.org/2001/04/xmlenc#sha256")),
+                    new XElement(ds + "DigestValue", Convert.ToBase64String(SHA256.HashData(documentXml))))));
+        var signedInfo = new XElement(ds + "SignedInfo",
+            new XElement(ds + "CanonicalizationMethod", new XAttribute("Algorithm", "http://www.w3.org/TR/2001/REC-xml-c14n-20010315")),
+            new XElement(ds + "SignatureMethod", new XAttribute("Algorithm", "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256")),
+            new XElement(ds + "Reference", new XAttribute("URI", "#idPackageObject"), new XAttribute("Type", "http://www.w3.org/2000/09/xmldsig#Object"),
+                new XElement(ds + "DigestMethod", new XAttribute("Algorithm", "http://www.w3.org/2001/04/xmlenc#sha256")),
+                new XElement(ds + "DigestValue", Convert.ToBase64String(SHA256.HashData(XmlCanonicalizer.Canonicalize(packageObject))))));
+        var signature = new XElement(ds + "Signature", new XAttribute("Id", "idPackageSignature"),
+            signedInfo,
+            new XElement(ds + "SignatureValue", Convert.ToBase64String(rsa.SignData(XmlCanonicalizer.Canonicalize(signedInfo), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))),
+            new XElement(ds + "KeyInfo", new XElement(ds + "X509Data", new XElement(ds + "X509Certificate", Convert.ToBase64String(certificate.RawData)))),
+            packageObject);
+
+        using var buffer = new MemoryStream();
+        using (var target = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        using (var source = new ZipArchive(new MemoryStream(plain), ZipArchiveMode.Read))
+        {
+            foreach (var entry in source.Entries)
+            {
+                using var to = target.CreateEntry(entry.FullName).Open();
+                using var from = entry.Open();
+                from.CopyTo(to);
+            }
+
+            using var part = target.CreateEntry("_xmlsignatures/sig1.xml").Open();
+            part.Write(Encoding.UTF8.GetBytes(signature.ToString(SaveOptions.DisableFormatting)));
+        }
+
+        var tampered = ReplaceEntry(buffer.ToArray(), "word/document.xml",
+            data => Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(data).Replace("Signed content", "Changed content", StringComparison.Ordinal)));
+        var info = DocxSignatureReader.Read(tampered).Single();
+        Require(!info.IsValid, "A signature whose manifest parts are not checked is not valid: " + string.Join(" | ", info.Problems));
+        Require(info.Problems.Any(problem => problem.Contains("manifest", StringComparison.Ordinal)), "The problem names the unchecked manifest.");
     }
 
     /// <summary>A changed signature value makes the signature invalid.</summary>
