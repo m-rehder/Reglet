@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/logo/reglet-128.png" width="96" alt="Reglet logo"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/m-rehder/Reglet/main/docs/logo/reglet-128.png" width="96" alt="Reglet logo"></p>
 
 <h1 align="center">Reglet</h1>
 
@@ -58,11 +58,11 @@ silently.
 | PDF | Embedded fonts, PDF/A, encryption, digital signatures (incl. PAdES), form fields, watermarks, merge and split, text extraction, structure recovery (PDF to DOCX) |
 | Security | Encrypted DOCX and ODT, signed DOCX and ODT, limits against malicious input |
 
-The exact state of every feature per format is in the [feature matrix](docs/feature-matrix.md).
+The exact state of every feature per format is in the [feature matrix](https://github.com/m-rehder/Reglet/blob/main/docs/feature-matrix.md).
 
 ## Examples
 
-The [example gallery](docs/examples.md) has forty runnable programs — from "Hello World" to a complete invoice, a
+The [example gallery](https://github.com/m-rehder/Reglet/blob/main/docs/examples.md) has forty runnable programs — from "Hello World" to a complete invoice, a
 report and a business letter:
 
 ```
@@ -72,14 +72,14 @@ dotnet run --project examples/Gallery -- --out ./out
 
 ## Documentation
 
-- [Example gallery](docs/examples.md) — what each example shows and where its code is.
-- [Guide](docs/guide.md) — writer options per format and templates in detail.
-- [API reference](docs/api-reference.md) — every public type and member on one line each, generated; made for
+- [Example gallery](https://github.com/m-rehder/Reglet/blob/main/docs/examples.md) — what each example shows and where its code is.
+- [Guide](https://github.com/m-rehder/Reglet/blob/main/docs/guide.md) — writer options per format and templates in detail.
+- [API reference](https://github.com/m-rehder/Reglet/blob/main/docs/api-reference.md) — every public type and member on one line each, generated; made for
   search and for coding agents.
-- [Feature matrix](docs/feature-matrix.md) — what each format supports, known limits.
-- [Fields](docs/fields.md), [units](docs/units.md), [hardening](docs/hardening.md), [performance](docs/performance.md),
-  [Native AOT and trimming](docs/aot-trimming.md).
-- [Architecture decisions](docs/decisions/README.md) — why things are the way they are.
+- [Feature matrix](https://github.com/m-rehder/Reglet/blob/main/docs/feature-matrix.md) — what each format supports, known limits.
+- [Fields](https://github.com/m-rehder/Reglet/blob/main/docs/fields.md), [units](https://github.com/m-rehder/Reglet/blob/main/docs/units.md), [hardening](https://github.com/m-rehder/Reglet/blob/main/docs/hardening.md), [performance](https://github.com/m-rehder/Reglet/blob/main/docs/performance.md),
+  [Native AOT and trimming](https://github.com/m-rehder/Reglet/blob/main/docs/aot-trimming.md).
+- [Architecture decisions](https://github.com/m-rehder/Reglet/blob/main/docs/decisions/README.md) — why things are the way they are.
 
 ## What Reglet is not
 
@@ -96,8 +96,8 @@ dotnet run --project tests/Reglet.CompatibilityTests
 build/run-examples.sh
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/build.md](docs/build.md); security issues go the way described in
-[SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](https://github.com/m-rehder/Reglet/blob/main/CONTRIBUTING.md) and [docs/build.md](https://github.com/m-rehder/Reglet/blob/main/docs/build.md); security issues go the way described in
+[SECURITY.md](https://github.com/m-rehder/Reglet/blob/main/SECURITY.md).
 
 ## Support
 
@@ -105,6 +105,6 @@ Reglet is free and stays free. If it saves you time, you can [buy me a coffee on
 
 ## License
 
-Reglet is licensed under the [MIT License](LICENSE). It contains data from the Unicode Character Database and Adobe's
-font metrics for the PDF standard fonts; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The shipped packages
-have no dependencies (see [ZERO-DEPENDENCY.md](ZERO-DEPENDENCY.md)).
+Reglet is licensed under the [MIT License](https://github.com/m-rehder/Reglet/blob/main/LICENSE). It contains data from the Unicode Character Database and Adobe's
+font metrics for the PDF standard fonts; see [THIRD-PARTY-NOTICES.md](https://github.com/m-rehder/Reglet/blob/main/THIRD-PARTY-NOTICES.md). The shipped packages
+have no dependencies (see [ZERO-DEPENDENCY.md](https://github.com/m-rehder/Reglet/blob/main/ZERO-DEPENDENCY.md)).
