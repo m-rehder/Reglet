@@ -151,6 +151,38 @@ internal static class ReaderGuard
     }
 
     /// <summary>
+    /// Bytes the media parts of one document (images, previews, charts, embedded objects) may decompress to in
+    /// total: as much as a source file may hold (images are stored compressed, so a real document stays below it).
+    /// Every reference counts: each becomes its own copy, so one part referenced ten thousand times would otherwise
+    /// take ten thousand times its size.
+    /// </summary>
+    public const long MaxMediaBytesPerDocument = MaxInputBytes;
+
+    /// <summary>The media budget of one read; see <see cref="MaxMediaBytesPerDocument"/>.</summary>
+    public sealed class MediaBudget
+    {
+        private long _used;
+
+        /// <summary>
+        /// Reads a media part after charging its declared size (the ZIP reader never returns more): once the budget
+        /// is spent, nothing more is decompressed.
+        /// </summary>
+        /// <exception cref="DocumentValidationException">The part or the document exceeds its limit.</exception>
+        public byte[] Read(ZipArchiveEntry entry, long limit)
+        {
+            ArgumentNullException.ThrowIfNull(entry);
+            _used += entry.Length;
+            if (_used > MaxMediaBytesPerDocument)
+            {
+                throw new DocumentValidationException(
+                    $"The media parts of the document exceed the limit of {MaxMediaBytesPerDocument} bytes.");
+            }
+
+            return ReadBoundedBytes(entry, limit);
+        }
+    }
+
+    /// <summary>
     /// Guards recursive descent over foreign structures (nested tables, lists, PDF arrays):
     /// instead of a <see cref="StackOverflowException"/>, which would terminate the whole
     /// process, a deeply nested input fails with a catchable exception.

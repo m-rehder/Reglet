@@ -2245,6 +2245,9 @@ public sealed class OdtDocumentReader : IDocumentReader
     {
         public TableReadBudget TableBudget { get; init; } = new();
 
+        /// <summary>The media budget of this read (shared by copies made with <c>with</c>).</summary>
+        public ReaderGuard.MediaBudget Media { get; init; } = new();
+
         /// <summary>The form controls of <c>office:forms</c> by id (ADR-0024).</summary>
         public IReadOnlyDictionary<string, XElement> Controls { get; init; } = new Dictionary<string, XElement>(StringComparer.Ordinal);
 
@@ -2427,7 +2430,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         XElement root;
         try
         {
-            root = TemplatePackage.LoadXml(ReaderGuard.ReadBoundedBytes(entry, ResourceLimits.Default.MaxImageBytes)).Root!;
+            root = TemplatePackage.LoadXml(context.Media.Read(entry, ResourceLimits.Default.MaxImageBytes)).Root!;
         }
         catch (Exception exception) when (exception is DocumentValidationException or System.Xml.XmlException)
         {
@@ -2494,7 +2497,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         {
             try
             {
-                var bytes = ReaderGuard.ReadBoundedBytes(previewEntry, ResourceLimits.Default.MaxImageBytes);
+                var bytes = context.Media.Read(previewEntry, ResourceLimits.Default.MaxImageBytes);
                 if (bytes.AsSpan().StartsWith(new byte[] { 0x89, 0x50, 0x4E, 0x47 }))
                 {
                     preview = new ImageBlock(bytes, ImageMediaType.Png);
@@ -2542,7 +2545,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         byte[] bytes;
         try
         {
-            bytes = ReaderGuard.ReadBoundedBytes(entry, ResourceLimits.Default.MaxImageBytes);
+            bytes = context.Media.Read(entry, ResourceLimits.Default.MaxImageBytes);
         }
         catch (DocumentValidationException)
         {

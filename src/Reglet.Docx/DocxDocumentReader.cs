@@ -159,6 +159,9 @@ public sealed class DocxDocumentReader : IDocumentReader
         /// <summary>Paragraph style id → heading level 1–6 (from styles.xml).</summary>
         public IReadOnlyDictionary<string, int> HeadingStyles { get; init; } = new Dictionary<string, int>(StringComparer.Ordinal);
 
+        /// <summary>The media budget of this read (shared by copies made with <c>with</c>).</summary>
+        public ReaderGuard.MediaBudget Media { get; init; } = new();
+
         /// <summary>The table styles of the document (style id → style), from styles.xml.</summary>
         public IReadOnlyDictionary<string, TableStyle> TableStyles { get; init; } = new Dictionary<string, TableStyle>(StringComparer.Ordinal);
 
@@ -1726,7 +1729,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                 {
                     try
                     {
-                        var bytes = ReaderGuard.ReadBoundedBytes(previewEntry, ResourceLimits.Default.MaxImageBytes);
+                        var bytes = resources.Media.Read(previewEntry, ResourceLimits.Default.MaxImageBytes);
                         preview = bytes.Length > 0 ? new ImageBlock(bytes, MediaTypeOf(previewPath)!.Value) : null;
                     }
                     catch (DocumentValidationException)
@@ -1920,7 +1923,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             byte[] bytes;
             try
             {
-                bytes = ReaderGuard.ReadBoundedBytes(entry, ResourceLimits.Default.MaxImageBytes);
+                bytes = resources.Media.Read(entry, ResourceLimits.Default.MaxImageBytes);
             }
             catch (DocumentValidationException)
             {
@@ -1943,7 +1946,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                 {
                     try
                     {
-                        var fallbackBytes = ReaderGuard.ReadBoundedBytes(fallbackEntry, ResourceLimits.Default.MaxImageBytes);
+                        var fallbackBytes = resources.Media.Read(fallbackEntry, ResourceLimits.Default.MaxImageBytes);
                         if (fallbackBytes.Length > 0) fallback = new ImageBlock(fallbackBytes, MediaTypeOf(fallbackPath)!.Value);
                     }
                     catch (DocumentValidationException)
@@ -1982,7 +1985,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             XElement root;
             try
             {
-                var bytes = ReaderGuard.ReadBoundedBytes(entry, ResourceLimits.Default.MaxImageBytes);
+                var bytes = resources.Media.Read(entry, ResourceLimits.Default.MaxImageBytes);
                 root = TemplatePackage.LoadXml(bytes).Root!;
             }
             catch (DocumentValidationException)

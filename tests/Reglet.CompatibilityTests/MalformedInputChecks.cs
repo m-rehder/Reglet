@@ -30,6 +30,7 @@ internal static class MalformedInputChecks
             DeeplyNestedSignatureOctetsAreRejected();
             KeyDerivationCostIsBounded();
             CompoundFileSizesAreBoundedByTheFile();
+            MediaReferencesShareOneBudget();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -551,6 +552,25 @@ internal static class MalformedInputChecks
         Expect<DocumentValidationException>(() => CompoundFile.Read(size, "EncryptedPackage"), "A stream larger than the file is rejected.", "larger than the file");
     }
 
+    private static void MediaReferencesShareOneBudget()
+    {
+        // One media part referenced 40 times: each reference becomes its own copy. A valid 16 MiB PNG (a few KB in the
+        // package) made 640 MiB; the document budget stops reading before that and leaves the rest out with a warning.
+        const int references = 40;
+        var small = Png(1, 1, 2, [0, 0, 0, 0], []);
+        var large = Png(1, 1, 2, [0, 0, 0, 0], [("zzZz", new byte[16 * 1024 * 1024])]);
+        var document = new PortableDocument(new DocumentMetadata(), new Section(Enumerable.Range(0, references)
+            .Select(_ => (Block)new ImageBlock(small, ImageMediaType.Png)).ToList()));
+        foreach (var (format, media) in new[] { (DocumentFormat.Docx, "word/media/"), (DocumentFormat.Odt, "Pictures/") })
+        {
+            var package = ReplaceEntries(Write(document, format), name => name.StartsWith(media, StringComparison.Ordinal), large);
+            var read = DocumentReader.Read(new MemoryStream(package), format);
+            var images = read.Document.Sections[0].Blocks.OfType<ImageBlock>().Count();
+            Require(images is > 0 and < references, $"{format}: the media budget stops reading copies of one part ({images} of {references} read).");
+            Require(read.Warnings.Count > 0, $"{format}: the media left out are reported.");
+        }
+    }
+
     private static byte[] Write(PortableDocument document, DocumentFormat format)
     {
         using var buffer = new MemoryStream();
@@ -560,6 +580,9 @@ internal static class MalformedInputChecks
 
     /// <summary>Copies a package and replaces the content of every entry whose name matches.</summary>
     private static byte[] ReplaceEntries(byte[] package, Func<string, bool> match, string content)
+        => ReplaceEntries(package, match, Encoding.UTF8.GetBytes(content));
+
+    private static byte[] ReplaceEntries(byte[] package, Func<string, bool> match, byte[] content)
     {
         using var source = new ZipArchive(new MemoryStream(package), ZipArchiveMode.Read);
         using var output = new MemoryStream();
@@ -572,7 +595,7 @@ internal static class MalformedInputChecks
                 if (match(entry.FullName))
                 {
                     replaced++;
-                    to.Write(Encoding.UTF8.GetBytes(content));
+                    to.Write(content);
                 }
                 else
                 {
