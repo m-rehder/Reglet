@@ -820,7 +820,7 @@ internal static class PreservationChecks
         var content = System.Text.Encoding.UTF8.GetString(TestPackages.ReadPart(rewritten, "content.xml"));
         Require(!content.Contains("Pictures/image1.png", StringComparison.Ordinal), "OF-A01: the generated image skips the source name.");
         Require(content.Contains("Pictures/image2.png", StringComparison.Ordinal), "OF-A01: the generated image gets a free name.");
-        Require(TestPackages.ReadPart(rewritten, "Pictures/image1.png").AsSpan().SequenceEqual(first), "OF-A01: the source picture part is kept.");
+        Require(!TestPackages.Names(rewritten).Contains("Pictures/image1.png"), "OF-A01: the replaced source picture is not carried along (ADR-0036).");
         Require(TestPackages.ReadPart(rewritten, "Pictures/image2.png").AsSpan().SequenceEqual(second), "OF-A01: the generated picture part is written.");
     }
 

@@ -110,7 +110,7 @@ public sealed class DocxDocumentWriter : IDocumentWriter
                 {
                     // AF07 (body unchanged): only metadata/settings changed. Adopt the original
                     // package and patch those parts, so unmodelled body content survives.
-                    DocxPreservedPackageWriter.Build(document, preserved, stream, effective, cancellationToken);
+                    DocxPreservedPackageWriter.Build(document, preserved, stream, effective, handler, cancellationToken);
                 }
                 else
                 {

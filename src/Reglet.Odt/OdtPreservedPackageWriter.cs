@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using System.Xml;
+using System.Xml.Linq;
 
 namespace Reglet;
 
@@ -26,6 +27,7 @@ internal static class OdtPreservedPackageWriter
         ReadOnlyMemory<byte> source,
         Stream output,
         OdtWriteOptions options,
+        UnsupportedFeatureHandler handler,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -42,10 +44,22 @@ internal static class OdtPreservedPackageWriter
             mimeStream.Write(Encoding.ASCII.GetBytes(OdtNamespaces.MimeType));
         }
 
+        // The signature does not cover the changed meta.xml; macros never travel into a changed document unasked.
+        var dropped = archive.Entries.Where(entry => IsSignature(entry.FullName) || IsMacro(entry.FullName)).Select(entry => entry.FullName).ToHashSet(StringComparer.Ordinal);
+        if (dropped.Any(IsSignature))
+        {
+            handler.Report("ODT: the signature of the source document is removed; it does not cover the changed document.");
+        }
+
+        if (dropped.Any(IsMacro))
+        {
+            handler.Report("ODT: the macros of the source document are removed.");
+        }
+
         foreach (var entry in archive.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (entry.FullName.EndsWith('/') || entry.Name.Length == 0 || entry.FullName == "mimetype")
+            if (entry.FullName.EndsWith('/') || entry.Name.Length == 0 || entry.FullName == "mimetype" || dropped.Contains(entry.FullName))
             {
                 continue;
             }
@@ -54,7 +68,17 @@ internal static class OdtPreservedPackageWriter
             created.LastWriteTime = FixedTimestamp;
             using var destination = created.Open();
 
-            if (entry.FullName == "meta.xml")
+            if (entry.FullName == "META-INF/manifest.xml" && dropped.Count > 0)
+            {
+                var manifest = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry));
+                XNamespace ns = OdtNamespaces.Manifest;
+                manifest.Root?.Elements(ns + "file-entry")
+                    .Where(fileEntry => (string?)fileEntry.Attribute(ns + "full-path") is { } path
+                        && (dropped.Contains(path) || IsMacro(path)))
+                    .Remove();
+                WriteXml(destination, writer => manifest.WriteTo(writer));
+            }
+            else if (entry.FullName == "meta.xml")
             {
                 WriteXml(destination, writer =>
                     OdtMetaWriter.WriteMeta(writer, document.Metadata, options.InvalidXmlCharacters));
@@ -66,6 +90,11 @@ internal static class OdtPreservedPackageWriter
             }
         }
     }
+
+    internal static bool IsSignature(string name) => name is OdtSignatureWriter.SignaturePartName or "META-INF/macrosignatures.xml";
+
+    internal static bool IsMacro(string name)
+        => name.StartsWith("Basic/", StringComparison.Ordinal) || name.StartsWith("Scripts/", StringComparison.Ordinal);
 
     private static void WriteXml(Stream destination, Action<XmlWriter> write)
     {

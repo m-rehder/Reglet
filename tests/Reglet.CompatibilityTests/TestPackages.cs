@@ -97,6 +97,13 @@ internal static class TestPackages
         document.Save(destination);
     }
 
+    /// <summary>The entry names of a package.</summary>
+    public static IReadOnlyList<string> Names(byte[] package)
+    {
+        using var source = new ZipArchive(new MemoryStream(package, writable: false), ZipArchiveMode.Read);
+        return source.Entries.Select(entry => entry.FullName).ToList();
+    }
+
     /// <summary>Reads one part of a package.</summary>
     public static byte[] ReadPart(byte[] package, string name)
     {

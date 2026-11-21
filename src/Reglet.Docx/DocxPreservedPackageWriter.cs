@@ -28,6 +28,7 @@ internal static class DocxPreservedPackageWriter
         ReadOnlyMemory<byte> source,
         Stream output,
         DocxWriteOptions options,
+        UnsupportedFeatureHandler handler,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -39,10 +40,18 @@ internal static class DocxPreservedPackageWriter
         using var archive = new ZipArchive(input, ZipArchiveMode.Read);
         using var target = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true);
 
+        // A signature does not cover the changed metadata.
+        var signed = archive.Entries.Any(entry => entry.FullName.StartsWith(DocxSignatureWriter.Folder, StringComparison.OrdinalIgnoreCase));
+        if (signed)
+        {
+            handler.Report("DOCX: the signature of the source document is removed; it does not cover the changed document.");
+        }
+
         foreach (var entry in archive.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (entry.FullName.EndsWith('/') || entry.Name.Length == 0)
+            if (entry.FullName.EndsWith('/') || entry.Name.Length == 0
+                || entry.FullName.StartsWith(DocxSignatureWriter.Folder, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -67,11 +76,14 @@ internal static class DocxPreservedPackageWriter
                 case DocxConstants.VbaProjectPart:
                     destination.Write(document.Metadata.MacroProject!.Data.Span);
                     break;
-                case "[Content_Types].xml" when dropMacro:
-                    WriteXml(destination, writer => StripMacroTypes(entry).WriteTo(writer));
+                case "[Content_Types].xml" when dropMacro || signed:
+                    WriteXml(destination, writer => StripTypes(entry, dropMacro).WriteTo(writer));
+                    break;
+                case "_rels/.rels" when signed:
+                    WriteXml(destination, writer => StripRelationships(entry, DocxSignatureWriter.OriginRelationship).WriteTo(writer));
                     break;
                 case "word/_rels/document.xml.rels" when dropMacro:
-                    WriteXml(destination, writer => StripMacroRelationship(entry).WriteTo(writer));
+                    WriteXml(destination, writer => StripRelationships(entry, DocxConstants.VbaProjectRelationship).WriteTo(writer));
                     break;
                 case DocxConstants.SettingsPart:
                     WriteSettings(entry, destination, evenAndOddHeaders, options, document.Metadata.Variables);
@@ -87,14 +99,25 @@ internal static class DocxPreservedPackageWriter
         }
     }
 
-    /// <summary>The content types without the VBA project; the main part is a plain document again.</summary>
-    private static XElement StripMacroTypes(ZipArchiveEntry entry)
+    /// <summary>
+    /// The content types without the signature parts and, when the macros are dropped, without the VBA project
+    /// (the main part is a plain document again).
+    /// </summary>
+    private static XElement StripTypes(ZipArchiveEntry entry, bool dropMacro)
     {
         var types = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root!;
         foreach (var element in types.Elements().ToList())
         {
             var contentType = element.Attribute("ContentType")?.Value;
-            if (contentType == DocxConstants.VbaProjectContentType)
+            if (((string?)element.Attribute("PartName"))?.StartsWith("/" + DocxSignatureWriter.Folder, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                element.Remove();
+            }
+            else if (!dropMacro)
+            {
+                continue;
+            }
+            else if (contentType == DocxConstants.VbaProjectContentType)
             {
                 element.Remove();
             }
@@ -107,10 +130,10 @@ internal static class DocxPreservedPackageWriter
         return types;
     }
 
-    private static XElement StripMacroRelationship(ZipArchiveEntry entry)
+    private static XElement StripRelationships(ZipArchiveEntry entry, string type)
     {
         var relationships = ReaderGuard.LoadXml(TemplatePackage.ReadEntry(entry)).Root!;
-        relationships.Elements().Where(r => r.Attribute("Type")?.Value == DocxConstants.VbaProjectRelationship).Remove();
+        relationships.Elements().Where(r => r.Attribute("Type")?.Value == type).Remove();
         return relationships;
     }
 

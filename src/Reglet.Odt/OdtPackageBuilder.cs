@@ -71,7 +71,8 @@ internal static class OdtPackageBuilder
 
         // AF13: styles.xml is adopted when the model adds no named styles, the defaults and the
         // section layout/bands are unchanged; otherwise it is regenerated.
-        if (!SourceStylesPreserved(document) || !TryPreserveSourcePart(package, document, "styles.xml", options.AutoHyphenation))
+        var stylesFromSource = SourceStylesPreserved(document) && TryPreserveSourcePart(package, document, "styles.xml", options.AutoHyphenation);
+        if (!stylesFromSource)
         {
             OdtStylesWriter.Write(package, document, images, options.InvalidXmlCharacters, options.AutoHyphenation, embeddedFonts);
         }
@@ -84,9 +85,11 @@ internal static class OdtPackageBuilder
             OdtSettingsWriter.Write(package, document);
         }
 
-        // AF11: carry over source package parts the builder does not generate (unknown custom parts,
-        // unreferenced media, …) byte-identically and list them in the regenerated manifest.
-        PreserveSourceParts(package, document);
+        // AF11: carry over source package parts the builder does not generate (unknown custom parts, …)
+        // byte-identically and list them in the regenerated manifest. Pictures and objects only while source
+        // XML written again points to them (ADR-0036).
+        var sourceXml = (preservedBlocks?.Values ?? []).Concat(sourceStyles.Elements);
+        PreserveSourceParts(package, document, sourceXml, stylesFromSource, handler);
     }
 
     /// <summary>
@@ -651,7 +654,12 @@ internal static class OdtPackageBuilder
         return true;
     }
 
-    private static void PreserveSourceParts(OdtPackageWriter package, PortableDocument document)
+    private static void PreserveSourceParts(
+        OdtPackageWriter package,
+        PortableDocument document,
+        IEnumerable<XElement> sourceXml,
+        bool stylesFromSource,
+        UnsupportedFeatureHandler handler)
     {
         if (document.SourcePackage is not { IsEmpty: false } bytes)
         {
@@ -668,6 +676,21 @@ internal static class OdtPackageBuilder
         }
 
         var mediaTypes = ReadManifestMediaTypes(source);
+        var referenced = new HashSet<string>(StringComparer.Ordinal);
+        var xml = sourceXml.ToList();
+        if (stylesFromSource && source.GetEntry("styles.xml") is { } stylesEntry)
+        {
+            xml.Add(ReaderGuard.LoadXml(TemplatePackage.ReadEntry(stylesEntry)).Root!);
+        }
+
+        foreach (var href in xml.SelectMany(element => element.DescendantsAndSelf())
+            .Select(element => (string?)element.Attribute(XName.Get("href", OdtNamespaces.XLink)))
+            .OfType<string>())
+        {
+            referenced.Add(PackagePart(href));
+        }
+
+        var macrosReported = false;
         foreach (var entry in source.Entries)
         {
             var name = entry.FullName;
@@ -678,9 +701,48 @@ internal static class OdtPackageBuilder
                 continue;
             }
 
+            // A signature does not cover the changed document.
+            if (OdtPreservedPackageWriter.IsSignature(name))
+            {
+                handler.Report("ODT: the signature of the source document is removed; it does not cover the changed document.");
+                continue;
+            }
+
+            // Macros are never carried into a changed document unasked (as in DOCX, ADR-0028).
+            if (OdtPreservedPackageWriter.IsMacro(name))
+            {
+                if (!macrosReported)
+                {
+                    handler.Report("ODT: the macros of the source document are removed.");
+                    macrosReported = true;
+                }
+
+                continue;
+            }
+
+            // Pictures and embedded objects come from the model; a source copy nothing points to any more would
+            // keep removed content in the package (ADR-0036).
+            if (IsModelPart(name) && !referenced.Any(target => name == target || name.StartsWith(target + "/", StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
             var mediaType = mediaTypes.TryGetValue(name, out var value) ? value : "application/octet-stream";
             package.AddBinaryPart(name, mediaType, TemplatePackage.ReadEntry(entry));
         }
+    }
+
+    /// <summary>Pictures, object replacement images and embedded objects ("Object 1/content.xml").</summary>
+    private static bool IsModelPart(string name)
+        => name.StartsWith("Pictures/", StringComparison.Ordinal)
+            || name.StartsWith("ObjectReplacements/", StringComparison.Ordinal)
+            || name.StartsWith("Object ", StringComparison.Ordinal);
+
+    /// <summary>The package path of a local link ("./Object 1" → "Object 1", "Pictures/a%20b.png" → "Pictures/a b.png").</summary>
+    private static string PackagePart(string href)
+    {
+        var path = Uri.UnescapeDataString(href);
+        return (path.StartsWith("./", StringComparison.Ordinal) ? path[2..] : path).TrimEnd('/');
     }
 
     private static Dictionary<string, string> ReadManifestMediaTypes(ZipArchive source)

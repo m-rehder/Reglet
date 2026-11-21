@@ -81,6 +81,33 @@ internal sealed class OpcPackageWriter : IDisposable
         list.Add(relationship);
     }
 
+    /// <summary>The package parts the registered internal relationships point to.</summary>
+    public IEnumerable<string> InternalTargets()
+        => _relationships.SelectMany(entry => entry.Value
+            .Where(relationship => relationship.TargetMode != "External")
+            .Select(relationship => ResolveTarget(entry.Key, relationship.Target)));
+
+    /// <summary>The part name a relationship target of <paramref name="sourcePart"/> names ("media/a.png" → "word/media/a.png").</summary>
+    public static string ResolveTarget(string sourcePart, string target)
+    {
+        var unescaped = Uri.UnescapeDataString(target);
+        var start = unescaped.StartsWith('/') ? string.Empty : sourcePart[..(sourcePart.LastIndexOf('/') + 1)];
+        var segments = new List<string>();
+        foreach (var segment in (start + unescaped).Split('/'))
+        {
+            if (segment == "..")
+            {
+                if (segments.Count > 0) segments.RemoveAt(segments.Count - 1);
+            }
+            else if (segment is not ("." or ""))
+            {
+                segments.Add(segment);
+            }
+        }
+
+        return string.Join('/', segments);
+    }
+
     /// <summary>Ensures that a (possibly empty) .rels part is created for the source part.</summary>
     public void EnsureRelationshipsPart(string sourcePart)
     {

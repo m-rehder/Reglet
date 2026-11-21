@@ -264,7 +264,9 @@ metadata, e.g. `read with { Metadata = ... }`) adopts the original package and p
 `docProps/core.xml` and `word/settings.xml` — the body and all unmodelled XML stay byte-identical.
 A document with a **changed body** is regenerated, but every package part the writer does not
 generate itself (comments, theme, glossary, embeddings, unknown custom parts) is carried over
-byte-identically, and if the source had content the reader could not model a `WriteWarning` is
+byte-identically — except parts of the kinds the model writes (headers, footers, notes, media, charts) that
+nothing in the written package points to any more, and the signature, which no longer covers the document
+(ADR-0036) — and if the source had content the reader could not model a `WriteWarning` is
 reported instead of losing it silently (`UnsupportedContent.Fail` makes it an error). Unmodelled
 content *inside* `word/document.xml` is preserved for open+save, body-unchanged edits and — in a
 changed body — for top-level blocks that are unchanged (reference identity) and reference only
@@ -279,7 +281,8 @@ text of a band in a read document without losing the unmodelled XML of its other
 
 **ODT preservation (AF11):** the ODT reader also keeps its source package; an unmodified ODT is
 written back **byte-identically** (open+save). When the body is changed, every package part the
-ODT writer does not generate itself is carried over byte-identically and listed in the regenerated
+ODT writer does not generate itself is carried over byte-identically (pictures and embedded objects only
+while written source XML points to them; macros and signatures are dropped with a warning, ADR-0036) and listed in the regenerated
 manifest. A metadata-only ODT edit adopts the original package and patches only `meta.xml`, so
 `content.xml` and styles stay byte-identical. In a changed single-section body, reference-unchanged
 ODT blocks that reference no automatic/named style, plus headings, formatted paragraphs

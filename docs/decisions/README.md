@@ -42,5 +42,6 @@ implemented, the known limits, the open work and what is out of scope are kept i
 | [0033](ADR-0033-docx-pdf-conversion.md) | – | Accepted: DOCX↔PDF: opt-in structure recovery in the PDF reader (paragraphs, headings, lists, tables, images, headers/footers), measured DOCX→PDF fidelity against LibreOffice |
 | [0034](ADR-0034-pdf-formula-recovery.md) | – | Accepted: formula recovery from PDF (opt-in): fractions, radicals, scripts, n-ary operators from geometry and rules |
 | [0035](ADR-0035-reglet-1.0.md) | – | Accepted: publication as Reglet 1.0.0 (name, logo, own examples, clean history) |
+| [0036](ADR-0036-no-stale-parts.md) | – | Accepted: a changed document carries no removed content, no foreign package, no macros and no stale signature of its source |
 
 A new ADR is added to this table; a change of a status goes into the feature matrix, not here.

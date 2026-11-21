@@ -242,7 +242,15 @@ internal static class DocxPackageBuilder
 
         using var stream = new MemoryStream(sourcePackage.ToArray(), writable: false);
         using var source = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        // Only a DOCX source may be reused: the parts of an ODT would carry its whole original text along.
+        if (source.GetEntry(DocxConstants.DocumentPart) is null)
+        {
+            return;
+        }
+
         var contentTypes = SourceContentTypes.Read(source);
+        var reachable = ReachableModelParts(package, source);
         var commentsModelled = ModelledCommentIds(sourcePackage.Span).Count > 0;
         var embeddingTargets = ReadSourceRelationships(source, DocxConstants.DocumentPart).Values
             .Where(r => r.Type is DocxEmbeddedObjects.OleObjectRelationship or DocxEmbeddedObjects.PackageRelationship)
@@ -254,6 +262,13 @@ internal static class DocxPackageBuilder
         {
             var name = entry.FullName;
             if (name.Length == 0 || name.EndsWith('/') || package.HasWritten(name) || package.IsReserved(name))
+            {
+                continue;
+            }
+
+            // Headers, notes, media and charts come from the model; a source copy nothing points to any more
+            // would keep removed content in the package.
+            if (ModelPartOwner(name) is { } owner && !reachable.Contains(owner))
             {
                 continue;
             }
@@ -332,6 +347,52 @@ internal static class DocxPackageBuilder
         }
 
         return ids;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex ModelPartPattern = new(
+        @"^word/(?:(?:header|footer)\d*\.xml|footnotes\.xml|endnotes\.xml|media/.+|charts/.+)$",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// The part a source part belongs to when the model generates parts of its kind (header, footer, notes, media,
+    /// chart, or the relationships part of one), else null.
+    /// </summary>
+    private static string? ModelPartOwner(string name)
+    {
+        var owner = name;
+        var rels = name.LastIndexOf("_rels/", StringComparison.Ordinal);
+        if (rels >= 0 && name.EndsWith(".rels", StringComparison.Ordinal))
+        {
+            owner = name[..rels] + name[(rels + "_rels/".Length)..^".rels".Length];
+        }
+
+        return ModelPartPattern.IsMatch(owner) ? owner : null;
+    }
+
+    /// <summary>
+    /// The source parts of the model kinds that the written package still points to: directly through its
+    /// relationships (e.g. a block kept verbatim) or through the source relationships of such a part.
+    /// </summary>
+    private static HashSet<string> ReachableModelParts(OpcPackageWriter package, ZipArchive source)
+    {
+        var reachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pending = new Stack<string>(package.InternalTargets());
+        while (pending.Count > 0)
+        {
+            var part = pending.Pop();
+            // A part the writer generated has its own new relationships; only a copied source part keeps the source ones.
+            if (!reachable.Add(part) || package.HasWritten(part))
+            {
+                continue;
+            }
+
+            foreach (var relationship in ReadSourceRelationships(source, part).Values.Where(r => r.TargetMode != "External"))
+            {
+                pending.Push(OpcPackageWriter.ResolveTarget(part, relationship.Target));
+            }
+        }
+
+        return reachable;
     }
 
     private static bool IsCommentsPart(string name)

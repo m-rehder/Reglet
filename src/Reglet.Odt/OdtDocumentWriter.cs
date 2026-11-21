@@ -88,7 +88,7 @@ public sealed class OdtDocumentWriter : IDocumentWriter
             {
                 // AF12 (body unchanged): only the metadata changed. Adopt the original package
                 // and patch meta.xml, so content.xml, styles and unmodelled parts survive.
-                OdtPreservedPackageWriter.Build(document, preserved, target, effective, cancellationToken);
+                OdtPreservedPackageWriter.Build(document, preserved, target, effective, handler, cancellationToken);
             }
             else
             {
