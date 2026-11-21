@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Writer fuzzing: random documents through all four writers and back through the readers. Not shipped. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CA1305;CA1307;CA1310;CA1309;CA1850;CA1861;CA5394;IDE0011;IDE0040;IDE0044;IDE0055;IDE0058;IDE0161</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Reglet\Reglet.csproj" />
+  </ItemGroup>
+
+</Project>
