@@ -21,6 +21,7 @@ internal static class HyperlinkChecks
             WritesPdfHyperlinkAnnotation();
             RejectsInvalidValues();
             ClassifiesLinkTargets();
+            RejectsScriptTargets();
             DropsDisallowedTargetsWhenReading(DocumentFormat.Docx);
             DropsDisallowedTargetsWhenReading(DocumentFormat.Odt);
             Console.WriteLine("Hyperlinks (Z02): all checks passed.");
@@ -201,11 +202,32 @@ internal static class HyperlinkChecks
         }
     }
 
+    private static void RejectsScriptTargets()
+    {
+        // Only the HTML writer filtered: DOCX, ODT and PDF wrote a javascript: link set through the API.
+        foreach (var script in new[] { "javascript:alert(1)", "JaVaScRiPt:alert(1)", "java\tscript:alert(1)", " javascript:x", "vbscript:x", "data:text/html,x" })
+        {
+            try
+            {
+                _ = new Hyperlink(script, "x");
+                throw new InvalidOperationException($"A script link target is accepted: {script}");
+            }
+            catch (ArgumentException)
+            {
+            }
+        }
+
+        foreach (var allowed in new[] { "https://example.com", "tel:+49", "file:///C:/x", "#Anchor", "docs/data:x" })
+        {
+            _ = new Hyperlink(allowed, "x");
+        }
+    }
+
     private static void DropsDisallowedTargetsWhenReading(DocumentFormat format)
     {
         var source = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
         {
-            new Paragraph(new Hyperlink("javascript:alert(1)", "Bad")),
+            new Paragraph(new Hyperlink("file:///C:/x", "Bad")),
             new Paragraph(new Hyperlink("https://example.com/", "Good")),
         }));
 
@@ -223,7 +245,7 @@ internal static class HyperlinkChecks
         using var pdf = new MemoryStream();
         DocumentWriter.WriteAsync(read.Document, pdf, DocumentFormat.Pdf).GetAwaiter().GetResult();
         var raw = System.Text.Encoding.Latin1.GetString(pdf.ToArray());
-        Require(!raw.Contains("javascript", StringComparison.OrdinalIgnoreCase), $"{format}: a disallowed link does not reach the PDF.");
+        Require(!raw.Contains("file:///C:/x", StringComparison.OrdinalIgnoreCase), $"{format}: a disallowed link does not reach the PDF.");
     }
 
     private static string ReadZipEntry(byte[] package, string name)

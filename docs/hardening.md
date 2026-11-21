@@ -53,7 +53,9 @@ The readers treat every file as untrusted:
   10,000,000 rounds (the MS-OFFCRYPTO limit), ODT at most 1,000,000 per entry and 50,000,000 for the whole
   package; the writer options have the same limits.
 - **Hyperlinks:** DOCX and ODT readers adopt only `http`, `https`, `mailto`, `#bookmark` and relative
-  targets; any other scheme or network path is dropped with a warning and the text stays.
+  targets; any other scheme or network path is dropped with a warning and the text stays. The model itself
+  refuses a script target (`javascript:`, `vbscript:`, `data:`), so no writer can emit one; the HTML writer also
+  keeps only the targets the readers adopt.
 
 **Templates:** binding may add at most `ResourceLimits.MaxTemplateCharacters` characters (256 MiB by
 default), counted over bound values and repeated regions or rows; invalid XML characters in row values

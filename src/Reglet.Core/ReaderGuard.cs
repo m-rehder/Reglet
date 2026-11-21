@@ -49,6 +49,18 @@ internal static class ReaderGuard
         return compact[..end].ToLowerInvariant() is "http" or "https" or "mailto";
     }
 
+    /// <summary>
+    /// Whether a link target runs code or carries a document when it is followed (<c>javascript:</c>, <c>vbscript:</c>,
+    /// <c>data:</c>); spaces and control characters are ignored as a browser does.
+    /// </summary>
+    public static bool IsScriptLinkTarget(string target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        var compact = string.Concat(target.Where(character => character > ' '));
+        var end = compact.AsSpan().IndexOfAny(":/?#\\");
+        return end > 0 && compact[end] == ':' && compact[..end].ToLowerInvariant() is "javascript" or "vbscript" or "data";
+    }
+
     /// <summary>Maximum element depth of a foreign XML part; real documents stay far below it.</summary>
     public const int MaxXmlDepth = 1024;
 

@@ -10,7 +10,7 @@ public sealed class Hyperlink : Inline
 
     /// <summary>Creates a hyperlink with plain text.</summary>
     /// <exception cref="ArgumentNullException">Target or text is null.</exception>
-    /// <exception cref="ArgumentException">The target is empty.</exception>
+    /// <exception cref="ArgumentException">The target is empty or a script (<c>javascript:</c>, <c>vbscript:</c>, <c>data:</c>).</exception>
     public Hyperlink(string target, string text)
         : this(target, new Inline[] { new TextRun(text) })
     {
@@ -18,11 +18,15 @@ public sealed class Hyperlink : Inline
 
     /// <summary>Creates a hyperlink with several inline elements.</summary>
     /// <exception cref="ArgumentNullException">Target or content is null.</exception>
-    /// <exception cref="ArgumentException">The target is empty.</exception>
+    /// <exception cref="ArgumentException">The target is empty or a script (<c>javascript:</c>, <c>vbscript:</c>, <c>data:</c>).</exception>
     public Hyperlink(string target, IEnumerable<Inline> inlines)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         ArgumentNullException.ThrowIfNull(inlines);
+        if (ReaderGuard.IsScriptLinkTarget(target))
+        {
+            throw new ArgumentException("A link target must not be a script (javascript:, vbscript:, data:).", nameof(target));
+        }
 
         _target = target;
         Inlines = ModelCollections.Snapshot(inlines, nameof(inlines));
