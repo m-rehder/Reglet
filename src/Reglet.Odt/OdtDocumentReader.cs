@@ -2427,7 +2427,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         XElement root;
         try
         {
-            root = XDocument.Load(new MemoryStream(ReaderGuard.ReadBoundedBytes(entry, ResourceLimits.Default.MaxImageBytes))).Root!;
+            root = TemplatePackage.LoadXml(ReaderGuard.ReadBoundedBytes(entry, ResourceLimits.Default.MaxImageBytes)).Root!;
         }
         catch (Exception exception) when (exception is DocumentValidationException or System.Xml.XmlException)
         {

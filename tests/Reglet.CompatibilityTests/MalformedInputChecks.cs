@@ -25,6 +25,7 @@ internal static class MalformedInputChecks
             PdfFlippedCtmKeepsLineOrder();
             PdfWrittenAtStreamOffsetIsReadable();
             PngSecondIhdrIsRejected();
+            ForeignXmlPartsUseTheXmlGuard();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -427,6 +428,75 @@ internal static class MalformedInputChecks
         }
 
         return buffer.ToArray();
+    }
+
+    private static void ForeignXmlPartsUseTheXmlGuard()
+    {
+        // Chart parts, ODT objects and custom XML were loaded without the guard: a DTD was accepted and the depth was
+        // unbounded (loading time grows with the square of the depth, so a deep part blocks a thread for hours).
+        var payloads = new[]
+        {
+            "<!DOCTYPE x [<!ENTITY e \"text\">]><x>&e;</x>",
+            string.Concat(Enumerable.Repeat("<x>", ReaderGuard.MaxXmlDepth + 100)) + string.Concat(Enumerable.Repeat("</x>", ReaderGuard.MaxXmlDepth + 100)),
+        };
+        var chart = new Chart(ChartKind.Column, [new ChartSeries("s", [1.0, 2.0])], ["a", "b"]);
+        var withChart = new PortableDocument(new DocumentMetadata(), new Section(chart));
+        var withCustomXml = new PortableDocument(
+            new DocumentMetadata { CustomXmlParts = [new CustomXmlPart { Xml = "<data/>" }] },
+            new Section(new Paragraph(new TextRun("Body"))));
+        foreach (var payload in payloads)
+        {
+            var docx = ReplaceEntries(Write(withChart, DocumentFormat.Docx), name => name.StartsWith("word/charts/chart", StringComparison.Ordinal), payload);
+            var read = DocumentReader.Read(new MemoryStream(docx), DocumentFormat.Docx);
+            Require(!read.Document.Sections[0].Blocks.OfType<Chart>().Any() && read.Warnings.Any(warning => warning.Message.Contains("chart part", StringComparison.Ordinal)),
+                "DOCX: a chart part with a DTD or deep nesting is skipped with a warning.");
+
+            var odt = ReplaceEntries(Write(withChart, DocumentFormat.Odt), name => name.EndsWith("/content.xml", StringComparison.Ordinal), payload);
+            read = DocumentReader.Read(new MemoryStream(odt), DocumentFormat.Odt);
+            Require(!read.Document.Sections[0].Blocks.OfType<Chart>().Any() && read.Warnings.Any(warning => warning.Message.Contains("cannot be read", StringComparison.Ordinal)),
+                "ODT: an embedded object with a DTD or deep nesting is skipped with a warning.");
+
+            var custom = ReplaceEntries(Write(withCustomXml, DocumentFormat.Docx), name => name.StartsWith("customXml/item", StringComparison.Ordinal) && !name.Contains("Props", StringComparison.Ordinal), payload);
+            Require(DocumentReader.Read(new MemoryStream(custom), DocumentFormat.Docx).Document.Metadata.CustomXmlParts is not { Count: > 0 },
+                "DOCX: a custom XML part with a DTD or deep nesting is skipped.");
+        }
+
+        Expect<ArgumentException>(() => _ = new CustomXmlPart { Xml = payloads[0] }, "A custom XML part with a DTD is rejected.");
+    }
+
+    private static byte[] Write(PortableDocument document, DocumentFormat format)
+    {
+        using var buffer = new MemoryStream();
+        DocumentWriter.WriteAsync(document, buffer, format).GetAwaiter().GetResult();
+        return buffer.ToArray();
+    }
+
+    /// <summary>Copies a package and replaces the content of every entry whose name matches.</summary>
+    private static byte[] ReplaceEntries(byte[] package, Func<string, bool> match, string content)
+    {
+        using var source = new ZipArchive(new MemoryStream(package), ZipArchiveMode.Read);
+        using var output = new MemoryStream();
+        var replaced = 0;
+        using (var target = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var entry in source.Entries)
+            {
+                using var to = target.CreateEntry(entry.FullName).Open();
+                if (match(entry.FullName))
+                {
+                    replaced++;
+                    to.Write(Encoding.UTF8.GetBytes(content));
+                }
+                else
+                {
+                    using var from = entry.Open();
+                    from.CopyTo(to);
+                }
+            }
+        }
+
+        Require(replaced > 0, "Test setup: the package has the entry to replace.");
+        return output.ToArray();
     }
 
     private static void WriteEntry(ZipArchive zip, string path, string content)

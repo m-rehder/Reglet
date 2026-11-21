@@ -20,7 +20,8 @@ public sealed record CustomXmlPart
             ArgumentException.ThrowIfNullOrWhiteSpace(value, nameof(Xml));
             try
             {
-                _ = XDocument.Parse(value);
+                // Same rules as every foreign XML part: no DTD, bounded depth (the reader passes file content here).
+                _ = ReaderGuard.ParseXml(value);
             }
             catch (System.Xml.XmlException exception)
             {

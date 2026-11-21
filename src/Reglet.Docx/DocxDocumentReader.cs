@@ -1983,7 +1983,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             try
             {
                 var bytes = ReaderGuard.ReadBoundedBytes(entry, ResourceLimits.Default.MaxImageBytes);
-                root = XDocument.Load(new MemoryStream(bytes)).Root!;
+                root = TemplatePackage.LoadXml(bytes).Root!;
             }
             catch (DocumentValidationException)
             {
