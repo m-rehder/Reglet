@@ -167,11 +167,19 @@ internal static class DocxMath
 
         var alignment = (string?)element.Element(M + "oMathParaPr")?.Element(M + "jc")?.Attribute(M + "val");
         var reader = new Reader(warn);
-        var root = reader.Content(math);
-        return new Equation(root)
+        try
         {
-            Alignment = alignment switch { "left" => TextAlignment.Left, "right" => TextAlignment.Right, _ => null },
-        };
+            return new Equation(reader.Content(math))
+            {
+                Alignment = alignment switch { "left" => TextAlignment.Left, "right" => TextAlignment.Right, _ => null },
+            };
+        }
+        catch (ArgumentException)
+        {
+            // Too large for the model: this formula is left out, the rest of the document stays readable.
+            warn($"DOCX: a formula has more than {MathNode.MaxNodes} nodes or {MathNode.MaxDepth} levels and is not mapped.");
+            return null;
+        }
     }
 
     private sealed class Reader(Action<string> warn)

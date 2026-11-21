@@ -35,6 +35,7 @@ internal static class MalformedInputChecks
             HugeCellSpansAreBounded();
             SvgReferencesAreBudgeted();
             HugeMediaBoxDoesNotStallRecovery();
+            OversizedFormulaIsLeftOut();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -679,6 +680,24 @@ internal static class MalformedInputChecks
         Require(watch.Elapsed < TimeSpan.FromSeconds(30), $"PDF: a huge MediaBox does not stall the recovery ({watch.Elapsed}).");
         Require(read.Warnings.Any(warning => warning.Message.Contains("MediaBox", StringComparison.Ordinal)), "PDF: the invalid MediaBox is reported.");
         Require(read.Document.Sections[0].PageSize.Width.Points < 1000, "PDF: A4 is used instead.");
+    }
+
+    private static void OversizedFormulaIsLeftOut()
+    {
+        // A formula above the model limit (2000 nodes) made the whole document unreadable instead of only the formula.
+        const string math = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+        var runs = string.Concat(Enumerable.Repeat("<m:r><m:t>x</m:t></m:r>", MathNode.MaxNodes + 10));
+        var docx = ReadDocxBody($"<w:p><m:oMath xmlns:m='{math}'>{runs}</m:oMath></w:p><w:p><w:r><w:t>After the formula</w:t></w:r></w:p>");
+        Require(docx.Document.Sections[0].Blocks.OfType<Paragraph>().Any(paragraph => PlainText(paragraph) == "After the formula"), "DOCX: the rest of the document is read.");
+        Require(docx.Warnings.Any(warning => warning.Message.Contains("formula", StringComparison.Ordinal)), "DOCX: the left-out formula is reported.");
+
+        // ODT: a small formula written by Reglet, its MathML object replaced by an oversized one.
+        var small = ReadDocxBody($"<w:p><m:oMath xmlns:m='{math}'><m:r><m:t>x</m:t></m:r></m:oMath></w:p><w:p><w:r><w:t>After the formula</w:t></w:r></w:p>").Document;
+        var mathml = "<math xmlns='http://www.w3.org/1998/Math/MathML'><mrow>" + string.Concat(Enumerable.Repeat("<mi>x</mi>", MathNode.MaxNodes + 10)) + "</mrow></math>";
+        var odt = ReplaceEntries(Write(small, DocumentFormat.Odt), name => name.StartsWith("Object ", StringComparison.Ordinal) && name.EndsWith("/content.xml", StringComparison.Ordinal), mathml);
+        var read = DocumentReader.Read(new MemoryStream(odt), DocumentFormat.Odt);
+        Require(read.Document.Sections[0].Blocks.OfType<Paragraph>().Any(paragraph => PlainText(paragraph) == "After the formula"), "ODT: the rest of the document is read.");
+        Require(read.Warnings.Any(warning => warning.Message.Contains("formula", StringComparison.Ordinal)), "ODT: the left-out formula is reported.");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)

@@ -229,10 +229,19 @@ internal static class OdtMath
 
         var holder = root.Element(Ml + "semantics") ?? root;
         var reader = new Reader(warn);
-        return new Equation(reader.Content(holder.Elements().Where(e => e.Name != Ml + "annotation" && e.Name != Ml + "annotation-xml")))
+        try
         {
-            AltText = altText,
-        };
+            return new Equation(reader.Content(holder.Elements().Where(e => e.Name != Ml + "annotation" && e.Name != Ml + "annotation-xml")))
+            {
+                AltText = altText,
+            };
+        }
+        catch (ArgumentException)
+        {
+            // Too large for the model: this formula is left out, the rest of the document stays readable.
+            warn($"ODT: a formula has more than {MathNode.MaxNodes} nodes or {MathNode.MaxDepth} levels and is not mapped.");
+            return null;
+        }
     }
 
     private sealed class Reader(Action<string> warn)
