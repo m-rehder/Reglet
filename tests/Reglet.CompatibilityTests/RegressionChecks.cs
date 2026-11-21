@@ -665,10 +665,13 @@ internal static class RegressionChecks
         };
         var page = PdfPageContents(new PortableDocument(new DocumentMetadata(), [head, columns]))[0];
         var below = TextY(page, "Standfirst");
-        var right = Enumerable.Range(0, 12).Select(i => $"Column{i:D2}").Where(key => page.Contains(key, StringComparison.Ordinal))
-            .Select(key => TextPosition(page, key)).Where(position => position.X > 280).ToList();
+        // Every text line in the right column, including the continuation of a paragraph at its top: paragraph starts
+        // alone do not show the overlap.
+        var right = Regex.Matches(page, @"(-?[0-9.]+) (-?[0-9.]+) Td\n\(")
+            .Select(match => (X: double.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture), Y: double.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture)))
+            .Where(position => position.X > 280).ToList();
         Require(right.Count > 0, "PDF: some text reaches the right column on the first page.");
-        Require(right.All(position => position.Y < below), "PDF: the right column starts below the full-width text.");
+        Require(right.All(position => position.Y < below), $"PDF: the right column starts below the full-width text ({right.Max(position => position.Y)} vs {below}).");
     }
 
     private static void TakesTheLargerSpaceBetweenParagraphs()
