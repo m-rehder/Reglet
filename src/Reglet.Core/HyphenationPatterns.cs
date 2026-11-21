@@ -15,9 +15,11 @@ namespace Reglet;
 /// </summary>
 public sealed class HyphenationPatterns
 {
-    private readonly Dictionary<int, List<Pattern>> _patterns;
+    // Per pattern length the priorities by letters: a position is looked up, not compared against every pattern (with
+    // the 36,709 German patterns the comparison took about 20 ms per word).
+    private readonly Dictionary<int, Dictionary<string, int[]>> _patterns;
 
-    private HyphenationPatterns(Dictionary<int, List<Pattern>> patterns, int count, int leftMinimum = 2, int rightMinimum = 3)
+    private HyphenationPatterns(Dictionary<int, Dictionary<string, int[]>> patterns, int count, int leftMinimum = 2, int rightMinimum = 3)
     {
         _patterns = patterns;
         Count = count;
@@ -27,7 +29,7 @@ public sealed class HyphenationPatterns
 
     /// <summary>Creates a pattern set without patterns (no hyphenation).</summary>
     public HyphenationPatterns()
-        : this(new Dictionary<int, List<Pattern>>(), 0)
+        : this(new Dictionary<int, Dictionary<string, int[]>>(), 0)
     {
     }
 
@@ -68,7 +70,7 @@ public sealed class HyphenationPatterns
         ArgumentOutOfRangeException.ThrowIfLessThan(leftMinimum, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(rightMinimum, 1);
 
-        var patterns = new Dictionary<int, List<Pattern>>();
+        var patterns = new Dictionary<int, Dictionary<string, int[]>>();
         var count = 0;
         string? line;
         while ((line = reader.ReadLine()) is not null)
@@ -87,13 +89,16 @@ public sealed class HyphenationPatterns
                     continue;
                 }
 
-                if (!patterns.TryGetValue(pattern.Letters.Length, out var list))
+                if (!patterns.TryGetValue(pattern.Letters.Length, out var byLetters))
                 {
-                    list = [];
-                    patterns[pattern.Letters.Length] = list;
+                    byLetters = new Dictionary<string, int[]>(StringComparer.Ordinal);
+                    patterns[pattern.Letters.Length] = byLetters;
                 }
 
-                list.Add(pattern);
+                // The same letters twice: both apply, so the higher priority of each position wins.
+                byLetters[pattern.Letters] = byLetters.TryGetValue(pattern.Letters, out var earlier)
+                    ? [.. earlier.Zip(pattern.Values, Math.Max)]
+                    : pattern.Values;
                 count++;
             }
         }
@@ -130,23 +135,21 @@ public sealed class HyphenationPatterns
         var padded = "." + word.ToLowerInvariant() + ".";
         var values = new int[padded.Length + 1];
 
-        foreach (var (length, list) in _patterns)
+        foreach (var (length, byLetters) in _patterns)
         {
+            var lookup = byLetters.GetAlternateLookup<ReadOnlySpan<char>>();
             for (var start = 0; start + length <= padded.Length; start++)
             {
-                foreach (var pattern in list)
+                if (!lookup.TryGetValue(padded.AsSpan(start, length), out var priorities))
                 {
-                    if (!pattern.Matches(padded, start))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    for (var index = 0; index <= length; index++)
+                for (var index = 0; index <= length; index++)
+                {
+                    if (priorities[index] > values[start + index])
                     {
-                        if (pattern.Values[index] > values[start + index])
-                        {
-                            values[start + index] = pattern.Values[index];
-                        }
+                        values[start + index] = priorities[index];
                     }
                 }
             }
@@ -279,25 +282,6 @@ public sealed class HyphenationPatterns
             }
 
             return letters.Length == 0 ? null : new Pattern(letters.ToString(), [.. values]);
-        }
-
-        /// <summary>Whether the pattern matches the text at the position.</summary>
-        public bool Matches(string text, int start)
-        {
-            if (start + Letters.Length > text.Length)
-            {
-                return false;
-            }
-
-            for (var index = 0; index < Letters.Length; index++)
-            {
-                if (text[start + index] != Letters[index])
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
     }
 }

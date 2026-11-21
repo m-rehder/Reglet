@@ -11,6 +11,7 @@ internal static class HyphenationLanguagesChecks
             ResolvesNames();
             HyphenatesKnownWords();
             BreaksAPdfWithTheShippedPatterns();
+            HyphenatesQuickly();
             Console.WriteLine("Shipped hyphenation patterns: all checks passed.");
             return 0;
         }
@@ -67,6 +68,29 @@ internal static class HyphenationLanguagesChecks
             var breaks = HyphenationLanguages.Load(language).BreakPositions(word);
             Require(breaks.Count > 0 && breaks.All(position => position > 0 && position < word.Length), $"{language}: '{word}' is broken ({string.Join(",", breaks)}).");
         }
+    }
+
+    private static void HyphenatesQuickly()
+    {
+        // Every position used to be compared against every pattern of a length (36,709 German patterns): 9,000 long
+        // words took three minutes, one word of 200,000 letters 82 seconds. Now a position is looked up.
+        var german = HyphenationLanguages.Load("de");
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        for (var round = 0; round < 3000; round++)
+        {
+            _ = german.BreakPositions("Donaudampfschifffahrtsgesellschaftskapitän");
+            _ = german.BreakPositions("Rechtsschutzversicherungsgesellschaften");
+            _ = german.BreakPositions("Grundstücksverkehrsgenehmigungszuständigkeitsübertragungsverordnung");
+        }
+
+        _ = german.BreakPositions(string.Concat(Enumerable.Repeat("abcdefghij", 20_000)));
+        Require(watch.Elapsed < TimeSpan.FromSeconds(10), $"Hyphenation is fast ({watch.Elapsed}).");
+
+        // Two patterns with the same letters both apply: the higher priority of each position wins. The even 2 forbids
+        // the break between x and y; keeping the later odd 1 instead would allow it.
+        var twice = HyphenationPatterns.Parse(new StringReader("x2y x1y"), 1, 1);
+        Require(twice.Count == 2 && twice.BreakPositions("axyb").Count == 0, "Duplicate patterns are merged by the higher priority.");
+        Require(HyphenationPatterns.Parse(new StringReader("x1y"), 1, 1).BreakPositions("axyb").SequenceEqual([2]), "A single odd priority allows the break.");
     }
 
     private static void BreaksAPdfWithTheShippedPatterns()
