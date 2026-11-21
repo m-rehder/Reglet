@@ -42,6 +42,7 @@ internal static class MalformedInputChecks
             WritersRaiseNoRawExceptions();
             EncryptedOdtIsBounded();
             InvalidCharactersInNamesAreReplaced();
+            HugeLengthsStayInOoxmlRanges();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -757,6 +758,29 @@ internal static class MalformedInputChecks
         {
             var html = DocumentReader.Read(new MemoryStream(Encoding.UTF8.GetBytes(source)), DocumentFormat.Html);
             Require(html.Document.Sections[0].Blocks.Count >= 2, "HTML: a block inside a link is read: " + source);
+        }
+    }
+
+    private static void HugeLengthsStayInOoxmlRanges()
+    {
+        // A model length may be any finite value: 10^12 pt became 2 * 10^13 twips, beyond the Int32 Word reads.
+        var big = Length.FromPoints(1e12);
+        var document = new PortableDocument(new DocumentMetadata(), new Section([
+            new Paragraph(new TextRun("x") { FontSize = big, CharacterSpacing = big, Position = Length.FromPoints(-1e12) })
+            {
+                Style = new ParagraphStyle { LeftIndent = big, FirstLineIndent = Length.FromPoints(-1e12) },
+            },
+            new TableBlock([new TableRow([new TableCell("c") { Padding = big }]) { Height = big }]) { ColumnWidths = [big], CellPadding = big },
+            new ImageBlock(Png(1, 1, 2, [0, 0, 0, 0], []), ImageMediaType.Png) { Width = big, Height = big },
+        ]));
+        using var zip = new ZipArchive(new MemoryStream(Write(document, DocumentFormat.Docx)));
+        using var reader = new StreamReader(zip.GetEntry("word/document.xml")!.Open());
+        var xml = reader.ReadToEnd();
+        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(xml, "(w:[A-Za-z]+|cx|cy)=\"(-?[0-9]+)\""))
+        {
+            var value = long.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+            var limit = match.Groups[1].Value.StartsWith("w:", StringComparison.Ordinal) ? int.MaxValue : 27_273_042_316_900L;
+            Require(Math.Abs(value) <= limit, $"DOCX: {match.Value} is outside the OOXML range.");
         }
     }
 

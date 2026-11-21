@@ -123,7 +123,7 @@ internal static class DocxEmbeddedObjects
         writer.WriteEndElement(); // p
     }
 
-    private static long Twips(double points) => (long)Math.Round(points * 20);
+    private static long Twips(double points) => DocxUnits.Scaled(points, 20);
 
     /// <summary>Points with two decimals, as integer arithmetic so every platform writes the same text.</summary>
     private static string Points(double points)

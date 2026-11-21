@@ -68,7 +68,7 @@ internal static class DocxCharts
         writer.WriteEndElement(); // p
     }
 
-    private static long Emu(Length length) => (long)Math.Round(length.Points * 12700);
+    private static long Emu(Length length) => DocxUnits.Emu(length.Points);
 
     /// <summary>Writes the chart part.</summary>
     internal static void WritePart(XmlWriter writer, Chart chart, InvalidXmlCharacterBehavior xmlBehavior)

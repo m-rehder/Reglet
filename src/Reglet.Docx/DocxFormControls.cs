@@ -128,7 +128,7 @@ internal static class DocxFormControls
             if (field.FontSize is { } size)
             {
                 writer.WriteStartElement("w", "sz", Wml);
-                writer.WriteAttributeString("w", "val", Wml, Math.Round(size.Points * 2).ToString(CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("w", "val", Wml, DocxUnits.Scaled(size.Points, 2).ToString(CultureInfo.InvariantCulture));
                 writer.WriteEndElement();
             }
 

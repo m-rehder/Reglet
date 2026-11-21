@@ -2245,7 +2245,7 @@ internal static class DocxPackageBuilder
             else
             {
                 WriteWAttribute(writer, "val", BorderValue(border.Style));
-                WriteWAttribute(writer, "sz", (long)Math.Round(border.Width.Points * 8, MidpointRounding.AwayFromZero));
+                WriteWAttribute(writer, "sz", DocxUnits.Scaled(border.Width.Points, 8));
                 WriteWAttribute(writer, "space", "0");
                 WriteWAttribute(writer, "color", HexColor(border.Color));
             }
@@ -2518,7 +2518,7 @@ internal static class DocxPackageBuilder
         else
         {
             WriteWAttribute(writer, "val", BorderValue(border.Style));
-            WriteWAttribute(writer, "sz", (long)Math.Round(border.Width.Points * 8.0, MidpointRounding.AwayFromZero));
+            WriteWAttribute(writer, "sz", DocxUnits.Scaled(border.Width.Points, 8));
             WriteWAttribute(writer, "space", space);
             WriteWAttribute(writer, "color", HexColor(border.Color));
         }
@@ -2551,7 +2551,7 @@ internal static class DocxPackageBuilder
             return;
         }
         WriteWAttribute(writer, "val", BorderValue(border.Style));
-        WriteWAttribute(writer, "sz", (long)Math.Round(border.Width.Points * 8.0, MidpointRounding.AwayFromZero));
+        WriteWAttribute(writer, "sz", DocxUnits.Scaled(border.Width.Points, 8));
         WriteWAttribute(writer, "space", "0");
         WriteWAttribute(writer, "color", HexColor(border.Color));
         writer.WriteEndElement();
@@ -2796,7 +2796,7 @@ internal static class DocxPackageBuilder
 
         writer.WriteStartElement("w", side, DocxConstants.WordprocessingML);
         WriteWAttribute(writer, "val", BorderValue(border.Style));
-        WriteWAttribute(writer, "sz", (long)Math.Round(border.Width.Points * 8.0, MidpointRounding.AwayFromZero));
+        WriteWAttribute(writer, "sz", DocxUnits.Scaled(border.Width.Points, 8));
         WriteWAttribute(writer, "space", 0L);
         WriteWAttribute(writer, "color", HexColor(border.Color));
         writer.WriteEndElement();
@@ -4563,8 +4563,7 @@ internal static class DocxPackageBuilder
         writer.WriteEndElement();
     }
 
-    private static long Emu(Length length)
-        => (long)Math.Round(length.Points * 12700.0, MidpointRounding.AwayFromZero);
+    private static long Emu(Length length) => DocxUnits.Emu(length.Points);
 
     /// <summary>Crop fraction in 1/1000 percent (Office Open XML srcRect).</summary>
     private static string CropValue(double fraction)
@@ -5025,11 +5024,9 @@ internal static class DocxPackageBuilder
         }
     }
 
-    private static long Twips(Length length)
-        => (long)Math.Round(length.Points * 20.0, MidpointRounding.AwayFromZero);
+    private static long Twips(Length length) => DocxUnits.Scaled(length.Points, 20);
 
-    private static long HalfPoints(Length length)
-        => (long)Math.Round(length.Points * 2.0, MidpointRounding.AwayFromZero);
+    private static long HalfPoints(Length length) => DocxUnits.Scaled(length.Points, 2);
 
     private static void WriteWAttribute(XmlWriter writer, string localName, long value)
         => writer.WriteAttributeString(
