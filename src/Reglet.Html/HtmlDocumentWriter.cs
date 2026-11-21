@@ -147,7 +147,7 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
             css.Append("margin-left:").Append(indent.Points.ToString("0.##", CultureInfo.InvariantCulture)).Append("pt;");
         }
 
-        return css.Length == 0 ? string.Empty : $" style=\"{css}\"";
+        return css.Length == 0 ? string.Empty : $" style=\"{Escape(css.ToString())}\"";
     }
 
     private void Element(string tag, string attributes, IEnumerable<Inline> inlines)
@@ -215,7 +215,9 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
 
         if (run.FontFamily is { Length: > 0 } family)
         {
-            css.Append("font-family:'").Append(family.Replace("'", string.Empty, StringComparison.Ordinal).Replace(";", string.Empty, StringComparison.Ordinal).Replace("\"", string.Empty, StringComparison.Ordinal)).Append("';");
+            // A font name comes from foreign files: only name characters, so neither a quote nor a character
+            // reference (&#39) can end the CSS string.
+            css.Append("font-family:'").Append(string.Concat(family.Where(character => char.IsLetterOrDigit(character) || character is ' ' or '-' or '_' or '.'))).Append("';");
         }
 
         if (run.FontSize is { } size)
@@ -244,7 +246,7 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
         var styled = css.Length > 0;
         if (styled)
         {
-            _out.Append("<span style=\"").Append(css).Append("\">");
+            _out.Append("<span style=\"").Append(Escape(css.ToString())).Append("\">");
         }
 
         foreach (var tag in tags)
@@ -312,7 +314,7 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
 
                 if (css.Length > 0)
                 {
-                    _out.Append(" style=\"").Append(css).Append('"');
+                    _out.Append(" style=\"").Append(Escape(css.ToString())).Append('"');
                 }
 
                 _out.Append('>');

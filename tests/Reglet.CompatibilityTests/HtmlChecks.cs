@@ -11,6 +11,7 @@ internal static class HtmlChecks
             ReadsStructure();
             ReadsEntitiesAndEncodings();
             IsSafe();
+            WriterKeepsCssClosed();
             ReadsTables();
             WritesAndRoundTrips();
             ConvertsToOtherFormats();
@@ -30,6 +31,22 @@ internal static class HtmlChecks
         {
             throw new InvalidOperationException(message);
         }
+    }
+
+    private static void WriterKeepsCssClosed()
+    {
+        // ' and ; were removed from a font name, but browsers decode &#39 and &#59 in the attribute: the name could
+        // add any declaration (position:fixed, url() of a foreign server).
+        var family = "x&#39&#59background-image:url(https://attacker.example/t)&#59position:fixed&#59x:&#39";
+        var document = new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new TextRun("hello") { FontFamily = family })));
+        using var output = new MemoryStream();
+        new HtmlDocumentWriter().WriteAsync(document, output).GetAwaiter().GetResult();
+        var html = Encoding.UTF8.GetString(output.ToArray());
+        var style = html[(html.IndexOf("style=\"", StringComparison.Ordinal) + 7)..];
+        style = System.Net.WebUtility.HtmlDecode(style[..style.IndexOf('"')]);
+        Require(System.Text.RegularExpressions.Regex.IsMatch(style, "^font-family:'[A-Za-z0-9 ._-]*';$"),
+            "HTML: a font name cannot end the CSS string: " + style);
+        Require(!html.Contains("&#39&", StringComparison.Ordinal) && !html.Contains("&#59", StringComparison.Ordinal), "HTML: no unterminated character reference in a style: " + html);
     }
 
     private static ReadResult Read(string html, Encoding? encoding = null)
