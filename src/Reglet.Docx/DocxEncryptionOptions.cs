@@ -24,15 +24,15 @@ public sealed record DocxEncryptionOptions
     /// the number of hash iterations of the key derivation. Default is 100000, the value Word
     /// writes; a higher value makes guessing the password slower.
     /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException">The value is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The value is negative or above 10,000,000.</exception>
     public int SpinCount
     {
         get => _spinCount;
         init
         {
-            if (value < 0)
+            if (value is < 0 or > DocxAgileEncryption.MaxSpinCount)
             {
-                throw new ArgumentOutOfRangeException(nameof(SpinCount), value, "The spin count must not be negative.");
+                throw new ArgumentOutOfRangeException(nameof(SpinCount), value, "The spin count must be between 0 and 10,000,000 (MS-OFFCRYPTO).");
             }
 
             _spinCount = value;

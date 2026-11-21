@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
+using System.Xml.Linq;
 using Reglet;
 
 /// <summary>
@@ -27,6 +28,7 @@ internal static class MalformedInputChecks
             PngSecondIhdrIsRejected();
             ForeignXmlPartsUseTheXmlGuard();
             DeeplyNestedSignatureOctetsAreRejected();
+            KeyDerivationCostIsBounded();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -482,6 +484,40 @@ internal static class MalformedInputChecks
         der[^2] = 0x01;
         der[^1] = 0x41;
         Expect<DocumentValidationException>(() => DerNode.Parse(der, 0, der.Length).OctetValue(), "A deeply nested OCTET STRING is rejected.", "nested too deeply");
+    }
+
+    private static void KeyDerivationCostIsBounded()
+    {
+        // The file sets how many hash rounds derive the key: 2^31 rounds kept a core busy for many minutes per read.
+        using var buffer = new MemoryStream();
+        new DocxDocumentWriter().WriteAsync(
+            new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new TextRun("x")))),
+            buffer,
+            new DocxWriteOptions { Encryption = new DocxEncryptionOptions("pw") { SpinCount = 1000 } }).GetAwaiter().GetResult();
+        var info = CompoundFile.Read(buffer.ToArray(), "EncryptionInfo")!;
+        var xml = Encoding.UTF8.GetString(info, 8, info.Length - 8);
+        Require(xml.Contains("spinCount=\"1000\"", StringComparison.Ordinal), "Test setup: the spin count is in the encryption information.");
+        Expect<DocumentValidationException>(
+            () => DocxAgileEncryption.ParseDescriptor(xml.Replace("spinCount=\"1000\"", "spinCount=\"2000000000\"", StringComparison.Ordinal)),
+            "DOCX: a spin count above 10,000,000 is rejected.");
+        Expect<ArgumentOutOfRangeException>(() => _ = new DocxEncryptionOptions("pw") { SpinCount = DocxAgileEncryption.MaxSpinCount + 1 }, "DOCX: the writer accepts no spin count above 10,000,000.");
+
+        XNamespace manifest = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
+        XElement Data(int iterations, int keySize = 32) => new(manifest + "encryption-data",
+            new XElement(manifest + "key-derivation", new XAttribute(manifest + "iteration-count", iterations), new XAttribute(manifest + "key-size", keySize)));
+        Expect<DocumentValidationException>(() => OdtEncryption.ParseInfo(Data(2_000_000_000)), "ODT: an iteration count above 1,000,000 is rejected.");
+        Expect<DocumentValidationException>(() => OdtEncryption.ParseInfo(Data(1000, int.MaxValue)), "ODT: a huge key size is rejected.");
+
+        // Each entry within the limit, but sixty of them: the total is bounded before any key is derived.
+        using var package = new MemoryStream();
+        using (var zip = new ZipArchive(package, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var entries = Enumerable.Range(0, 60).Select(index => new XElement(manifest + "file-entry",
+                new XAttribute(manifest + "full-path", $"part{index}.xml"), Data(OdtEncryption.MaxIterations)));
+            WriteEntry(zip, "META-INF/manifest.xml", new XElement(manifest + "manifest", entries).ToString());
+        }
+
+        Expect<DocumentValidationException>(() => OdtEncryption.TryDecryptPackage(package.ToArray(), "pw"), "ODT: the total key derivation cost is bounded.", "in total");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)

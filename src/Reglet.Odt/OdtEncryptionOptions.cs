@@ -29,15 +29,15 @@ public sealed record OdtEncryptionOptions
     /// the number of PBKDF2 iterations. The default is 100000; a higher value makes guessing
     /// the password slower.
     /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException">The value is not positive.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not between 1 and 1,000,000.</exception>
     public int IterationCount
     {
         get => _iterationCount;
         init
         {
-            if (value < 1)
+            if (value is < 1 or > OdtEncryption.MaxIterations)
             {
-                throw new ArgumentOutOfRangeException(nameof(IterationCount), value, "The iteration count must be positive.");
+                throw new ArgumentOutOfRangeException(nameof(IterationCount), value, "The iteration count must be between 1 and 1,000,000.");
             }
 
             _iterationCount = value;

@@ -156,6 +156,12 @@ internal static class OdtEncryption
             return null;
         }
 
+        // The manifest sets the PBKDF2 cost of every entry: bound the total before deriving any key.
+        if (encrypted.Values.Sum(data => (long)ParseInfo(data).Iterations) > MaxTotalIterations)
+        {
+            throw new DocumentValidationException($"The ODT key derivation exceeds {MaxTotalIterations} iterations in total.");
+        }
+
         if (string.IsNullOrEmpty(password))
         {
             throw new DocumentValidationException("The ODT file is encrypted; a password is required.");
@@ -198,18 +204,38 @@ internal static class OdtEncryption
         return output.ToArray();
     }
 
-    private static OdtEncryptionInfo ParseInfo(XElement data)
+    /// <summary>The highest PBKDF2 iteration count of one entry (LibreOffice writes 100,000).</summary>
+    public const int MaxIterations = 1_000_000;
+
+    /// <summary>The highest iteration count over all entries of a package (50 entries at the maximum).</summary>
+    public const long MaxTotalIterations = 50_000_000;
+
+    internal static OdtEncryptionInfo ParseInfo(XElement data)
     {
         var algorithm = data.Element(Manifest + "algorithm");
         var derivation = data.Element(Manifest + "key-derivation");
         var startKey = data.Element(Manifest + "start-key-generation");
+
+        // Both values come from the file and size the work: the iterations the CPU time, the key size an allocation.
+        var iterations = (int?)derivation?.Attribute(Manifest + "iteration-count") ?? 1024;
+        if (iterations is < 1 or > MaxIterations)
+        {
+            throw new DocumentValidationException($"The ODT iteration count must be between 1 and {MaxIterations}.");
+        }
+
+        var keySize = (int?)derivation?.Attribute(Manifest + "key-size") ?? 32;
+        if (keySize is < 1 or > 64)
+        {
+            throw new DocumentValidationException("The ODT key size is invalid.");
+        }
+
         return new OdtEncryptionInfo(
             (string?)data.Attribute(Manifest + "checksum") ?? string.Empty,
             (string?)data.Attribute(Manifest + "checksum-type") ?? Sha256Checksum,
             (string?)algorithm?.Attribute(Manifest + "initialisation-vector") ?? string.Empty,
             (string?)derivation?.Attribute(Manifest + "salt") ?? string.Empty,
-            (int?)derivation?.Attribute(Manifest + "iteration-count") ?? 1024,
-            (int?)derivation?.Attribute(Manifest + "key-size") ?? 32,
+            iterations,
+            keySize,
             (int?)startKey?.Attribute(Manifest + "key-size") ?? 0,
             (string?)algorithm?.Attribute(Manifest + "algorithm-name") ?? Aes256Cbc,
             (string?)derivation?.Attribute(Manifest + "key-derivation-name") ?? Pbkdf2,

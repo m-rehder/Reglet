@@ -17,6 +17,9 @@ internal static class DocxAgileEncryption
     private const int BlockSize = 16;
     private const int KeyBits = 256;
     private const int HashSize = 64;
+
+    /// <summary>The highest spin count MS-OFFCRYPTO allows (2.3.4.11); the file sets it, so it must be bounded.</summary>
+    public const int MaxSpinCount = 10_000_000;
     private const string CipherAlgorithm = "AES";
     private const string HashAlgorithm = "SHA512";
 
@@ -159,7 +162,7 @@ internal static class DocxAgileEncryption
     /// <summary>Whether the data is a compound file that may hold an encrypted DOCX.</summary>
     public static bool IsEncrypted(ReadOnlySpan<byte> data) => CompoundFile.IsCompoundFile(data);
 
-    private sealed record Descriptor(
+    internal sealed record Descriptor(
         int SpinCount,
         byte[] PasswordSalt,
         byte[] KeySalt,
@@ -169,7 +172,7 @@ internal static class DocxAgileEncryption
         byte[] EncryptedHmacKey,
         byte[] EncryptedHmacValue);
 
-    private static Descriptor ParseDescriptor(string xml)
+    internal static Descriptor ParseDescriptor(string xml)
     {
         XDocument document;
         try
@@ -197,7 +200,9 @@ internal static class DocxAgileEncryption
         }
 
         return new Descriptor(
-            SpinCount: int.TryParse((string?)encryptedKey.Attribute("spinCount"), out var spin) && spin >= 0 ? spin : 100000,
+            SpinCount: int.TryParse((string?)encryptedKey.Attribute("spinCount"), out var spin) && spin >= 0
+                ? spin <= MaxSpinCount ? spin : throw new DocumentValidationException($"The DOCX spin count exceeds {MaxSpinCount}.")
+                : 100000,
             PasswordSalt: Base64Value(encryptedKey, "saltValue"),
             KeySalt: Base64Value(keyData, "saltValue"),
             EncryptedVerifierHashInput: Base64Value(encryptedKey, "encryptedVerifierHashInput"),
