@@ -22,7 +22,20 @@ internal static class OdtChartReader
 
     internal static bool IsChart(XElement content) => content.Element(OfficeNs + "body")?.Element(OfficeNs + "chart") is not null;
 
-    internal static Chart? Read(XElement content, Length? width, Length? height, string? altText, Action<string> warn)
+    internal static Chart? Read(XElement content, Length? width, Length? height, string? altText, ReaderGuard.ChartBudget budget, Action<string> warn)
+    {
+        try
+        {
+            return ReadChart(content, width, height, altText, budget, warn);
+        }
+        catch (DocumentValidationException)
+        {
+            warn("ODT: a chart above the data point limit of the document is not mapped when reading.");
+            return null;
+        }
+    }
+
+    private static Chart? ReadChart(XElement content, Length? width, Length? height, string? altText, ReaderGuard.ChartBudget budget, Action<string> warn)
     {
         if (content.Element(OfficeNs + "body")?.Element(OfficeNs + "chart") is not { } body
             || body.Element(ChartNs + "chart") is not { } root || root.Element(ChartNs + "plot-area") is not { } plot)
@@ -32,7 +45,7 @@ internal static class OdtChartReader
         }
 
         var styles = AutomaticStyles(content);
-        var grid = ReadTable(root.Descendants(TableNs + "table").FirstOrDefault());
+        var grid = ReadTable(budget, root.Descendants(TableNs + "table").FirstOrDefault());
         var chartClass = (string?)root.Attribute(ChartNs + "class");
         XElement? Properties(string? name) => name is not null && styles.TryGetValue(name, out var style) ? style.Chart : null;
         var plotProperties = Properties((string?)plot.Attribute(ChartNs + "style-name") ?? (string?)root.Attribute(ChartNs + "style-name"));
@@ -67,18 +80,18 @@ internal static class OdtChartReader
         {
             var thisIndex = index++;
             if ((string?)element.Attribute(ChartNs + "values-cell-range-address") is not { } valuesRange
-                || Cells(grid, valuesRange) is not { Count: > 0 } valueCells)
+                || Cells(budget, grid, valuesRange) is not { Count: > 0 } valueCells)
             {
                 continue;
             }
 
             var values = valueCells.Select(c => c.Number ?? 0).ToList();
-            var name = (string?)element.Attribute(ChartNs + "label-cell-address") is { } label ? Cells(grid, label)?.FirstOrDefault().Text ?? string.Empty : string.Empty;
+            var name = (string?)element.Attribute(ChartNs + "label-cell-address") is { } label ? Cells(budget, grid, label)?.FirstOrDefault().Text ?? string.Empty : string.Empty;
             List<double>? xValues = null;
             if (kind == ChartKind.Scatter)
             {
                 if ((string?)element.Element(ChartNs + "domain")?.Attribute(TableNs + "cell-range-address") is { } domain
-                    && Cells(grid, domain) is { } xs && xs.Count == values.Count)
+                    && Cells(budget, grid, domain) is { } xs && xs.Count == values.Count)
                 {
                     xValues = xs.Select(c => c.Number ?? 0).ToList();
                 }
@@ -128,7 +141,7 @@ internal static class OdtChartReader
         var axes = plot.Elements(ChartNs + "axis").ToList();
         var xAxis = axes.FirstOrDefault(a => (string?)a.Attribute(ChartNs + "dimension") == "x");
         var categoryRange = (string?)(xAxis?.Element(ChartNs + "categories") ?? plot.Element(ChartNs + "categories"))?.Attribute(TableNs + "cell-range-address");
-        if (kind != ChartKind.Scatter && categoryRange is not null && Cells(grid, categoryRange) is { } found2)
+        if (kind != ChartKind.Scatter && categoryRange is not null && Cells(budget, grid, categoryRange) is { } found2)
         {
             categories = found2.Select(c => c.Text ?? string.Empty).ToList();
         }
@@ -199,7 +212,7 @@ internal static class OdtChartReader
     }
 
     /// <summary>The local table as rows of cells (repeated cells and rows expanded, bounded).</summary>
-    private static List<List<Cell>> ReadTable(XElement? table)
+    private static List<List<Cell>> ReadTable(ReaderGuard.ChartBudget budget, XElement? table)
     {
         var rows = new List<List<Cell>>();
         if (table is null)
@@ -216,6 +229,7 @@ internal static class OdtChartReader
                     ? Math.Min(r, 256) : 1;
                 var text = string.Join("\n", cell.Elements(TextNs + "p").Select(p => p.Value));
                 double? number = double.TryParse((string?)cell.Attribute(OfficeNs + "value"), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && double.IsFinite(v) ? v : null;
+                budget.Take(Math.Max(repeats, 1));
                 for (var i = 0; i < Math.Max(repeats, 1); i++)
                 {
                     cells.Add(new Cell(text.Length == 0 ? null : text, number));
@@ -234,7 +248,7 @@ internal static class OdtChartReader
     }
 
     /// <summary>"local-table.$B$2:.$B$5", "B2:B5", ".B2:.B5", "local-table.B2" → the cells in column order.</summary>
-    private static List<Cell>? Cells(List<List<Cell>> grid, string address)
+    private static List<Cell>? Cells(ReaderGuard.ChartBudget budget, List<List<Cell>> grid, string address)
     {
         static (int Column, int Row)? Parse(string part)
         {
@@ -271,10 +285,16 @@ internal static class OdtChartReader
         {
             for (var row = Math.Min(first.Row, last.Row); row <= Math.Max(first.Row, last.Row); row++)
             {
+                if (result.Count == 100_000)
+                {
+                    return null;
+                }
+
                 result.Add(row < grid.Count && column < grid[row].Count ? grid[row][column] : default);
             }
         }
 
-        return result.Count <= 100_000 ? result : null;
+        budget.Take(result.Count);
+        return result;
     }
 }

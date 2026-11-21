@@ -2248,6 +2248,9 @@ public sealed class OdtDocumentReader : IDocumentReader
         /// <summary>The media budget of this read (shared by copies made with <c>with</c>).</summary>
         public ReaderGuard.MediaBudget Media { get; init; } = new();
 
+        /// <summary>The chart point budget of this read (shared by copies made with <c>with</c>).</summary>
+        public ReaderGuard.ChartBudget Charts { get; init; } = new();
+
         /// <summary>The form controls of <c>office:forms</c> by id (ADR-0024).</summary>
         public IReadOnlyDictionary<string, XElement> Controls { get; init; } = new Dictionary<string, XElement>(StringComparer.Ordinal);
 
@@ -2456,7 +2459,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         return OdtChartReader.Read(
             root, ParseLength(frame.Attribute(XName.Get("width", OdtNamespaces.Svg))?.Value),
             ParseLength(frame.Attribute(XName.Get("height", OdtNamespaces.Svg))?.Value),
-            string.IsNullOrEmpty(alt) ? null : alt, message => Warn(context.Warnings, message));
+            string.IsNullOrEmpty(alt) ? null : alt, context.Charts, message => Warn(context.Warnings, message));
     }
 
     /// <summary>A frame with <c>draw:object-ole</c> becomes an <see cref="EmbeddedObject"/> (ADR-0029).</summary>

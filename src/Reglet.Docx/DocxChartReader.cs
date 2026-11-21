@@ -14,7 +14,20 @@ internal static class DocxChartReader
     private static readonly XNamespace A = DocxConstants.DrawingMainNamespace;
 
     /// <returns>The chart, or null after a warning when it cannot be mapped.</returns>
-    internal static Chart? Read(XElement part, Length? width, Length? height, string? altText, Action<string> warn)
+    internal static Chart? Read(XElement part, Length? width, Length? height, string? altText, ReaderGuard.ChartBudget budget, Action<string> warn)
+    {
+        try
+        {
+            return ReadChart(part, width, height, altText, budget, warn);
+        }
+        catch (DocumentValidationException)
+        {
+            warn("DOCX: a chart above the data point limit of the document is not mapped when reading.");
+            return null;
+        }
+    }
+
+    private static Chart? ReadChart(XElement part, Length? width, Length? height, string? altText, ReaderGuard.ChartBudget budget, Action<string> warn)
     {
         if (part.Element(C + "chart") is not { } chart || chart.Element(C + "plotArea") is not { } plotArea)
         {
@@ -73,17 +86,17 @@ internal static class DocxChartReader
         foreach (var ser in plot.Elements(C + "ser"))
         {
             var thisIndex = index++;
-            var name = Points(ser.Element(C + "tx")).FirstOrDefault() ?? string.Empty;
-            var values = Numbers(ser.Element(C + (kind == ChartKind.Scatter ? "yVal" : "val")));
+            var name = Points(budget, ser.Element(C + "tx")).FirstOrDefault() ?? string.Empty;
+            var values = Numbers(budget, ser.Element(C + (kind == ChartKind.Scatter ? "yVal" : "val")));
             if (values.Count == 0)
             {
                 continue;
             }
 
-            var xValues = kind == ChartKind.Scatter ? Numbers(ser.Element(C + "xVal")) : null;
+            var xValues = kind == ChartKind.Scatter ? Numbers(budget, ser.Element(C + "xVal")) : null;
             if (categories is null && kind != ChartKind.Scatter && ser.Element(C + "cat") is { } cat)
             {
-                categories = Points(cat).Select(p => p ?? string.Empty).ToList();
+                categories = Points(budget, cat).Select(p => p ?? string.Empty).ToList();
             }
 
             Color? color = SeriesColor(ser, kind == ChartKind.Line);
@@ -199,7 +212,7 @@ internal static class DocxChartReader
     }
 
     /// <summary>The points of a literal or cached string/number list in index order; a gap is null.</summary>
-    private static List<string?> Points(XElement? element)
+    private static List<string?> Points(ReaderGuard.ChartBudget budget, XElement? element)
     {
         var result = new List<string?>();
         if (element is null)
@@ -241,11 +254,12 @@ internal static class DocxChartReader
             result[at] = point.Element(C + "v")?.Value;
         }
 
+        budget.Take(result.Count);
         return result;
     }
 
-    private static List<double> Numbers(XElement? element)
-        => Points(element).Select(p => Number(p) ?? 0).ToList();
+    private static List<double> Numbers(ReaderGuard.ChartBudget budget, XElement? element)
+        => Points(budget, element).Select(p => Number(p) ?? 0).ToList();
 
     /// <summary>The solid color of a series: the line for a line chart, else the fill, else the marker fill.</summary>
     private static Color? SeriesColor(XElement series, bool line)

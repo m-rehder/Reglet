@@ -162,6 +162,9 @@ public sealed class DocxDocumentReader : IDocumentReader
         /// <summary>The media budget of this read (shared by copies made with <c>with</c>).</summary>
         public ReaderGuard.MediaBudget Media { get; init; } = new();
 
+        /// <summary>The chart point budget of this read (shared by copies made with <c>with</c>).</summary>
+        public ReaderGuard.ChartBudget Charts { get; init; } = new();
+
         /// <summary>The table styles of the document (style id → style), from styles.xml.</summary>
         public IReadOnlyDictionary<string, TableStyle> TableStyles { get; init; } = new Dictionary<string, TableStyle>(StringComparer.Ordinal);
 
@@ -2007,7 +2010,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             var alt = drawing.Descendants(WP + "docPr").FirstOrDefault()?.Attribute("descr")?.Value;
             return DocxChartReader.Read(
                 root, Emu(extent?.Attribute("cx")?.Value), Emu(extent?.Attribute("cy")?.Value),
-                string.IsNullOrEmpty(alt) ? null : alt, message => Warn(warnings, message));
+                string.IsNullOrEmpty(alt) ? null : alt, resources.Charts, message => Warn(warnings, message));
         }
 
         /// <summary>The wrap mode of an anchored drawing; <see cref="ImageWrap.None"/> for an inline one.</summary>

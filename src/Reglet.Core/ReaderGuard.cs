@@ -195,6 +195,29 @@ internal static class ReaderGuard
         }
     }
 
+    /// <summary>The data points all charts of one read may hold (the limit of <see cref="ResourceLimits.MaxTableCells"/>).</summary>
+    public const int MaxChartPointsPerDocument = 1_000_000;
+
+    /// <summary>
+    /// The chart budget of one read: a declared point count, a high point index or repeated cells cost no bytes,
+    /// so the points are counted instead.
+    /// </summary>
+    public sealed class ChartBudget
+    {
+        private long _used;
+
+        /// <exception cref="DocumentValidationException">The charts of the document exceed <see cref="MaxChartPointsPerDocument"/>.</exception>
+        public void Take(long points)
+        {
+            _used += points;
+            if (_used > MaxChartPointsPerDocument)
+            {
+                throw new DocumentValidationException(
+                    $"The charts of the document exceed the limit of {MaxChartPointsPerDocument} data points.");
+            }
+        }
+    }
+
     /// <summary>
     /// Reads every entry of a package whose signatures are checked (they may cover any part), bounded by the input
     /// limit and in total by <see cref="MaxDecodedBytes"/>. Two entries with the same name fail like a damaged package.

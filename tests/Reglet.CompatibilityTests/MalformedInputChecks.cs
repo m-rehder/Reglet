@@ -37,6 +37,7 @@ internal static class MalformedInputChecks
             HugeMediaBoxDoesNotStallRecovery();
             OversizedFormulaIsLeftOut();
             HtmlWriterAppliesTheLimits();
+            ChartPointsAreBudgeted();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -720,6 +721,31 @@ internal static class MalformedInputChecks
             using var output = new MemoryStream();
             new HtmlDocumentWriter().WriteAsync(image, output, new HtmlWriteOptions { Limits = new ResourceLimits { MaxImageBytes = 10 } }).GetAwaiter().GetResult();
         }, "HTML: the image limit applies.");
+    }
+
+    private static void ChartPointsAreBudgeted()
+    {
+        // A declared point count (DOCX) or repeated cells (ODT) cost no bytes: 4 KB used to occupy gigabytes.
+        var chart = new Chart(ChartKind.Column, [new ChartSeries("s", [1.0, 2.0])], ["a", "b"]);
+        var withChart = new PortableDocument(new DocumentMetadata(), new Section(chart));
+
+        var series = string.Concat(Enumerable.Range(0, 20).Select(i =>
+            $"<c:ser><c:idx val=\"{i}\"/><c:val><c:numRef><c:numCache><c:ptCount val=\"100000\"/><c:pt idx=\"0\"><c:v>1</c:v></c:pt></c:numCache></c:numRef></c:val></c:ser>"));
+        var docxChart = "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart><c:plotArea><c:barChart>"
+            + series + "</c:barChart></c:plotArea></c:chart></c:chartSpace>";
+        var docx = ReplaceEntries(Write(withChart, DocumentFormat.Docx), name => name.StartsWith("word/charts/chart", StringComparison.Ordinal), docxChart);
+        var read = DocumentReader.Read(new MemoryStream(docx), DocumentFormat.Docx);
+        Require(!read.Document.Sections[0].Blocks.OfType<Chart>().Any() && read.Warnings.Any(warning => warning.Message.Contains("data point limit", StringComparison.Ordinal)),
+            "DOCX: a chart above the point budget is left out with a warning.");
+
+        var cells = string.Concat(Enumerable.Repeat("<table:table-cell table:number-columns-repeated=\"256\" office:value=\"1\"/>", 5000));
+        var odtChart = "<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\">"
+            + "<office:body><office:chart><chart:chart chart:class=\"chart:bar\"><chart:plot-area><chart:series chart:values-cell-range-address=\"A1:A1\"/></chart:plot-area>"
+            + "<table:table><table:table-row>" + cells + "</table:table-row></table:table></chart:chart></office:chart></office:body></office:document-content>";
+        var odt = ReplaceEntries(Write(withChart, DocumentFormat.Odt), name => name.EndsWith("/content.xml", StringComparison.Ordinal), odtChart);
+        read = DocumentReader.Read(new MemoryStream(odt), DocumentFormat.Odt);
+        Require(!read.Document.Sections[0].Blocks.OfType<Chart>().Any() && read.Warnings.Any(warning => warning.Message.Contains("data point limit", StringComparison.Ordinal)),
+            "ODT: a chart above the point budget is left out with a warning.");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)
