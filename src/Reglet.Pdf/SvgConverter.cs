@@ -327,7 +327,7 @@ internal static class SvgConverter
             patterns,
             ids,
             rules,
-            new SvgCallbacks(null, null, null, null, null, null, null),
+            new SvgCallbacks(null, null, null, null, null, null, null) { Budget = callbacks.Budget },
             depth + 1,
             forced: silhouette);
 
@@ -354,7 +354,7 @@ internal static class SvgConverter
             patterns,
             ids,
             rules,
-            new SvgCallbacks(null, callbacks.RegisterGradient, callbacks.RegisterPattern, null, null, null, null),
+            new SvgCallbacks(null, callbacks.RegisterGradient, callbacks.RegisterPattern, null, null, null, null) { Budget = callbacks.Budget },
             depth + 1,
             forced: paintStyle);
         content.Append("Q\n");
@@ -648,7 +648,25 @@ internal static class SvgConverter
         double BoxMinX = 0,
         double BoxMinY = 0,
         double BoxMaxX = 0,
-        double BoxMaxY = 0);
+        double BoxMaxY = 0)
+    {
+        /// <summary>The element count of the whole conversion, shared by the callbacks of masks, patterns and paints.</summary>
+        public SvgBudget Budget { get; init; } = new();
+    }
+
+    /// <summary>
+    /// How many elements a conversion has drawn. The depth limit alone does not bound the work: a group that uses a
+    /// group ten times, which uses one ten times, … grows tenfold per level (1.7 KB of SVG drew a million rectangles).
+    /// </summary>
+    internal sealed class SvgBudget
+    {
+        /// <summary>The most elements one conversion draws, repeated <c>&lt;use&gt;</c> references included.</summary>
+        public const int MaxElements = 250_000;
+
+        public int Drawn { get; set; }
+
+        public bool Reported { get; set; }
+    }
 
     /// <summary>One declaration of a CSS rule of a <c>&lt;style&gt;</c> element, in cascade order.</summary>
     private sealed record SvgStyleRule(int Specificity, int Order, string? Tag, string? Id, string? Class, string Name, string Value);
@@ -962,6 +980,17 @@ internal static class SvgConverter
             return;
         }
 
+        if (++callbacks.Budget.Drawn > SvgBudget.MaxElements)
+        {
+            if (!callbacks.Budget.Reported)
+            {
+                callbacks.Budget.Reported = true;
+                reports.Add($"SVG: the drawing has more than {SvgBudget.MaxElements} elements (repeated references included); the rest is not drawn.");
+            }
+
+            return;
+        }
+
         var style = forced ?? ReadStyle(element, inherited, reports, rules);
         if (style.DisplayNone)
         {
@@ -986,7 +1015,7 @@ internal static class SvgConverter
             var maskContent = new StringBuilder();
             maskContent.Append("q\n");
             AppendMatrix(maskContent, transform);
-            var maskCallbacks = new SvgCallbacks(null, callbacks.RegisterGradient, callbacks.RegisterPattern, null, null);
+            var maskCallbacks = new SvgCallbacks(null, callbacks.RegisterGradient, callbacks.RegisterPattern, null, null) { Budget = callbacks.Budget };
             foreach (var child in maskElement.Elements())
             {
                 RenderElement(child, SvgStyle.Default, maskContent, reports, _ => "UNSUPPORTED-MASK", clips, gradients, patterns, ids, rules, maskCallbacks, depth + 1);
@@ -2035,7 +2064,7 @@ internal static class SvgConverter
         }
 
         // A tile may hold an image or a gradient of its own (OF-B07); its resources are the page's.
-        var tileCallbacks = new SvgCallbacks(null, callbacks.RegisterGradient, callbacks.RegisterPattern, callbacks.RegisterImage);
+        var tileCallbacks = new SvgCallbacks(null, callbacks.RegisterGradient, callbacks.RegisterPattern, callbacks.RegisterImage) { Budget = callbacks.Budget };
         foreach (var child in source.Elements())
             RenderElement(
                 child,

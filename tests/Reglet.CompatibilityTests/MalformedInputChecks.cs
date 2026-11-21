@@ -33,6 +33,7 @@ internal static class MalformedInputChecks
             MediaReferencesShareOneBudget();
             SignatureReadersRejectDamagedPackages();
             HugeCellSpansAreBounded();
+            SvgReferencesAreBudgeted();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -632,6 +633,31 @@ internal static class MalformedInputChecks
         }
 
         Expect<ArgumentOutOfRangeException>(() => _ = new TableCell("x") { ColumnSpan = TableCell.MaxSpan + 1 }, "The model rejects a column span above 1000.");
+    }
+
+    private static void SvgReferencesAreBudgeted()
+    {
+        // Each level uses the level below ten times: eight levels are 100 million rectangles from 2 KB of SVG. The depth
+        // limit does not stop it (sixteen levels of nesting), the element budget does.
+        var svg = new StringBuilder("<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='10' height='10'><defs><rect id='g0' width='1' height='1'/>");
+        for (var level = 1; level <= 8; level++)
+        {
+            svg.Append($"<g id='g{level}'>");
+            for (var copy = 0; copy < 10; copy++)
+            {
+                svg.Append($"<use xlink:href='#g{level - 1}'/>");
+            }
+
+            svg.Append("</g>");
+        }
+
+        svg.Append("</defs><use xlink:href='#g8'/></svg>");
+        var document = new PortableDocument(new DocumentMetadata(), new Section(new ImageBlock(Encoding.UTF8.GetBytes(svg.ToString()), ImageMediaType.Svg)));
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        using var output = new MemoryStream();
+        var result = DocumentWriter.WriteAsync(document, output, DocumentFormat.Pdf).GetAwaiter().GetResult();
+        Require(watch.Elapsed < TimeSpan.FromSeconds(30), $"SVG: the element budget ends the conversion quickly ({watch.Elapsed}).");
+        Require(result.Warnings.Any(warning => warning.Message.Contains("elements", StringComparison.Ordinal)), "SVG: the cut is reported.");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)

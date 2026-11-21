@@ -29,6 +29,8 @@ The readers treat every file as untrusted:
   with a warning; the budget is charged before decompressing, so nothing beyond it is unpacked.
 - **Cell spans:** a table cell spans at most 1000 columns or rows (`TableCell.MaxSpan`); the readers bound a larger
   span from a file to it, because the writers lay out a span cell by cell.
+- **SVG:** one conversion draws at most 250,000 elements, repeated `<use>` references included (each level of
+  references can multiply the work tenfold below the depth limit); the rest is left out with a warning.
 - **Cycles and depth:** PDF page trees are checked for cycles and a depth of 256; object
   streams must not themselves be compressed. A stack overflow, which would terminate the
   process, is thereby excluded.
