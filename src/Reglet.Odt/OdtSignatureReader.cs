@@ -38,7 +38,11 @@ public static class OdtSignatureReader
         return ReadCore(package);
     }
 
+    // A damaged package fails like in the document readers, not with a ZIP exception.
     private static IReadOnlyList<OdtSignatureInfo> ReadCore(byte[] package)
+        => ReaderGuard.Run("ODT", () => ReadPackage(package));
+
+    private static IReadOnlyList<OdtSignatureInfo> ReadPackage(byte[] package)
     {
         if (package.Length > ReaderGuard.MaxInputBytes)
         {

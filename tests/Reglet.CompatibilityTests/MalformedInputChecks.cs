@@ -31,6 +31,7 @@ internal static class MalformedInputChecks
             KeyDerivationCostIsBounded();
             CompoundFileSizesAreBoundedByTheFile();
             MediaReferencesShareOneBudget();
+            SignatureReadersRejectDamagedPackages();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -590,6 +591,22 @@ internal static class MalformedInputChecks
             read = null;
             GC.Collect();
         }
+    }
+
+    private static void SignatureReadersRejectDamagedPackages()
+    {
+        // The signature readers failed with ZIP or dictionary exceptions instead of DocumentValidationException.
+        var garbage = "not a zip at all"u8.ToArray();
+        using var duplicate = new MemoryStream();
+        using (var zip = new ZipArchive(duplicate, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteEntry(zip, "_xmlsignatures/sig1.xml", "<x/>");
+            WriteEntry(zip, "_xmlsignatures/sig1.xml", "<x/>");
+        }
+
+        Expect<DocumentValidationException>(() => DocxSignatureReader.Read(garbage), "DOCX signature: a damaged package is rejected.");
+        Expect<DocumentValidationException>(() => DocxSignatureReader.Read(duplicate.ToArray()), "DOCX signature: a duplicate entry is rejected.");
+        Expect<DocumentValidationException>(() => OdtSignatureReader.Read(garbage), "ODT signature: a damaged package is rejected.");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)

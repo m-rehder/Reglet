@@ -54,6 +54,13 @@ public static class DocxSignatureReader
     private static IReadOnlyList<DocxSignatureInfo> ReadCore(byte[] package, DocxSignatureReadOptions options)
     {
         ArgumentNullException.ThrowIfNull(package);
+
+        // A damaged package fails like in the document readers, not with a ZIP or dictionary exception.
+        return ReaderGuard.Run("DOCX", () => ReadPackage(package, options));
+    }
+
+    private static IReadOnlyList<DocxSignatureInfo> ReadPackage(byte[] package, DocxSignatureReadOptions options)
+    {
         if (package.Length > ReaderGuard.MaxInputBytes)
         {
             throw new DocumentValidationException("DOCX signature: the file exceeds the input size limit.");
