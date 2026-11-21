@@ -99,6 +99,10 @@ build/run-examples.sh
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/build.md](docs/build.md); security issues go the way described in
 [SECURITY.md](SECURITY.md).
 
+## Support
+
+Reglet is free and stays free. If it saves you time, you can [buy me a coffee on Ko-fi](https://ko-fi.com/mrehder).
+
 ## License
 
 Reglet is licensed under the [MIT License](LICENSE). It contains data from the Unicode Character Database and Adobe's
