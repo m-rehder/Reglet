@@ -29,6 +29,7 @@ internal static class MalformedInputChecks
             ForeignXmlPartsUseTheXmlGuard();
             DeeplyNestedSignatureOctetsAreRejected();
             KeyDerivationCostIsBounded();
+            CompoundFileSizesAreBoundedByTheFile();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -518,6 +519,36 @@ internal static class MalformedInputChecks
         }
 
         Expect<DocumentValidationException>(() => OdtEncryption.TryDecryptPackage(package.ToArray(), "pw"), "ODT: the total key derivation cost is bounded.", "in total");
+    }
+
+    private static void CompoundFileSizesAreBoundedByTheFile()
+    {
+        // The container of an encrypted DOCX: header counts, sector chains and stream sizes come from the file. A
+        // forged count asked for 8 GiB, a looping chain collected up to 5 GB before its guard stopped it.
+        using var buffer = new MemoryStream();
+        new DocxDocumentWriter().WriteAsync(
+            new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new TextRun("x")))),
+            buffer,
+            new DocxWriteOptions { Encryption = new DocxEncryptionOptions("pw") { SpinCount = 1000 } }).GetAwaiter().GetResult();
+        var original = buffer.ToArray();
+        Require(CompoundFile.Read(original, "EncryptedPackage") is { Length: > 0 }, "Test setup: the container is readable.");
+
+        var header = (byte[])original.Clone();
+        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(44), int.MaxValue);
+        Expect<DocumentValidationException>(() => CompoundFile.Read(header, "EncryptedPackage"), "A forged FAT sector count is rejected.");
+
+        // The directory's own FAT entry points back to the directory sector.
+        var loop = (byte[])original.Clone();
+        var directory = BinaryPrimitives.ReadInt32LittleEndian(loop.AsSpan(48));
+        var firstFat = BinaryPrimitives.ReadInt32LittleEndian(loop.AsSpan(76));
+        BinaryPrimitives.WriteInt32LittleEndian(loop.AsSpan(512 + (firstFat * 512) + (directory * 4)), directory);
+        Expect<DocumentValidationException>(() => CompoundFile.Read(loop, "EncryptedPackage"), "A looping sector chain is rejected.", "loops");
+
+        var size = (byte[])original.Clone();
+        var name = Encoding.Unicode.GetBytes("EncryptedPackage");
+        var entry = size.AsSpan(512 + (directory * 512)).IndexOf(name) + 512 + (directory * 512);
+        BinaryPrimitives.WriteUInt32LittleEndian(size.AsSpan(entry + 120), 0xFFFFFFF0);
+        Expect<DocumentValidationException>(() => CompoundFile.Read(size, "EncryptedPackage"), "A stream larger than the file is rejected.", "larger than the file");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)

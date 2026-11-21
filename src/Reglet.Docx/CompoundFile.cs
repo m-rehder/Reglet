@@ -254,6 +254,15 @@ internal static class CompoundFile
         var difatStart = ReadUInt32(data, 68);
         var difatSectors = (int)ReadUInt32(data, 72);
 
+        // Every count and size in the header and the directory comes from the file: none may exceed what the file
+        // holds, or a 512-byte file could demand gigabytes (a list sized by the header, a chain that loops).
+        var fileSectors = (data.Length / SectorSize) - 1;
+        if (fatSectors < 0 || fatSectors > fileSectors || miniFatSectors < 0 || miniFatSectors > fileSectors
+            || difatSectors < 0 || difatSectors > fileSectors)
+        {
+            throw new DocumentValidationException("The compound file header is invalid.");
+        }
+
         // The FAT sector ids: the header's DIFAT array and the DIFAT sectors.
         var fatIds = new List<uint>(fatSectors);
         for (var index = 0; index < MaxRegionEntries && fatIds.Count < fatSectors; index++)
@@ -315,10 +324,19 @@ internal static class CompoundFile
             return [];
         }
 
+        if (size > data.Length)
+        {
+            throw new DocumentValidationException("A compound file stream is larger than the file.");
+        }
+
         if (size < MiniStreamCutoff)
         {
             var rootStart = ReadUInt32(directory, 116);
             var rootSize = ReadUInt32(directory, 120);
+            if (rootSize > data.Length)
+            {
+                throw new DocumentValidationException("The mini stream is larger than the compound file.");
+            }
             var miniStream = Chain(data, fat, rootStart, (int)rootSize);
             var miniFatBytes = miniFatSectors > 0 ? Chain(data, fat, miniFatStart, miniFatSectors * SectorSize) : [];
             var miniFat = new List<uint>(miniFatBytes.Length / 4);
@@ -409,8 +427,14 @@ internal static class CompoundFile
         var result = new List<byte>(size > 0 ? size : 0);
         var sector = start;
         var guard = 0;
-        while (sector != EndOfChain && sector != FreeSector && guard++ < 10_000_000)
+        while (sector != EndOfChain && sector != FreeSector)
         {
+            // A chain cannot have more sectors than the file: a longer one loops.
+            if (guard++ > data.Length / SectorSize)
+            {
+                throw new DocumentValidationException("A sector chain of the compound file loops.");
+            }
+
             if (sector >= fat.Count)
             {
                 throw new DocumentValidationException("The compound file references a sector outside its FAT.");
