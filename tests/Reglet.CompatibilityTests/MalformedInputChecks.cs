@@ -39,6 +39,7 @@ internal static class MalformedInputChecks
             HtmlWriterAppliesTheLimits();
             ChartPointsAreBudgeted();
             PdfPagesAreBounded();
+            RepeatedBandIsLaidOutOnce();
             WritersRaiseNoRawExceptions();
             EncryptedOdtIsBounded();
             InvalidCharactersInNamesAreReplaced();
@@ -844,6 +845,19 @@ internal static class MalformedInputChecks
 
         Expect<DocumentValidationException>(() => new OdtDocumentReader().Read(new MemoryStream(bomb.ToArray()), new OdtReadOptions { Password = "pw" }),
             "ODT: the decryption is bounded.");
+    }
+
+    private static void RepeatedBandIsLaidOutOnce()
+    {
+        // A header was laid out again on every page and in every layout pass: 10,000 words on 400 pages took 7 s.
+        var header = new HeaderFooter(new Paragraph(new TextRun("HEAD " + string.Concat(Enumerable.Repeat("ab ", 10_000)))));
+        var document = new PortableDocument(new DocumentMetadata(), new Section(Enumerable.Range(0, 400)
+            .SelectMany(index => new Block[] { new Paragraph(new TextRun("page " + index)), new PageBreak() })) { Header = header });
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var pdf = Write(document, DocumentFormat.Pdf);
+        Require(watch.Elapsed < TimeSpan.FromSeconds(4), $"PDF: a repeated header is laid out once ({watch.Elapsed}).");
+        var pages = new PdfDocumentReader().ReadPageTexts(new MemoryStream(pdf));
+        Require(pages.Count >= 400 && pages.All(page => page.Contains("HEAD", StringComparison.Ordinal)), $"PDF: every one of the {pages.Count} pages has the header.");
     }
 
     private static void PdfPagesAreBounded()

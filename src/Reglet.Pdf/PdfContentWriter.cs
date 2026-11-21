@@ -307,6 +307,14 @@ internal sealed class PdfContentWriter
     public PdfContentWriter ConcatMatrix(double a, double b, double c, double d, double e, double f)
         => Append(Number(a) + " " + Number(b) + " " + Number(c) + " " + Number(d) + " " + Number(e) + " " + Number(f) + " cm\n");
 
+    /// <summary>Appends the bytes another content writer produced (a cached header or footer).</summary>
+    public PdfContentWriter AppendBytes(byte[] content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        _buffer.Write(content);
+        return this;
+    }
+
     /// <summary>Appends ready-made operators (for example a converted SVG).</summary>
     public PdfContentWriter AppendOperators(string content)
     {

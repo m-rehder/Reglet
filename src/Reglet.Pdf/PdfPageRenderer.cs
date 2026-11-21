@@ -1752,6 +1752,86 @@ internal sealed class PdfPageRenderer
             return 0;
         }
 
+        // A band without page-dependent content looks the same on every page: lay it out once (a large header
+        // repeated on thousands of pages cost most of the writing time).
+        var cacheable = IsPageIndependent(band);
+        var key = (top, maxHeight, measureOnly, _fullContentLeft, _fullContentWidth, _pageHeight);
+        if (cacheable && _bandCache.TryGetValue(band, out var cached) && cached.FirstOrDefault(entry => entry.Key == key) is { Bytes: not null } hit)
+        {
+            if (!measureOnly)
+            {
+                _content.AppendBytes(hit.Bytes);
+            }
+
+            return hit.Height;
+        }
+
+        var outer = _content;
+        if (cacheable && !measureOnly)
+        {
+            _content = new PdfContentWriter();
+        }
+
+        double height;
+        byte[] drawn = [];
+        try
+        {
+            height = RenderBandCore(band, top, maxHeight, measureOnly, render);
+            if (cacheable && !measureOnly)
+            {
+                drawn = _content.ToArray();
+            }
+        }
+        finally
+        {
+            _content = outer;
+        }
+
+        if (cacheable)
+        {
+            _content.AppendBytes(measureOnly ? [] : drawn);
+            if (!_bandCache.TryGetValue(band, out var entries))
+            {
+                entries = [];
+                _bandCache[band] = entries;
+            }
+
+            entries.Add(new BandCacheEntry(key, drawn, height));
+        }
+
+        return height;
+    }
+
+    private sealed record BandCacheEntry((double, double, bool, double, double, double) Key, byte[]? Bytes, double Height);
+
+    private readonly Dictionary<HeaderFooter, List<BandCacheEntry>> _bandCache = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>
+    /// Whether a band draws the same on every page: only text, notes written as text, tabs, constant fields, images
+    /// and charts; page numbers, page references, links, bookmarks and form fields differ per page or register
+    /// something per page.
+    /// </summary>
+    private static bool IsPageIndependent(HeaderFooter band)
+    {
+        static bool Inlines(IEnumerable<Inline> inlines) => inlines.All(inline => inline is TextRun or Footnote or AlignmentTab or IndexEntry
+            or DateField or DocPropertyField or DocVariableField);
+
+        static bool Blocks(IEnumerable<Block> blocks) => blocks.All(block => block switch
+        {
+            Paragraph paragraph => Inlines(paragraph.Inlines),
+            Heading heading => Inlines(heading.Inlines),
+            ListBlock list => Blocks(list.Items.SelectMany(item => item.Blocks)),
+            TableBlock table => Blocks(table.Rows.SelectMany(row => row.Cells).SelectMany(cell => cell.Blocks)),
+            ImageBlock or Chart => true,
+            _ => false,
+        });
+
+        return Blocks(band.Blocks);
+    }
+
+    private double RenderBandCore(HeaderFooter band, double top, double maxHeight, bool measureOnly, Func<IReadOnlyList<Block>, double> render)
+    {
+
         var content = _content;
         var (cursor, left, width, contentTop, contentBottom) = (_cursorY, _contentLeft, _contentWidth, _contentTop, _contentBottom);
         if (measureOnly)

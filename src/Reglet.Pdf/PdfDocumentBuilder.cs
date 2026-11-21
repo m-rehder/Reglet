@@ -94,7 +94,8 @@ internal static class PdfDocumentBuilder
                 var collected = new List<int>();
                 var collectedBookmarks = new Dictionary<string, int>(StringComparer.Ordinal);
                 int count;
-                using (var scratch = new MemoryStream())
+                // A layout pass only counts: its output is never read, so it is not kept in memory.
+                using (var scratch = new CountingStream(Stream.Null))
                 {
                     count = BuildCore(
                         document,
