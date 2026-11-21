@@ -7,9 +7,12 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # The job token must be able to create the release and upload its assets.
+    # nuget.org trusts this workflow only in the environment named in its trusted publishing policy.
+    environment: nuget
+    # contents: create the release and upload its assets; id-token: the OIDC token nuget.org exchanges for a key.
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -26,18 +29,36 @@ jobs:
             echo "REGLET_SIGN_CERT=$RUNNER_TEMP/signing.pfx" >> "$GITHUB_ENV"
           fi
 
-      # V02/V04: check, pack, sign, produce checksums and upload packages to the registry.
-      - name: Build, check and publish release
+      # V02/V04: check, pack, sign and produce checksums; the upload follows in its own steps.
+      - name: Build and check release
         shell: bash
         env:
           REGLET_SIGN_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
           REGLET_TIMESTAMPER: ${{ vars.TIMESTAMPER }}
-          REGLET_NUGET_SOURCE: ${{ vars.NUGET_SOURCE }}
-          REGLET_NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
         run: build/release.sh "${GITHUB_REF_NAME#v}"
 
+      # Trusted publishing: no stored key; the temporary key is valid for one hour, so it is fetched
+      # only now, after the tests.
+      - name: NuGet login
+        if: github.server_url == 'https://github.com'
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: m-rehder
+
+      - name: Publish to nuget.org
+        if: github.server_url == 'https://github.com'
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          for package in artifacts/packages/*.nupkg artifacts/packages/*.snupkg; do
+            dotnet nuget push "$package" --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done
+
       # V02: the release for the tag with the changelog section and the packed artifacts, on the
-      # server the workflow runs on. Packages are pushed to NuGet only where NUGET_SOURCE is set.
+      # server the workflow runs on. Packages go to nuget.org only from GitHub.
       - name: Create GitHub release
         if: github.server_url == 'https://github.com'
         shell: bash

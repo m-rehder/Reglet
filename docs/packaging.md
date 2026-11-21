@@ -75,9 +75,10 @@ The steps above are bundled in scripts; details in [versioning.md](versioning.md
 
 `build/release.sh` runs **every** release through the zero-dependency audit
 (`check-zero-dependency.sh` and `check-package.sh`, V04) and signs only when a certificate is
-set (`REGLET_SIGN_CERT`). Registry publication happens via
+set (`REGLET_SIGN_CERT`). By hand, registry publication happens via
 `REGLET_NUGET_SOURCE`/`REGLET_NUGET_TOKEN`. The tag workflow
-[.github/workflows/release.yml](../.github/workflows/release.yml) invokes `build/release.sh`.
+[.github/workflows/release.yml](../.github/workflows/release.yml) invokes `build/release.sh` without them and
+publishes to nuget.org by trusted publishing (see [versioning.md](versioning.md)).
 
 ## Remotes and publication (L10)
 

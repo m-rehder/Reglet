@@ -44,9 +44,11 @@ section is missing.
    checksums (see [packaging.md](packaging.md)).
 4. Push the tag `vX.Y.Z` to both remotes; the release workflow
    ([.github/workflows/release.yml](../.github/workflows/release.yml)) runs on GitHub and on Gitea
-   (Gitea Actions reads `.github/workflows` too). It runs `build/release.sh`, which uploads the
-   packages only where the variable `NUGET_SOURCE` is set (set it on one server, so nothing is
-   published twice), and then creates the release of that server: on GitHub with `gh release
+   (Gitea Actions reads `.github/workflows` too). It runs `build/release.sh` without uploading; on
+   GitHub it then publishes to nuget.org by **trusted publishing** (no stored key: `NuGet/login`
+   exchanges the job's OIDC token for a key valid one hour; the nuget.org policy `reglet-release`
+   trusts owner `m-rehder`, repository `Reglet`, workflow `release.yml`, environment `nuget`,
+   packages `Reglet*`), and then creates the release of that server: on GitHub with `gh release
    create`, on Gitea with `build/gitea-release.sh` (if the Gitea release already exists, e.g.
    created by hand, only missing assets are attached). Both attach the packages and `SHA256SUMS`
    with the extracted changelog. On Gitea the workflow needs an online runner with the label
@@ -59,8 +61,7 @@ The tag workflow expects the following configuration in the repository:
 | `SIGNING_CERT_BASE64` | Secret | base64-encoded signing certificate (`.pfx`) |
 | `SIGNING_CERT_PASSWORD` | Secret | certificate password |
 | `TIMESTAMPER` | Variable | optional timestamp service (RFC 3161) |
-| `NUGET_SOURCE` | Variable | URL of the NuGet/Gitea package registry |
-| `NUGET_TOKEN` | Secret | API token for the registry |
+| `nuget` | Environment | the GitHub environment the nuget.org trusted publishing policy names |
 | `GITEA_TOKEN` | automatic | job token for the release; the job requests `contents: write` |
 
 ## Package signing (V01)
