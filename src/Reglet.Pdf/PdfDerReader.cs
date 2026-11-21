@@ -62,17 +62,25 @@ internal readonly struct DerNode
     }
 
     /// <summary>The bytes of an OCTET STRING (a constructed one is joined from its segments).</summary>
-    public byte[] OctetValue()
+    public byte[] OctetValue() => OctetValue(0);
+
+    private byte[] OctetValue(int depth)
     {
         if (!IsConstructed)
         {
             return Content.ToArray();
         }
 
+        // Each level recurses; without a limit a deeply nested signature overflows the stack and ends the process.
+        if (depth > MaxDepth)
+        {
+            throw new DocumentValidationException("PDF signature: the structure is nested too deeply.");
+        }
+
         using var joined = new MemoryStream();
         foreach (var child in Children())
         {
-            joined.Write(child.OctetValue());
+            joined.Write(child.OctetValue(depth + 1));
         }
 
         return joined.ToArray();

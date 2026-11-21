@@ -26,6 +26,7 @@ internal static class MalformedInputChecks
             PdfWrittenAtStreamOffsetIsReadable();
             PngSecondIhdrIsRejected();
             ForeignXmlPartsUseTheXmlGuard();
+            DeeplyNestedSignatureOctetsAreRejected();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -462,6 +463,25 @@ internal static class MalformedInputChecks
         }
 
         Expect<ArgumentException>(() => _ = new CustomXmlPart { Xml = payloads[0] }, "A custom XML part with a DTD is rejected.");
+    }
+
+    private static void DeeplyNestedSignatureOctetsAreRejected()
+    {
+        // A constructed OCTET STRING nested 200,000 times (1.2 MB): joining it recursed once per level and overflowed
+        // the stack, which ends the whole process instead of marking the signature invalid.
+        const int levels = 200_000;
+        var der = new byte[(levels * 6) + 3];
+        for (var level = 0; level < levels; level++)
+        {
+            der[level * 6] = 0x24;
+            der[(level * 6) + 1] = 0x84;
+            BinaryPrimitives.WriteInt32BigEndian(der.AsSpan((level * 6) + 2), ((levels - 1 - level) * 6) + 3);
+        }
+
+        der[^3] = 0x04;
+        der[^2] = 0x01;
+        der[^1] = 0x41;
+        Expect<DocumentValidationException>(() => DerNode.Parse(der, 0, der.Length).OctetValue(), "A deeply nested OCTET STRING is rejected.", "nested too deeply");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)
