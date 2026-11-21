@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Generates docs/api-reference.md from the public API and its XML comments. Not shipped. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Reglet\Reglet.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Hyphenation\Reglet.Hyphenation.csproj" />
+  </ItemGroup>
+
+</Project>

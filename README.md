@@ -74,6 +74,8 @@ dotnet run --project examples/Gallery -- --out ./out
 
 - [Example gallery](docs/examples.md) — what each example shows and where its code is.
 - [Guide](docs/guide.md) — writer options per format and templates in detail.
+- [API reference](docs/api-reference.md) — every public type and member on one line each, generated; made for
+  search and for coding agents.
 - [Feature matrix](docs/feature-matrix.md) — what each format supports, known limits.
 - [Fields](docs/fields.md), [units](docs/units.md), [hardening](docs/hardening.md), [performance](docs/performance.md),
   [Native AOT and trimming](docs/aot-trimming.md).

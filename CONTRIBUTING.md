@@ -39,6 +39,13 @@ build/run-benchmarks.sh          # no performance regression
 Golden tests are updated deliberately with `UPDATE_GOLDEN=1 dotnet run --project
 tests/Reglet.CompatibilityTests`.
 
+A change to the public API (or its XML comments) also regenerates the API reference; the CI
+fails while it is stale:
+
+```bash
+dotnet run --project tools/ApiReference -- docs/api-reference.md
+```
+
 ## Process
 
 1. Describe an issue (goal, affected formats) or pick up an existing one.
