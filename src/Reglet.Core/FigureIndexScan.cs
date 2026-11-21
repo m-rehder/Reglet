@@ -147,7 +147,8 @@ internal static class FigureIndexScan
     /// <summary>The sort key of an entry: without accents and case, so "Ångström" sorts with "A".</summary>
     public static string SortKey(string text)
     {
-        var decomposed = text.Normalize(NormalizationForm.FormD);
+        // An unpaired surrogate makes Normalize throw; it sorts as U+FFFD.
+        var decomposed = XmlText.Clean(text, InvalidXmlCharacterBehavior.Replace).Normalize(NormalizationForm.FormD);
         var key = new StringBuilder(decomposed.Length);
         foreach (var character in decomposed)
         {

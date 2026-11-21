@@ -39,6 +39,8 @@ internal static class MalformedInputChecks
             HtmlWriterAppliesTheLimits();
             ChartPointsAreBudgeted();
             PdfPagesAreBounded();
+            WritersRaiseNoRawExceptions();
+            EncryptedOdtIsBounded();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -722,6 +724,68 @@ internal static class MalformedInputChecks
             using var output = new MemoryStream();
             new HtmlDocumentWriter().WriteAsync(image, output, new HtmlWriteOptions { Limits = new ResourceLimits { MaxImageBytes = 10 } }).GetAwaiter().GetResult();
         }, "HTML: the image limit applies.");
+    }
+
+    private static void WritersRaiseNoRawExceptions()
+    {
+        // A blank style font name, an unpaired surrogate in an index entry and a PNG whose zlib data ends in a
+        // ZLibException each surfaced as a raw exception from the writer; a block inside a link broke the HTML reader.
+        var blankFonts = new PortableDocument(
+            new DocumentMetadata(),
+            new Section(new Paragraph(new TextRun("x") { CharacterStyleName = "Blank" }) { Style = new ParagraphStyle { FontFamily = " " } }))
+        {
+            CharacterStyles = [new CharacterStyle("Blank") { FontFamily = "  " }],
+        };
+        foreach (var format in new[] { DocumentFormat.Docx, DocumentFormat.Odt, DocumentFormat.Pdf, DocumentFormat.Html })
+        {
+            Write(blankFonts, format);
+        }
+
+        Write(new PortableDocument(new DocumentMetadata(), new Section([new Paragraph([new TextRun("x"), new IndexEntry("a\uD800b")]), new AlphabeticalIndex()])), DocumentFormat.Pdf);
+
+        using var png = new MemoryStream();
+        png.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        WriteChunk(png, "IHDR", Ihdr(10, 10, 2));
+        WriteChunk(png, "IDAT", Convert.FromBase64String(
+            "eD9jYOcTlVHWMrSwd/MNiU7KLCiva+2ZPGvhivXb9h45fenmg+fvvv5h5hKUkFfTNbF28gwIj0vNKa5q7OifNnfJ6k07Dxw/d/XO41cff/xn4xWRVtI0MLdz9QmOSszIL6tt6Z40c8HydVv3HD518cZRZ2+//GbiFBCXU9UxtnL08A+LTckuqmxo75s6Z/GqjTv2Hzt75fajlx++/2PlEZZS1NA3s3XxDopMSM8rrWnumjhj/rK1W3YfOnnh+r2nbz7/YuTgF5NV0TaydHD3C41JziqsqG/rnTJ70coN2/cdPXP51sMX77/9ZeEWklRQ2zO1cfYKjIhPyy2pbuqcMH3e0jWbdx08cf7a3SevP/1kIMH/AF2akl8="));
+        WriteChunk(png, "IEND", []);
+        Expect<ImageException>(() => Write(new PortableDocument(new DocumentMetadata(), new Section(new ImageBlock(png.ToArray(), ImageMediaType.Png))), DocumentFormat.Pdf),
+            "PDF: a PNG with damaged zlib data is an image error.");
+
+        foreach (var source in new[] { "<div>x<a href=\"https://example.com\"><div>in</div></a></div>", "<div>x<a href=\"https://example.com\"><h1>in</h1>after</a></div>" })
+        {
+            var html = DocumentReader.Read(new MemoryStream(Encoding.UTF8.GetBytes(source)), DocumentFormat.Html);
+            Require(html.Document.Sections[0].Blocks.Count >= 2, "HTML: a block inside a link is read: " + source);
+        }
+    }
+
+    private static void EncryptedOdtIsBounded()
+    {
+        // The decryption copied every entry of an encrypted ODT without a bound: a small file could fill the memory.
+        var document = new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new TextRun("secret"))));
+        using var encrypted = new MemoryStream();
+        new OdtDocumentWriter().WriteAsync(document, encrypted, new OdtWriteOptions { Encryption = new OdtEncryptionOptions("pw") { IterationCount = 1000 } }).GetAwaiter().GetResult();
+        using var bomb = new MemoryStream();
+        using (var source = new ZipArchive(new MemoryStream(encrypted.ToArray()), ZipArchiveMode.Read))
+        using (var target = new ZipArchive(bomb, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var entry in source.Entries)
+            {
+                using var input = entry.Open();
+                using var output = target.CreateEntry(entry.FullName, entry.FullName == "mimetype" ? CompressionLevel.NoCompression : CompressionLevel.Optimal).Open();
+                input.CopyTo(output);
+            }
+
+            using var zeros = target.CreateEntry("zeros.bin", CompressionLevel.SmallestSize).Open();
+            var chunk = new byte[1 << 20];
+            for (var i = 0; i < ReaderGuard.MaxDecodedBytes / chunk.Length + 8; i++)
+            {
+                zeros.Write(chunk);
+            }
+        }
+
+        Expect<DocumentValidationException>(() => new OdtDocumentReader().Read(new MemoryStream(bomb.ToArray()), new OdtReadOptions { Password = "pw" }),
+            "ODT: the decryption is bounded.");
     }
 
     private static void PdfPagesAreBounded()

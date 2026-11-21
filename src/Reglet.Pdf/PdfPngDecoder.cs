@@ -166,7 +166,8 @@ internal static class PdfPngDecoder
             {
                 zlib.ReadAtLeast(raw, raw.Length, throwOnEndOfStream: true);
             }
-            catch (Exception exception) when (exception is EndOfStreamException or InvalidDataException)
+            // ZLibException is an IOException, not an InvalidDataException.
+            catch (Exception exception) when (exception is InvalidDataException or IOException)
             {
                 throw new ImageException("PNG data is incomplete or corrupted.", exception);
             }

@@ -186,6 +186,7 @@ internal static class OdtEncryption
                 WriteEntry(target, "META-INF/manifest.xml", manifestStream.ToArray(), CompressionLevel.Optimal);
             }
 
+            var decoded = 0L;
             foreach (var entry in archive.Entries)
             {
                 if (entry.FullName is "mimetype" or "META-INF/manifest.xml")
@@ -196,6 +197,8 @@ internal static class OdtEncryption
                 var data = encrypted.TryGetValue(entry.FullName, out var info)
                     ? Decrypt(ReadEntry(entry), info, password)
                     : ReadEntry(entry);
+                decoded += data.Length;
+                ReaderGuard.CheckDecodedLength(decoded, "The decrypted ODT package");
                 WriteEntry(target, entry.FullName, data, CompressionLevel.Optimal);
             }
         }
@@ -272,22 +275,31 @@ internal static class OdtEncryption
         return output.ToArray();
     }
 
+    // A decrypted part is inflated like any package part: bounded, and damaged data is a validation error.
     private static byte[] Decompress(byte[] data)
     {
-        using var input = new MemoryStream(data);
-        using var deflate = new DeflateStream(input, CompressionMode.Decompress);
         using var output = new MemoryStream();
-        deflate.CopyTo(output);
+        var buffer = new byte[81920];
+        try
+        {
+            using var input = new MemoryStream(data);
+            using var deflate = new DeflateStream(input, CompressionMode.Decompress);
+            int read;
+            while ((read = deflate.Read(buffer)) > 0)
+            {
+                output.Write(buffer, 0, read);
+                ReaderGuard.CheckDecodedLength(output.Length, "A decrypted ODT part");
+            }
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException)
+        {
+            throw new DocumentValidationException("A decrypted ODT part is damaged.", exception);
+        }
+
         return output.ToArray();
     }
 
-    private static byte[] ReadEntry(ZipArchiveEntry entry)
-    {
-        using var stream = entry.Open();
-        using var output = new MemoryStream();
-        stream.CopyTo(output);
-        return output.ToArray();
-    }
+    private static byte[] ReadEntry(ZipArchiveEntry entry) => ReaderGuard.ReadBoundedBytes(entry, ReaderGuard.MaxDecodedBytes);
 
     private static void WriteEntry(ZipArchive archive, string name, byte[] data, CompressionLevel level)
     {

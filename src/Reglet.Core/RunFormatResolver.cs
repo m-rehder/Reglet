@@ -27,6 +27,12 @@ internal static class RunFormatResolver
     }
 
     /// <summary>
+    /// A style's font name as a run takes it: styles accept any text, a run no empty name, so a blank one (from a
+    /// foreign file) means "not set".
+    /// </summary>
+    internal static string? FontName(string? name) => string.IsNullOrWhiteSpace(name) ? null : name;
+
+    /// <summary>
     /// the effective formatting of a run: paragraph style, then the character style, then the run
     /// itself. Toggles and enumerations that no level sets stay at their "off" value, so the
     /// result can be used by a writer without further checks.
@@ -66,7 +72,7 @@ internal static class RunFormatResolver
                 ?? characterStyle?.HorizontalScaling
                 ?? paragraphStyle?.HorizontalScaling,
             Position = run.Position ?? characterStyle?.Position ?? paragraphStyle?.Position,
-            FontFamily = run.FontFamily ?? characterStyle?.FontFamily ?? paragraphStyle?.FontFamily,
+            FontFamily = run.FontFamily ?? FontName(characterStyle?.FontFamily) ?? FontName(paragraphStyle?.FontFamily),
             FontSize = run.FontSize ?? characterStyle?.FontSize ?? paragraphStyle?.FontSize,
             Border = run.Border ?? characterStyle?.Border ?? paragraphStyle?.TextBorder,
             Color = run.Color ?? characterStyle?.Color ?? paragraphStyle?.TextColor,

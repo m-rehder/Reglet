@@ -227,6 +227,9 @@ internal sealed class HtmlConverter(List<ReadWarning> warnings, CancellationToke
 
         internal bool PendingSpace { get; set; }
 
+        /// <summary>How often the inlines were flushed into a paragraph (a block inside a link does that).</summary>
+        internal int Flushes { get; set; }
+
         internal bool HasContent => Inlines.Count > 0 || Run.Length > 0;
     }
 
@@ -348,6 +351,7 @@ internal sealed class HtmlConverter(List<ReadWarning> warnings, CancellationToke
         builder.Inlines.Clear();
         builder.Images.Clear();
         builder.PendingSpace = false;
+        builder.Flushes++;
     }
 
     private static TextRun CopyWithText(TextRun run, string text) => new(text)
@@ -419,8 +423,16 @@ internal sealed class HtmlConverter(List<ReadWarning> warnings, CancellationToke
             {
                 CloseRun(builder);
                 var start = builder.Inlines.Count;
+                var flushes = builder.Flushes;
                 Flow(child, inner, builder, output, depth + 1, listDepth);
                 CloseRun(builder);
+
+                // A block inside the link flushed the inlines before it: the link holds what follows the block.
+                if (builder.Flushes != flushes)
+                {
+                    start = 0;
+                }
+
                 var linked = builder.Inlines.GetRange(start, builder.Inlines.Count - start);
                 if (linked.Count > 0 && ReaderGuard.IsAllowedLinkTarget(href))
                 {
