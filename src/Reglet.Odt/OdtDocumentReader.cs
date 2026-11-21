@@ -2846,10 +2846,10 @@ public sealed class OdtDocumentReader : IDocumentReader
         {
             var count = RepeatCount(tc, "number-columns-repeated");
             var span = int.TryParse(tc.Attribute(Table + "number-columns-spanned")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var columns) && columns > 1
-                ? columns
+                ? Math.Min(columns, TableCell.MaxSpan)
                 : 1;
             var rowSpan = int.TryParse(tc.Attribute(Table + "number-rows-spanned")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var spannedRows) && spannedRows > 1
-                ? spannedRows
+                ? Math.Min(spannedRows, TableCell.MaxSpan)
                 : 1;
             var styleName = tc.Attribute(Table + "style-name")?.Value;
             var cellStyle = styleName is not null && context.CellStyles.TryGetValue(styleName, out var style)

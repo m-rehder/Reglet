@@ -32,6 +32,7 @@ internal static class MalformedInputChecks
             CompoundFileSizesAreBoundedByTheFile();
             MediaReferencesShareOneBudget();
             SignatureReadersRejectDamagedPackages();
+            HugeCellSpansAreBounded();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -607,6 +608,30 @@ internal static class MalformedInputChecks
         Expect<DocumentValidationException>(() => DocxSignatureReader.Read(garbage), "DOCX signature: a damaged package is rejected.");
         Expect<DocumentValidationException>(() => DocxSignatureReader.Read(duplicate.ToArray()), "DOCX signature: a duplicate entry is rejected.");
         Expect<DocumentValidationException>(() => OdtSignatureReader.Read(garbage), "ODT signature: a damaged package is rejected.");
+    }
+
+    private static void HugeCellSpansAreBounded()
+    {
+        // A span of two billion columns was taken over: reading worked, but the PDF and ODT writers ran indefinitely.
+        var docx = ReadDocxBody("<w:tbl><w:tr><w:tc><w:tcPr><w:gridSpan w:val='2000000000'/></w:tcPr><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc></w:tr></w:tbl>");
+        var odt = DocumentReader.Read(new MemoryStream(Odt(
+            "<table:table xmlns:table='urn:oasis:names:tc:opendocument:xmlns:table:1.0'><table:table-row>"
+            + "<table:table-cell table:number-columns-spanned='2000000000' table:number-rows-spanned='2000000000'><text:p>x</text:p></table:table-cell>"
+            + "</table:table-row></table:table>")), DocumentFormat.Odt);
+        foreach (var (name, document) in new[] { ("DOCX", docx.Document), ("ODT", odt.Document) })
+        {
+            var cell = document.Sections[0].Blocks.OfType<TableBlock>().Single().Rows[0].Cells[0];
+            Require(cell.ColumnSpan == TableCell.MaxSpan, $"{name}: the column span is bounded ({cell.ColumnSpan}).");
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            foreach (var format in new[] { DocumentFormat.Pdf, DocumentFormat.Odt, DocumentFormat.Docx })
+            {
+                _ = Write(document, format);
+            }
+
+            Require(watch.Elapsed < TimeSpan.FromSeconds(30), $"{name}: the bounded span is written quickly ({watch.Elapsed}).");
+        }
+
+        Expect<ArgumentOutOfRangeException>(() => _ = new TableCell("x") { ColumnSpan = TableCell.MaxSpan + 1 }, "The model rejects a column span above 1000.");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)

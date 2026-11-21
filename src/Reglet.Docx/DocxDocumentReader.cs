@@ -2869,7 +2869,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                     ? CountRowSpan(parsedRows, rowIndex, parsed.GridStart)
                     : 1;
 
-                cells.Add(parsed.Cell with { RowSpan = rowSpan });
+                cells.Add(parsed.Cell with { RowSpan = Math.Min(rowSpan, TableCell.MaxSpan) });
             }
 
             var height = ReadRowHeight(rowElements[rowIndex]);
@@ -2964,7 +2964,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             var tcPr = tc.Element(W + "tcPr");
             var columnSpan = tcPr?.Element(W + "gridSpan")?.Attribute(W + "val")?.Value is { } spanValue
                 && int.TryParse(spanValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var span) && span > 1
-                    ? span
+                    ? Math.Min(span, TableCell.MaxSpan)
                     : 1;
 
             // In OOXML a vMerge without a value continues the merge; "restart" starts it.

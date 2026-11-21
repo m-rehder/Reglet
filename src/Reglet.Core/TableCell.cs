@@ -88,22 +88,28 @@ public sealed record TableCell
         }
     }
 
-    /// <summary>Number of spanned columns (default 1).</summary>
+    /// <summary>
+    /// The largest column or row span (1000). The writers lay out a span cell by cell, so an unbounded span from a
+    /// file (two billion) kept them busy indefinitely; real tables stay far below (Word has at most 63 columns).
+    /// </summary>
+    public const int MaxSpan = 1000;
+
+    /// <summary>Number of spanned columns (default 1, at most <see cref="MaxSpan"/>).</summary>
     public int ColumnSpan
     {
         get => _columnSpan;
-        init => _columnSpan = value >= 1
+        init => _columnSpan = value is >= 1 and <= MaxSpan
             ? value
-            : throw new ArgumentOutOfRangeException(nameof(ColumnSpan), "Column span must be at least 1.");
+            : throw new ArgumentOutOfRangeException(nameof(ColumnSpan), "Column span must be between 1 and 1000.");
     }
 
-    /// <summary>Number of spanned rows (default 1).</summary>
+    /// <summary>Number of spanned rows (default 1, at most <see cref="MaxSpan"/>).</summary>
     public int RowSpan
     {
         get => _rowSpan;
-        init => _rowSpan = value >= 1
+        init => _rowSpan = value is >= 1 and <= MaxSpan
             ? value
-            : throw new ArgumentOutOfRangeException(nameof(RowSpan), "Row span must be at least 1.");
+            : throw new ArgumentOutOfRangeException(nameof(RowSpan), "Row span must be between 1 and 1000.");
     }
 
     /// <summary>Background color of the cell; null means none.</summary>

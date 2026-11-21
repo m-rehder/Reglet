@@ -1379,11 +1379,12 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `new TableCell(string text)` — Creates a cell with a paragraph from the specified text.
 - `new TableCell(Block block)` — Creates a cell with exactly one block.
 - `new TableCell(IEnumerable<Block> blocks)` — Creates a cell with several blocks.
+- `const int MaxSpan` — The largest column or row span (1000). The writers lay out a span cell by cell, so an unbounded span from a file (two billion) kept them busy indefinitely; real tables stay far below (Word has at most 63 columns).
 - `IReadOnlyList<Block> Blocks { get; }` — The blocks of the cell.
 - `TextAlignment Alignment { get; init; }` — Horizontal alignment of the cell content.
 - `TableCellVerticalAlignment VerticalAlignment { get; init; }` — Vertical alignment of the cell content.
-- `int ColumnSpan { get; init; }` — Number of spanned columns (default 1).
-- `int RowSpan { get; init; }` — Number of spanned rows (default 1).
+- `int ColumnSpan { get; init; }` — Number of spanned columns (default 1, at most `TableCell.MaxSpan`).
+- `int RowSpan { get; init; }` — Number of spanned rows (default 1, at most `TableCell.MaxSpan`).
 - `Color? Background { get; init; }` — Background color of the cell; null means none.
 - `Length? Padding { get; init; }` — Padding of the cell; null means the table spacing.
 - `ParagraphBorders? Borders { get; init; }` — Custom cell borders; null means the table borders.

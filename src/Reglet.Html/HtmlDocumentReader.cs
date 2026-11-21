@@ -635,7 +635,7 @@ internal sealed class HtmlConverter(List<ReadWarning> warnings, CancellationToke
     }
 
     private static int Span(string? value)
-        => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var span) ? Math.Clamp(span, 1, 1000) : 1;
+        => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var span) ? Math.Clamp(span, 1, TableCell.MaxSpan) : 1;
 
     private void ReadImage(HtmlNode element, HtmlFormat format, Builder builder)
     {

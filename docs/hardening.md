@@ -27,6 +27,8 @@ The readers treat every file as untrusted:
 - **Media:** images, previews, charts and embedded objects of one DOCX or ODT may decompress to at most
   256 MiB in total, counted per reference (each reference becomes its own copy). Further media are left out
   with a warning; the budget is charged before decompressing, so nothing beyond it is unpacked.
+- **Cell spans:** a table cell spans at most 1000 columns or rows (`TableCell.MaxSpan`); the readers bound a larger
+  span from a file to it, because the writers lay out a span cell by cell.
 - **Cycles and depth:** PDF page trees are checked for cycles and a depth of 256; object
   streams must not themselves be compressed. A stack overflow, which would terminate the
   process, is thereby excluded.
