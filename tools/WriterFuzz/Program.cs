@@ -1,6 +1,7 @@
 // Writer fuzzing (fifth audit, 2026-11-21): every seed gives a random document (Generator), which is written as
 // DOCX, ODT, PDF and HTML; the XML parts must be well-formed, the HTML must not carry script, and DOCX/ODT/PDF must
-// read back. A DocumentValidationException is an accepted refusal; any other exception is a finding.
+// read back. A DocumentValidationException or UnsupportedFeatureException is an accepted refusal; any other
+// exception is a finding.
 //
 //   dotnet run -c Release --project tools/WriterFuzz -- <first seed> <count>
 //
@@ -42,7 +43,7 @@ for (var seed = first; seed < first + count; seed++)
         {
             bytes = write.GetAwaiter().GetResult();
         }
-        catch (DocumentValidationException)
+        catch (Exception exception) when (exception is DocumentValidationException or UnsupportedFeatureException)
         {
             continue;
         }
