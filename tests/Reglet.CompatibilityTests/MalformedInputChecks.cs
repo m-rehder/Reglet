@@ -38,6 +38,7 @@ internal static class MalformedInputChecks
             OversizedFormulaIsLeftOut();
             HtmlWriterAppliesTheLimits();
             ChartPointsAreBudgeted();
+            PdfPagesAreBounded();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -721,6 +722,38 @@ internal static class MalformedInputChecks
             using var output = new MemoryStream();
             new HtmlDocumentWriter().WriteAsync(image, output, new HtmlWriteOptions { Limits = new ResourceLimits { MaxImageBytes = 10 } }).GetAwaiter().GetResult();
         }, "HTML: the image limit applies.");
+    }
+
+    private static void PdfPagesAreBounded()
+    {
+        // No limit bounded the pages, and cancellation was checked only between top-level blocks: one paragraph
+        // with a large header could run for minutes and end with OutOfMemoryException.
+        var header = new HeaderFooter(new Paragraph(new TextRun(string.Concat(Enumerable.Repeat("header ", 10_000)))));
+        var body = new Paragraph(new TextRun(string.Concat(Enumerable.Repeat("ab ", 20_000))))
+        {
+            Style = new ParagraphStyle { FontSize = Length.FromPoints(175), LeftIndent = Length.FromPoints(347) },
+        };
+        var document = new PortableDocument(new DocumentMetadata(), new Section(body) { Header = header });
+
+        Expect<DocumentValidationException>(() =>
+        {
+            using var output = new MemoryStream();
+            new PdfDocumentWriter().WriteAsync(document, output, new PdfWriteOptions { Limits = new ResourceLimits { MaxPages = 50 } }).GetAwaiter().GetResult();
+        }, "PDF: the page limit applies.", "50 pages");
+
+        using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            using var output = new MemoryStream();
+            new PdfDocumentWriter().WriteAsync(document, output, null, cancel.Token).GetAwaiter().GetResult();
+            throw new InvalidOperationException("PDF: the long layout was not cancelled.");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        Require(watch.Elapsed < TimeSpan.FromSeconds(3), $"PDF: cancellation stops a single long block ({watch.Elapsed}).");
     }
 
     private static void ChartPointsAreBudgeted()

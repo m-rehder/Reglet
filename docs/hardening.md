@@ -11,7 +11,10 @@ package cannot break out of the target tree.
 `WriteOptions.Limits` (`ResourceLimits`) limits image size (`MaxImageBytes`,
 `MaxImagePixels`), blocks (`MaxBlocks`), table cells (`MaxTableCells`), text length
 (`MaxTextLength`) and the nesting depth of tables, lists and notes (`MaxNestingDepth`, 256 by
-default; deeper content would overflow the stack and end the process). Headers and footers count.
+default; deeper content would overflow the stack and end the process) and the pages of a PDF (`MaxPages`,
+100,000 by default: a line taller than the page or a large header repeated on every page can make very many).
+The PDF writer checks the cancellation token for every new page, so a time limit also stops one long block.
+Headers and footers count.
 Exceedances lead to an `ImageException` or `DocumentValidationException` before appreciable memory
 is consumed.
 

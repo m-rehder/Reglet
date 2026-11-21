@@ -80,6 +80,15 @@ internal sealed class PdfPageRenderer
     private bool _suppressAnnotations;
     private double _bandMaxHeight;
 
+    /// <summary>The page limit of the document (<see cref="ResourceLimits.MaxPages"/>).</summary>
+    public int MaxPages { get; init; } = ResourceLimits.Default.MaxPages;
+
+    /// <summary>Checked for every new page, so a long layout can be cancelled.</summary>
+    public CancellationToken Cancellation { get; init; }
+
+    /// <summary>The height a header or footer being drawn is clipped to.</summary>
+    internal double BandMaxHeight => _bandMaxHeight;
+
     public PdfPageRenderer(
         PdfFileWriter file,
         PdfResourceManager resources,
@@ -1347,6 +1356,12 @@ internal sealed class PdfPageRenderer
         _pageFootnotes.Clear();
         _deferredDraws.Clear();
         _annotations.Clear();
+        Cancellation.ThrowIfCancellationRequested();
+        if (_pageObjects.Count >= MaxPages)
+        {
+            throw new DocumentValidationException($"PDF: the document needs more than {MaxPages} pages (ResourceLimits.MaxPages).");
+        }
+
         _pageNumber++;
         if (_lineNumbering is { Restart: LineNumberRestart.NewPage })
         {

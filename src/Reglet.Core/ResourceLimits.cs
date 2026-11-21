@@ -31,6 +31,12 @@ public sealed record ResourceLimits
     public int MaxNestingDepth { get; init; } = 256;
 
     /// <summary>
+    /// Maximum number of pages a PDF may get (default: 100,000). Pages cost layout work and output that no other limit
+    /// bounds: a line taller than the page or a large header repeated on every page can make very many of them.
+    /// </summary>
+    public int MaxPages { get; init; } = 100_000;
+
+    /// <summary>
     /// Maximum number of characters that binding a template may add in total (default: 256 MiB, the
     /// size up to which the readers accept a decompressed part).
     /// </summary>

@@ -209,6 +209,12 @@ internal sealed class PdfBlockRenderer
         var top = _page.CursorY;
         for (var index = 0; index < blocks.Count; index++)
         {
+            // The band is clipped there: the blocks below it would be laid out on every page for nothing.
+            if (top - _page.CursorY > _page.BandMaxHeight)
+            {
+                break;
+            }
+
             _trailingSpace = 0;
             _carriedAfter = _lastAfter;
             _lastAfter = 0;

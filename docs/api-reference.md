@@ -1249,6 +1249,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `int MaxTableCells { get; init; }` — Maximum number of table cells in the document (default: 1,000,000).
 - `int MaxTextLength { get; init; }` — Maximum text length of a text run (default: 10,000,000 characters).
 - `int MaxNestingDepth { get; init; }` — Maximum nesting depth of tables, lists and notes (default: 256). The writers recurse per level, and a stack overflow would end the process instead of throwing.
+- `int MaxPages { get; init; }` — Maximum number of pages a PDF may get (default: 100,000). Pages cost layout work and output that no other limit bounds: a line taller than the page or a large header repeated on every page can make very many of them.
 - `long MaxTemplateCharacters { get; init; }` — Maximum number of characters that binding a template may add in total (default: 256 MiB, the size up to which the readers accept a decompressed part).
 
 #### Section

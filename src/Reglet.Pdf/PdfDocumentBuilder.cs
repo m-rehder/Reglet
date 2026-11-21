@@ -304,6 +304,8 @@ internal static class PdfDocumentBuilder
             new PdfPageDecoration(options.PageTemplate, watermarkExtGState, pictureWatermarkExtGState, pictureWatermark, pageHandler))
         {
             TotalPages = pass.TotalPages,
+            MaxPages = options.Limits.MaxPages,
+            Cancellation = cancellationToken,
             SignatureWidget = signature?.FieldObject,
             Annotations = options.Annotations ?? [],
             WriteAnnotationAppearances = options.PdfA != PdfAConformance.None,
