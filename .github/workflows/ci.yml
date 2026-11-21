@@ -82,14 +82,18 @@ jobs:
         shell: bash
         run: build/run-aot.sh
 
-      # Ubuntu ships Chromium only as a snap (unusable in a container); Playwright's build
-      # also exists for linux-arm64 (Pi runner).
+      # GitHub's runners ship Google Chrome. Elsewhere Ubuntu has Chromium only as a snap (unusable
+      # in a container), so Playwright's build is fetched; it also exists for linux-arm64.
       - name: Blazor WebAssembly
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          npx -y playwright@1.55.0 install --with-deps chromium
-          REGLET_CHROME="$(find ~/.cache/ms-playwright -path '*chrome-linux/chrome' -type f | head -1)" build/run-wasm.sh
+          chrome="$(command -v google-chrome || command -v google-chrome-stable || true)"
+          if [ -z "$chrome" ]; then
+            npx -y playwright@1.55.0 install --with-deps chromium
+            chrome="$(find ~/.cache/ms-playwright -path '*chrome-linux/chrome' -type f | head -1)"
+          fi
+          REGLET_CHROME="$chrome" build/run-wasm.sh
 
       - name: AOT safety
         shell: bash
