@@ -18,6 +18,9 @@ public sealed class HtmlDocumentWriter : IDocumentWriter
         ArgumentNullException.ThrowIfNull(output);
         cancellationToken.ThrowIfCancellationRequested();
         var effective = options ?? HtmlWriteOptions.Default;
+
+        // The same resource limits as the other writers (blocks, cells, text, nesting depth).
+        DocumentLimits.Enforce(document, effective.Limits);
         var warnings = new List<WriteWarning>();
         var handler = new UnsupportedFeatureHandler(effective.UnsupportedContent, warnings);
         return WriterOutput.Write(
@@ -325,6 +328,7 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
 
     private void WriteImage(ImageBlock image)
     {
+        ImageGuard.Check(image, options.Limits);
         if (!options.EmbedImages)
         {
             Report("an image (EmbedImages is off)");

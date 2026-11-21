@@ -36,6 +36,7 @@ internal static class MalformedInputChecks
             SvgReferencesAreBudgeted();
             HugeMediaBoxDoesNotStallRecovery();
             OversizedFormulaIsLeftOut();
+            HtmlWriterAppliesTheLimits();
             PngPaletteTransparencyBecomesSoftMask();
             DocxWithHeaderIsReadable();
             DocxReadsTextInRunContainersAndBreaks();
@@ -699,6 +700,26 @@ internal static class MalformedInputChecks
         var read = DocumentReader.Read(new MemoryStream(odt), DocumentFormat.Odt);
         Require(read.Document.Sections[0].Blocks.OfType<Paragraph>().Any(paragraph => PlainText(paragraph) == "After the formula"), "ODT: the rest of the document is read.");
         Require(read.Warnings.Any(warning => warning.Message.Contains("formula has more than", StringComparison.Ordinal)), "ODT: the left-out formula is reported.");
+    }
+
+    private static void HtmlWriterAppliesTheLimits()
+    {
+        // The HTML writer applied none of the resource limits: deep nesting ended with InsufficientExecutionStackException.
+        Block block = new Paragraph(new TextRun("x"));
+        for (var level = 0; level < 20_000; level++)
+        {
+            block = new TableBlock([new TableRow(new TableCell([block]))]);
+        }
+
+        var deep = new PortableDocument(new DocumentMetadata(), new Section(block));
+        Expect<DocumentValidationException>(() => Write(deep, DocumentFormat.Html), "HTML: the nesting limit applies.", "nested deeper");
+
+        var image = new PortableDocument(new DocumentMetadata(), new Section(new ImageBlock(Png(1, 1, 2, [0, 0, 0, 0], []), ImageMediaType.Png)));
+        Expect<ImageException>(() =>
+        {
+            using var output = new MemoryStream();
+            new HtmlDocumentWriter().WriteAsync(image, output, new HtmlWriteOptions { Limits = new ResourceLimits { MaxImageBytes = 10 } }).GetAwaiter().GetResult();
+        }, "HTML: the image limit applies.");
     }
 
     private static byte[] Write(PortableDocument document, DocumentFormat format)
