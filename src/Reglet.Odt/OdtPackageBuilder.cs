@@ -45,6 +45,11 @@ internal static class OdtPackageBuilder
         {
             handler.Report("ODT: a floating image without an anchor line is written in a paragraph of its own; LibreOffice shows that paragraph as an empty line.");
         }
+
+        if (document.Sections.Any(section => !section.HeaderPushesBody))
+        {
+            handler.Report("ODT: a header that does not push the body is not supported; LibreOffice starts the body below a header taller than the top margin.");
+        }
         var styleNames = sourceStyles.Elements.Select(element => (string?)element.Attribute(XName.Get("name", OdtNamespaces.Style)))
             .Where(name => name is not null).ToHashSet(StringComparer.Ordinal);
         foreach (var resource in images.Values)

@@ -1708,9 +1708,9 @@ internal sealed class PdfPageRenderer
 
     /// <summary>
     /// Draws the header and footer of the current page and returns the top and bottom of the
-    /// body. As in Word, a band sits at <see cref="Typography.HeaderFooterDistance"/> from the
-    /// sheet edge (at most the page margin) and the body begins at max(page margin, distance +
-    /// band height); a band that grows beyond the margin pushes the body back.
+    /// body. As in Word, a band sits at the section's header or footer distance from the sheet edge
+    /// (at most the page margin) and the body begins at max(page margin, distance + band height); a
+    /// band that grows beyond the margin pushes the body back, unless the section's HeaderPushesBody is false.
     /// </summary>
     private (double Top, double Bottom) DrawHeaderFooter()
     {
@@ -1727,16 +1727,19 @@ internal sealed class PdfPageRenderer
 
         if (header is { Blocks.Count: > 0 } headerBand)
         {
-            var distance = Math.Min(Typography.HeaderFooterDistance.Points, marginTop);
+            var distance = Math.Min((_section.HeaderDistance ?? Typography.HeaderFooterDistance).Points, marginTop);
             var bandTop = _pageHeight - distance;
             var height = RenderBand(headerBand, bandTop, maxHeight, measureOnly: false);
-            top = Math.Min(top, bandTop - height);
+            if (_section.HeaderPushesBody)
+            {
+                top = Math.Min(top, bandTop - height);
+            }
         }
 
         if (footer is { Blocks.Count: > 0 } footerBand)
         {
             // The footer grows upward from its distance: measure first, then draw.
-            var distance = Math.Min(Typography.HeaderFooterDistance.Points, marginBottom);
+            var distance = Math.Min((_section.FooterDistance ?? Typography.HeaderFooterDistance).Points, marginBottom);
             var height = RenderBand(footerBand, distance + maxHeight, maxHeight, measureOnly: true);
             RenderBand(footerBand, distance + height, maxHeight, measureOnly: false);
             bottom = Math.Max(bottom, distance + height);

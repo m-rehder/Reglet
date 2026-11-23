@@ -953,6 +953,8 @@ public sealed class DocxDocumentReader : IDocumentReader
                 TextColumns = p.TextColumns,
                 StartType = p.StartType,
                 PageBorders = p.PageBorders,
+                HeaderDistance = p.HeaderDistance,
+                FooterDistance = p.FooterDistance,
             };
         }
 
@@ -3322,8 +3324,19 @@ public sealed class DocxDocumentReader : IDocumentReader
             BandReference(sectPr, "footerReference", "even"),
             ReadColumns(sectPr),
             ReadStartType(sectPr),
-            ReadPageBorders(sectPr));
+            ReadPageBorders(sectPr),
+            BandDistance(pgMar, "header"),
+            BandDistance(pgMar, "footer"));
     }
+
+    /// <summary>The header or footer distance of <c>w:pgMar</c>; null for a missing value or Word's default 0.5 in.</summary>
+    private static Length? BandDistance(XElement? pgMar, string name)
+        => pgMar?.Attribute(W + name)?.Value is { } value
+            && long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var twips)
+            && twips >= 0
+            && twips != 720
+                ? Length.FromPoints(twips / 20.0)
+                : null;
 
     /// <summary>Reads the page border of a section (<c>w:pgBorders</c>, phase AJ, AJ05).</summary>
     private static PageBorders? ReadPageBorders(XElement sectPr)
@@ -3453,7 +3466,9 @@ public sealed class DocxDocumentReader : IDocumentReader
         string? EvenFooterReference,
         int? TextColumns,
         SectionStartType StartType,
-        PageBorders? PageBorders = null);
+        PageBorders? PageBorders = null,
+        Length? HeaderDistance = null,
+        Length? FooterDistance = null);
 
     /// <summary>
     /// collects blocks and combines consecutive list items of the same numbering into one

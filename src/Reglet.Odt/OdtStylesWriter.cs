@@ -408,8 +408,8 @@ internal static class OdtStylesWriter
         // Typography.HeaderFooterDistance from the sheet edge. In ODT it counts towards the type area; the
         // page margin is therefore reduced to this distance and the rest is added to the area
         // added so that the body still begins at the page margin.
-        var header = BandLayout(section.Header ?? section.FirstHeader ?? section.EvenHeader, section.Margins.Top, defaults, isFooter: false);
-        var footer = BandLayout(section.Footer ?? section.FirstFooter ?? section.EvenFooter, section.Margins.Bottom, defaults, isFooter: true);
+        var header = BandLayout(section.Header ?? section.FirstHeader ?? section.EvenHeader, section.Margins.Top, section.HeaderDistance, defaults, isFooter: false);
+        var footer = BandLayout(section.Footer ?? section.FirstFooter ?? section.EvenFooter, section.Margins.Bottom, section.FooterDistance, defaults, isFooter: true);
         writer.WriteAttributeString("fo", "margin-top", OdtNamespaces.Fo, PointsText(header?.PageMargin ?? section.Margins.Top));
         writer.WriteAttributeString("fo", "margin-bottom", OdtNamespaces.Fo, PointsText(footer?.PageMargin ?? section.Margins.Bottom));
         writer.WriteAttributeString("fo", "margin-left", OdtNamespaces.Fo, PointsText(section.Margins.Left));
@@ -478,14 +478,14 @@ internal static class OdtStylesWriter
     /// aligns content at the top as well; this is exact for single-line footers, multi-line
     /// shorten the body somewhat more than Word.
     /// </summary>
-    private static BandMetrics? BandLayout(HeaderFooter? band, Length margin, DocumentDefaults defaults, bool isFooter)
+    private static BandMetrics? BandLayout(HeaderFooter? band, Length margin, Length? distance, DocumentDefaults defaults, bool isFooter)
     {
         if (band is null)
         {
             return null;
         }
 
-        var pageMargin = Math.Min(Typography.HeaderFooterDistance.Points, margin.Points);
+        var pageMargin = Math.Min((distance ?? Typography.HeaderFooterDistance).Points, margin.Points);
         var available = margin.Points - pageMargin;
         var minHeight = isFooter
             ? Math.Min(defaults.FontSize.Points * Typography.LineHeightFactor, available)

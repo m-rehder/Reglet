@@ -11,6 +11,8 @@ public sealed record Section
     private int? _pageNumberStart;
     private SectionStartType _startType;
     private IReadOnlyList<Block> _blocks = [];
+    private Length? _headerDistance;
+    private Length? _footerDistance;
 
     /// <summary>Creates a section with exactly one block.</summary>
     public Section(Block block)
@@ -60,6 +62,34 @@ public sealed record Section
 
     /// <summary>Optional footer.</summary>
     public HeaderFooter? Footer { get; init; }
+
+    /// <summary>
+    /// Distance of the header from the top edge of the sheet (Word's <c>w:pgMar w:header</c>); null means 0.5 in. It is at
+    /// most the top margin.
+    /// </summary>
+    public Length? HeaderDistance
+    {
+        get => _headerDistance;
+        init => _headerDistance = Distance(value, nameof(HeaderDistance));
+    }
+
+    /// <summary>Distance of the footer from the bottom edge of the sheet (<c>w:pgMar w:footer</c>); null means 0.5 in.</summary>
+    public Length? FooterDistance
+    {
+        get => _footerDistance;
+        init => _footerDistance = Distance(value, nameof(FooterDistance));
+    }
+
+    /// <summary>
+    /// Whether a header taller than the top margin pushes the body down (true, the default, as in Word). False keeps the body
+    /// at the top margin, and the header may overlap it (MigraDoc's behaviour). The PDF honours it; DOCX and ODT report it.
+    /// </summary>
+    public bool HeaderPushesBody { get; init; } = true;
+
+    private static Length? Distance(Length? value, string name)
+        => value is { } distance && (!double.IsFinite(distance.Points) || distance.Points < 0)
+            ? throw new ArgumentOutOfRangeException(name, "The header and footer distance must not be negative.")
+            : value;
 
     /// <summary>Optional header of the first page.</summary>
     public HeaderFooter? FirstHeader { get; init; }

@@ -1393,6 +1393,11 @@ internal static class DocxPackageBuilder
             cancellationToken.ThrowIfCancellationRequested();
             var section = document.Sections[sectionIndex];
             var availableWidth = ContentWidthTwips(section);
+            if (!section.HeaderPushesBody)
+            {
+                context.Handler.Report("DOCX: a header that does not push the body is not supported; Word starts the body below a header taller than the top margin.");
+            }
+
             foreach (var block in section.Blocks)
             {
                 // AF06: re-emit an unmodified, self-contained source block verbatim (keeps
@@ -3649,8 +3654,8 @@ internal static class DocxPackageBuilder
         WriteWAttribute(writer, "right", Twips(section.Margins.Right));
         WriteWAttribute(writer, "bottom", Twips(section.Margins.Bottom));
         WriteWAttribute(writer, "left", Twips(section.Margins.Left));
-        WriteWAttribute(writer, "header", Twips(Typography.HeaderFooterDistance));
-        WriteWAttribute(writer, "footer", Twips(Typography.HeaderFooterDistance));
+        WriteWAttribute(writer, "header", Twips(section.HeaderDistance ?? Typography.HeaderFooterDistance));
+        WriteWAttribute(writer, "footer", Twips(section.FooterDistance ?? Typography.HeaderFooterDistance));
         WriteWAttribute(writer, "gutter", 0L);
         writer.WriteEndElement();
 

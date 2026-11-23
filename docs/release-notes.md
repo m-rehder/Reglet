@@ -8,6 +8,14 @@
   `handelsübliche UP-` / `Kombination`. A hyphen before a digit (`-5`, `2026-09-25`) or at the start of a word keeps
   its neighbours together.
 
+### Sections
+
+- `Section.HeaderDistance` and `Section.FooterDistance` set how far the header and footer stand from the sheet edge
+  (Word's `w:pgMar w:header`/`w:footer`, read and written; ODT writes them). Null keeps 0.5 in.
+- `Section.HeaderPushesBody = false` keeps the body at the top margin when the header grows past it (MigraDoc's
+  behaviour); the header may then overlap the body. The PDF honours it, DOCX and ODT report it. The default keeps
+  Word's.
+
 ### Tables
 
 - `TableRow.KeepTogether` keeps a row on one page: a row that does not fit at the bottom moves whole to the next page,

@@ -16,6 +16,7 @@ internal static class MigraDocParity2Checks
             RowKeptOnOnePage();
             LineBreaksAfterHyphen();
             FixedColumnWidthsOverflow();
+            HeaderDistanceAndBodyStart();
             Console.WriteLine("MigraDoc parity 2: all checks passed.");
             return 0;
         }
@@ -118,6 +119,48 @@ internal static class MigraDocParity2Checks
         var read = new DocxDocumentReader().Read(buffer).Document.Sections[0].Blocks.OfType<TableBlock>().Single();
         Require(read.FixedColumnWidths && Math.Abs(read.ColumnWidths!.Sum(width => width.Points) - widths.Sum(width => width.Points)) < 0.1,
             "DOCX: the fixed layout and its widths survive.");
+    }
+
+    private static void HeaderDistanceAndBodyStart()
+    {
+        var margins = new PageMargins(Length.FromCentimeters(4), Length.FromPoints(72), Length.FromPoints(72), Length.FromPoints(72));
+        List<(double Size, double X, double Y, string Text)> Page(int headerLines, Section? template = null)
+        {
+            var header = new HeaderFooter(Enumerable.Range(1, headerLines).Select(line => (Block)new Paragraph(new TextRun("H" + line))));
+            var section = (template ?? new Section(new Paragraph(new TextRun("BODY")))) with { Margins = margins, Header = header, Blocks = [new Paragraph(new TextRun("BODY"))] };
+            return Pages(Document(section))[0];
+        }
+
+        double Y(List<(double Size, double X, double Y, string Text)> page, string text) => page.Single(piece => piece.Text == text).Y;
+
+        // N7: the header starts at its distance from the top edge.
+        var defaultTop = Y(Page(1), "H1");
+        var near = Y(Page(1, new Section([]) { HeaderDistance = Length.FromCentimeters(1.25) }), "H1");
+        Require(Math.Abs(near - defaultTop - (36 - Length.FromCentimeters(1.25).Points)) < 0.01, $"A 1.25 cm header distance lifts the header by 0.57 pt ({near - defaultTop}).");
+
+        // N5: a header taller than the top margin pushes the body, unless HeaderPushesBody is false.
+        var bodyAtMargin = Y(Page(1), "BODY");
+        Require(Y(Page(8), "BODY") < bodyAtMargin - 10, "By default a tall header pushes the body down.");
+        Require(Math.Abs(Y(Page(8, new Section([]) { HeaderPushesBody = false }), "BODY") - bodyAtMargin) < 0.01, "Without pushing, the body stays at the top margin.");
+
+        var document = Document(new Section(new Paragraph(new TextRun("BODY"))) { HeaderDistance = Length.FromCentimeters(1.25), FooterDistance = Length.FromPoints(20), HeaderPushesBody = false });
+        using var buffer = new MemoryStream();
+        var written = new DocxDocumentWriter().WriteAsync(document, buffer).GetAwaiter().GetResult();
+        Require(written.Warnings.Any(warning => warning.Message.Contains("does not push the body", StringComparison.Ordinal)), "DOCX reports HeaderPushesBody = false.");
+        buffer.Position = 0;
+        var read = new DocxDocumentReader().Read(buffer).Document.Sections[0];
+        Require(Math.Abs(read.HeaderDistance!.Value.Points - Length.FromCentimeters(1.25).Points) < 0.05 && read.FooterDistance == Length.FromPoints(20),
+            "DOCX: the header and footer distance survive.");
+        Require(new DocxDocumentReader().Read(Write(new DocxDocumentWriter(), Document(new Section(new Paragraph(new TextRun("x")))))).Document.Sections[0].HeaderDistance is null,
+            "DOCX: Word's 0.5 in default reads as null.");
+    }
+
+    private static MemoryStream Write(IDocumentWriter writer, PortableDocument document)
+    {
+        var buffer = new MemoryStream();
+        writer.WriteAsync(document, buffer).GetAwaiter().GetResult();
+        buffer.Position = 0;
+        return buffer;
     }
 
     private static void Require(bool condition, string message)
