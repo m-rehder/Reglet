@@ -6,6 +6,8 @@
 - Build a document with `PortableDocument.Create()`, write it with `DocumentWriter.WriteAsync(document, "out.pdf")` (format from the extension), read one with `DocumentReader`.
 - Documents are immutable; all lengths are stored in points (`Length`).
 - Unicode text in PDF needs caller-provided TrueType fonts (`PdfWriteOptions.FontCollection`).
+- Drawn pages (data sheets, labels): `PdfCanvas` draws text, lines, rectangles and images at fixed coordinates (points, origin top left, y down); `MeasureText` returns the drawn width.
+- A preview that looks like the PDF: `PdfDocumentWriter.WriteHtmlAsync` (or `PdfCanvas.WriteHtmlAsync`) writes the PDF's pages as HTML; `PdfHtmlOptions` selects a full document or a fragment with a class prefix. The flow HTML of `DocumentWriter` with `.html` is simple and editable, not page-faithful.
 
 ## Docs
 
