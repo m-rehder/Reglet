@@ -23,7 +23,7 @@ public static class Pdf
                 },
             },
         };
-        yield return new Example("pdf", "password-protection", "A PDF and a DOCX that open only with a password; the PDF also forbids copying.")
+        yield return new Example("pdf", "encryption", "A PDF and a DOCX that open only with a password; the PDF also forbids copying.")
         {
             Run = ProtectAsync,
         };
@@ -221,13 +221,13 @@ public static class Pdf
     {
         var document = PortableDocument.Create().Metadata(title: "Salaries").Heading("Salaries 2026").Paragraph("Confidential.").Build();
 
-        var pdf = Path.Combine(output, "pdf-password-protection.pdf");
+        var pdf = Path.Combine(output, "pdf-encryption.pdf");
         await DocumentWriter.WriteAsync(document, pdf, new PdfWriteOptions
         {
             Encryption = new PdfEncryptionOptions { UserPassword = Assets.Password, Permissions = PdfPermissions.Print },
         });
 
-        var docx = Path.Combine(output, "pdf-password-protection.docx");
+        var docx = Path.Combine(output, "pdf-encryption.docx");
         await DocumentWriter.WriteAsync(document, docx, new DocxWriteOptions { Encryption = new DocxEncryptionOptions(Assets.Password) });
         Console.WriteLine($"    password of both files: {Assets.Password}");
         return [pdf, docx];

@@ -101,7 +101,7 @@ Source: [`examples/Gallery/Pdf.cs`](../examples/Gallery/Pdf.cs)
 | Example | What it shows |
 | --- | --- |
 | `watermark` | A "DRAFT" watermark and a letterhead on every PDF page, without touching the document. |
-| `password-protection` | A PDF and a DOCX that open only with a password; the PDF also forbids copying. |
+| `encryption` | A PDF and a DOCX that open only with a password; the PDF also forbids copying. |
 | `digital-signature` | Signs a PDF with a certificate; the viewer shows who signed it and whether it changed. |
 | `form-fields` | A fillable form: text fields, check boxes and a drop-down list. |
 | `merge-and-split` | Merges two PDFs into one and takes pages out of a PDF. |
