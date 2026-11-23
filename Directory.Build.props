@@ -41,7 +41,7 @@
     (snupkg) are set so that the sources stay traceable.
   -->
   <PropertyGroup>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <Authors>Maik Rehder</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/m-rehder/Reglet</RepositoryUrl>
