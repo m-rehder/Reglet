@@ -7,7 +7,7 @@
 - Documents are immutable; all lengths are stored in points (`Length`).
 - Unicode text in PDF needs caller-provided TrueType fonts (`PdfWriteOptions.FontCollection`).
 - Drawn pages (data sheets, labels): `PdfCanvas` draws text, lines, rectangles and images at fixed coordinates (points, origin top left, y down); `MeasureText` returns the drawn width.
-- Migrating from MigraDoc: fields and empty paragraphs take their paragraph's font size; `ImageBlock.TakesAnchorLine = false` floats an image without an empty anchor line; `TableBlock.CellPaddingHorizontal`/`CellPaddingVertical` and `LeftIndent` give MigraDoc's 1.2 mm side padding with the text at the margin.
+- Migrating from MigraDoc: fields and empty paragraphs take their paragraph's font size; `ImageBlock.TakesAnchorLine = false` floats an image without an empty anchor line; `TableBlock.CellPaddingHorizontal`/`CellPaddingVertical` and `LeftIndent` give MigraDoc's 1.2 mm side padding with the text at the margin. Further: `TableRow.KeepTogether` (MigraDoc never splits a row), `InlineImage` for a picture in a paragraph's line, `TableBlock.FixedColumnWidths`, `Section.HeaderDistance`/`HeaderPushesBody = false`, `PdfWriteOptions.Kerning`/`Ligatures = false` (PDFsharp sets text unkerned).
 - A preview that looks like the PDF: `PdfDocumentWriter.WriteHtmlAsync` (or `PdfCanvas.WriteHtmlAsync`) writes the PDF's pages as HTML; `PdfHtmlOptions` selects a full document or a fragment with a class prefix. The flow HTML of `DocumentWriter` with `.html` is simple and editable, not page-faithful.
 
 ## Docs

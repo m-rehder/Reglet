@@ -800,6 +800,14 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 `abstract class Inline` — common base type for inline content of a paragraph or a heading.
 
 
+#### InlineImage
+
+`sealed class InlineImage : Inline` — An image in the line of a paragraph (Word's `wp:inline`): it stands on the baseline like a large character and follows the paragraph's alignment. The line is as high as the font's line gap, the image and the font's descent.
+
+- `new InlineImage(ImageBlock image)` — Creates an inline image from an image.
+- `new InlineImage(ReadOnlyMemory<byte> data, ImageMediaType mediaType, Length? width = null, Length? height = null)` — Creates an inline image from bytes and media type, with an optional size (null keeps the image's own).
+- `ImageBlock Image { get; }` — The image: bytes, size, crop and alternative text.
+
 #### InvalidXmlCharacterBehavior
 
 `enum InvalidXmlCharacterBehavior` — Behavior for characters that XML 1.0 does not allow.
@@ -1302,6 +1310,9 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `PageMargins Margins { get; init; }` — Page margins.
 - `HeaderFooter? Header { get; init; }` — Optional header.
 - `HeaderFooter? Footer { get; init; }` — Optional footer.
+- `Length? HeaderDistance { get; init; }` — Distance of the header from the top edge of the sheet (Word's `w:pgMar w:header`); null means 0.5 in. It is at most the top margin.
+- `Length? FooterDistance { get; init; }` — Distance of the footer from the bottom edge of the sheet (`w:pgMar w:footer`); null means 0.5 in.
+- `bool HeaderPushesBody { get; init; }` — Whether a header taller than the top margin pushes the body down (true, the default, as in Word). False keeps the body at the top margin, and the header may overlap it (MigraDoc's behaviour). The PDF honours it; DOCX and ODT report it.
 - `HeaderFooter? FirstHeader { get; init; }` — Optional header of the first page.
 - `HeaderFooter? FirstFooter { get; init; }` — Optional footer of the first page.
 - `HeaderFooter? EvenHeader { get; init; }` — Optional header of even pages.
@@ -1403,6 +1414,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `Length? CellPaddingHorizontal { get; init; }` — Left and right padding of the cells; overrides `TableBlock.CellPadding` on those sides.
 - `Length? CellPaddingVertical { get; init; }` — Top and bottom padding of the cells; overrides `TableBlock.CellPadding` on those sides.
 - `Length? LeftIndent { get; init; }` — Moves the table and its borders from the left margin (Word's table indent); negative moves it into the margin, for example by the left cell padding so the text of the first column stands at the margin. Null means 0.
+- `bool FixedColumnWidths { get; init; }` — Keeps a full set of `TableBlock.ColumnWidths` even when it is wider than the text area, so the table runs into the right margin (Word's fixed table layout, `w:tblLayout w:type="fixed"`). False, the default, shrinks such a table in proportion to the text width.
 - `double? WidthPercent { get; init; }` — Table width in percent of the available width; null means full width.
 - `TableStyle? Style { get; init; }` — reusable table style (phase Y, Y05). Its borders and cell padding apply where the table has no direct value; header and banded-row backgrounds are conditional formats.
 
@@ -1468,6 +1480,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `bool IsHeader { get; init; }` — Marks the row as a header row.
 - `Length? Height { get; init; }` — Line height; null means automatic.
 - `TableRowHeightRule HeightRule { get; init; }` — Rule for the row height.
+- `bool KeepTogether { get; init; }` — Keeps the row on one page (Word's `w:cantSplit`, ODT's `fo:keep-together`): a row that does not fit at the bottom of a page moves whole to the next one. A row taller than a page is still split.
 
 #### TableRowHeightRule
 
@@ -2298,6 +2311,8 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `PdfViewerPreferences ViewerPreferences { get; init; }` — optional window flags of the viewer (OF-F02). The flags are written into the `/ViewerPreferences` dictionary of the catalog.
 - `PdfPageLayout PageLayout { get; init; }` — optional page layout of the viewer (OF-F02). Written as `/PageLayout` into the catalog; `PdfPageLayout.Default` writes nothing.
 - `PdfPageMode PageMode { get; init; }` — optional mode the viewer opens the document in (OF-F02). Written as `/PageMode` into the catalog; `PdfPageMode.Default` writes nothing.
+- `bool Kerning { get; init; }` — Applies the embedded fonts' kerning (the OpenType `kern` feature); true by default. False sets every glyph at its advance width, as PDFsharp and MigraDoc do. A run's `TextRun.Kerning` threshold still turns it off below that size.
+- `bool Ligatures { get; init; }` — Applies the embedded fonts' standard ligatures (the OpenType `liga` feature, such as "fi"); true by default. The forms Arabic requires stay.
 
 #### TextAnchor
 

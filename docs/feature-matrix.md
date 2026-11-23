@@ -50,7 +50,8 @@ Legend:
 | Automatic hyphenation (BJ01) | supported (`w:autoHyphenation` with `DocxWriteOptions.AutoHyphenation`; the soft hyphens of the text are break opportunities) | supported (`OdtWriteOptions.AutoHyphenation` sets `fo:hyphenate` on the default style; LibreOffice uses its own dictionary, the soft hyphens of the text are break opportunities) | supported (soft hyphens and, with `PdfWriteOptions.Hyphenation`, the words are broken with the patterns of the caller) |
 | Headings, lists, tables in the header/footer | supported | supported | supported (artifacts; a band may take at most a third of the page) |
 | Images in the header/footer | supported | supported | supported |
-| Header/footer position (0.5 in from the sheet edge, body at max(margin, distance + band height)) | supported | supported | supported |
+| Header/footer position (`Section.HeaderDistance`/`FooterDistance`, default 0.5 in from the sheet edge; body at max(margin, distance + band height)) | supported (`w:pgMar w:header`/`w:footer`, read and written) | supported (written) | supported |
+| Header that does not push the body (`Section.HeaderPushesBody = false`) | not supported (reported) | not supported (reported) | supported |
 | Page breaks in the header/footer | unsupported | unsupported | unsupported |
 
 ## Text structure
@@ -73,7 +74,9 @@ Legend:
 | Text effects (`TextEffects`: outline, shadow, emboss, engrave) | supported (`w:outline`, `w:shadow`, `w:emboss`, `w:imprint`) | supported (`style:text-outline`, `fo:text-shadow`, `style:font-relief`) | not drawn |
 | Character background/highlight | supported (as shading) | supported (one `fo:background-color`; a highlight wins over a background) | supported |
 | Named character styles | supported (AI01, `w:rStyle`) | supported (AI01, `style:parent-style-name`) | applied (AI01, no style mechanism) |
-| Kerning | supported (threshold) | approximated (boolean; a threshold is written as enabled and read back as 0) | approximated (shaping of embedded fonts; standard fonts without kerning) |
+| Kerning | supported (threshold) | approximated (boolean; a threshold is written as enabled and read back as 0) | approximated (shaping of embedded fonts, no kerning below a run's threshold; standard fonts without kerning; `PdfWriteOptions.Kerning = false` switches it off) |
+| Standard ligatures (`liga`) | target program | target program | supported (embedded fonts; `PdfWriteOptions.Ligatures = false` switches them off) |
+| Line break after a hyphen inside a word (UAX #14 HY) | target program | target program | supported (not before a digit) |
 | Character spacing | supported | supported | supported (`Tc`) |
 | Horizontal scaling | supported | supported | supported (`Tz`) |
 | Baseline shift (`Position`) | supported | supported | supported |
@@ -121,6 +124,8 @@ Legend:
 | Tables: column span (`ColumnSpan`) | supported | supported | supported |
 | Tables: row span (`RowSpan`) | supported (`w:vMerge`) | supported (`table:number-rows-spanned`) | supported (continuation cells) |
 | Tables: row height | supported | supported | supported |
+| Tables: row kept on one page (`TableRow.KeepTogether`) | supported (`w:cantSplit`) | supported (`fo:keep-together`) | supported (moves whole unless taller than a page) |
+| Tables: fixed column widths past the text area (`TableBlock.FixedColumnWidths`) | supported (`w:tblLayout w:type="fixed"`) | supported (written as the width of a left-aligned table) | supported |
 | Tables: vertical cell alignment | supported | supported | supported |
 | Tables: cell background | supported | supported | supported |
 | Tables: custom cell borders/padding | supported | supported | supported |
@@ -142,6 +147,7 @@ Legend:
 | Images: crop | supported (`a:srcRect`) | supported (`fo:clip`) | supported (clipping path) |
 | Images: floating with wrap | supported (`wp:anchor`, also `Through`/`Behind`/`InFront`) | supported (`draw:frame` and graphic style; ODF cannot distinguish `Through` from `Behind`) | supported (offsets, all six wrap kinds, several images, reflow per line; a `Through` wrap follows the alpha contour of a PNG) |
 | Images and shapes: anchored to page, margin, column or paragraph | supported (`wp:positionH`/`wp:positionV` `relativeFrom` page, margin, column, character, paragraph, line; `wp:align` or `wp:posOffset`; inner/outer/left/right margins approximated when reading) | supported (`style:horizontal-rel`/`vertical-rel` page, page-content, paragraph-content, char, line; `style:horizontal-pos`/`vertical-pos` or `svg:x`/`svg:y`) | supported (page and margin positions independent of the carrying paragraph; character and line placed like column and paragraph; vertical alignment only within page or margin) |
+| Image in the line of a paragraph (`InlineImage`) | supported (`wp:inline` in a run; read back when the paragraph has text) | supported (frame anchored as a character; written) | supported (on the baseline; line gap, image and descent) |
 | Floating image without an anchor line (`ImageBlock.TakesAnchorLine = false`) | not supported (kept in its own paragraph, reported) | not supported (kept in its own paragraph, reported) | supported |
 | SVG images | supported (SVG plus optional caller-provided PNG/JPEG fallback) | supported (`image/svg+xml`) | supported (converted to vector graphics; a documented subset of SVG — paths, basic shapes, simple text with a whole-text or per-glyph rotation (each glyph placed separately, so kerning between glyphs is lost), transforms, colours, opacity, stroke dash patterns, line caps, joins and miter limits, `use` references, style-sheet rules for element/class/id selectors, selected gradients (linear and radial, including repeating linear gradients as tiling patterns and repeating radial gradients as a sampled colour function), tiling patterns and clipping paths (a `clipPath` with several shapes clips to their union; each shape may carry its own transform, rounded-rectangle clips are supported, a nested `clip-path` on a single shape intersects with the outer clip, and a multi-shape union with up to four nested references is applied exactly through the clause decomposition of the union; more than four are reported); masks, markers at the start, the inner vertices and the end of a path (also the `marker` shorthand), base64-embedded PNG/JPEG images; filters and anything else outside the subset are reported) |
 | Page breaks | supported | supported | supported |

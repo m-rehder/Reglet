@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+See ADR-0041.
+
 ### Images
 
 - `InlineImage` places an image in the line of a paragraph, next to text runs (Word's `wp:inline`, MigraDoc's image
