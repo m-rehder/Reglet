@@ -17,15 +17,26 @@ internal sealed class TextShaper
     private readonly TrueTypeFont _font;
     private readonly OpenTypeLayout? _layout;
     private readonly double _scale;
+    private readonly bool _kerning;
+    private readonly bool _ligatures;
 
-    /// <summary>Creates a shaper; without layout tables (GSUB/GPOS/GDEF) only the bidi order is applied.</summary>
-    public TextShaper(TrueTypeFont font, OpenTypeLayout? layout)
+    /// <summary>
+    /// Creates a shaper; without layout tables (GSUB/GPOS/GDEF) only the bidi order is applied. Without
+    /// <paramref name="kerning"/> no GPOS kerning, without <paramref name="ligatures"/> no standard ligatures (the
+    /// required Arabic forms stay).
+    /// </summary>
+    public TextShaper(TrueTypeFont font, OpenTypeLayout? layout, bool kerning = true, bool ligatures = true)
     {
         ArgumentNullException.ThrowIfNull(font);
         _font = font;
         _layout = layout;
         _scale = 1000.0 / font.UnitsPerEm;
+        _kerning = kerning;
+        _ligatures = ligatures;
     }
+
+    /// <summary>The same shaper without kerning; itself when it does not kern.</summary>
+    public TextShaper WithoutKerning() => _kerning ? new TextShaper(_font, _layout, kerning: false, _ligatures) : this;
 
     /// <summary>Script of a text (Arabic, Hebrew or Latin).</summary>
     public static uint DetectScript(ReadOnlySpan<int> codePoints)
@@ -149,12 +160,12 @@ internal sealed class TextShaper
             return false;
         }
 
-        if (_layout.GetFeatureLookups(gpos: true, script, OpenTypeLayout.FeatureKern).Count > 0)
+        if (_kerning && _layout.GetFeatureLookups(gpos: true, script, OpenTypeLayout.FeatureKern).Count > 0)
         {
             return true;
         }
 
-        if (_layout.GetFeatureLookups(gpos: false, script, OpenTypeLayout.FeatureLiga).Count > 0)
+        if (_ligatures && _layout.GetFeatureLookups(gpos: false, script, OpenTypeLayout.FeatureLiga).Count > 0)
         {
             return true;
         }
@@ -205,7 +216,7 @@ internal sealed class TextShaper
             }
         }
 
-        var kern = ComputeKerning(glyphs, _layout?.GetFeatureLookups(gpos: true, script, OpenTypeLayout.FeatureKern) ?? []);
+        var kern = ComputeKerning(glyphs, _kerning ? _layout?.GetFeatureLookups(gpos: true, script, OpenTypeLayout.FeatureKern) ?? [] : []);
         return BuildResult(glyphs, sources, kern, rightToLeft);
     }
 
@@ -240,7 +251,11 @@ internal sealed class TextShaper
             result.AddRange(_layout!.GetFeatureLookups(gpos: false, script, OpenTypeLayout.FeatureRlig));
         }
 
-        result.AddRange(_layout!.GetFeatureLookups(gpos: false, script, OpenTypeLayout.FeatureLiga));
+        if (_ligatures)
+        {
+            result.AddRange(_layout!.GetFeatureLookups(gpos: false, script, OpenTypeLayout.FeatureLiga));
+        }
+
         return result;
     }
 

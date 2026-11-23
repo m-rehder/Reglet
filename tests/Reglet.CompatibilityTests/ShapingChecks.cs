@@ -19,6 +19,7 @@ internal static class ShapingChecks
             ReportsMissingLayoutTables();
             ShapesLatinLigatureAndKerning();
             KernsRightToLeftPairs();
+            KerningAndLigaturesCanBeSwitchedOff();
             AppliesArabicContextForms();
             MeasuresShapedTextWithLigature();
             WritesShapedGlyphsAsTextArray();
@@ -162,6 +163,43 @@ internal static class ShapingChecks
         var kerned = shaper.Shape("AA") ?? throw new InvalidOperationException("No shaping.");
         Require(kerned.Count == 2, "AA remains two glyphs.");
         Require(Math.Abs(kerned[0].Kern - (-80)) < 1e-9, $"Kerning -80 after the first A (is {kerned[0].Kern}).");
+    }
+
+    /// <summary>N6: kerning and standard ligatures can be switched off, for the writer and per run below its threshold.</summary>
+    private static void KerningAndLigaturesCanBeSwitchedOff()
+    {
+        var bytes = FontBytes(
+            cmap: Cmap12Mapped(('f', 3), ('i', 4), ('A', 3)),
+            gsub: Gsub("latn", "liga", 4, LigatureSubtable(3, 4, 5)),
+            gpos: Gpos("latn", "kern", PairPosSubtable(3, 3, -80, 0)));
+        var font = TrueTypeFont.Load(bytes);
+        var layout = OpenTypeLayout.TryCreate(font)!;
+        Require(new TextShaper(font, layout, kerning: false).Shape("AA") is not { } plain || plain.All(glyph => glyph.Kern == 0), "No kerning when it is off.");
+        Require(new TextShaper(font, layout, ligatures: false).Shape("fi") is not { } split || split.Count == 2, "No ligature when it is off.");
+        Require(new TextShaper(font, layout, kerning: false, ligatures: false).Shape("fiAA") is null, "With both off a Latin text takes the fast path.");
+
+        double Measure(string text, PdfWriteOptions options)
+            => new PdfCanvas(options with { Fonts = new Dictionary<string, byte[]> { ["Test"] = bytes } }).MeasureText(text, new PdfCanvasFont("Test"), 10);
+        var defaults = new PdfWriteOptions();
+        Require(Math.Abs(Measure("AA", defaults) - 11.2) < 1e-6 && Math.Abs(Measure("AA", defaults with { Kerning = false }) - 12) < 1e-6, "PdfWriteOptions.Kerning = false sets the pair at its advances.");
+        Require(Math.Abs(Measure("fi", defaults) - 7) < 1e-6 && Math.Abs(Measure("fi", defaults with { Ligatures = false }) - 9) < 1e-6, "PdfWriteOptions.Ligatures = false keeps f and i apart.");
+
+        // A run below its kerning threshold: a right-aligned "AA" ends at the margin either way, so unkerned it starts 0.8 pt earlier.
+        double StartOf(Length? threshold)
+        {
+            var paragraph = new Paragraph(new TextRun("AA") { FontFamily = "Test", FontSize = Length.FromPoints(10), Kerning = threshold })
+            {
+                Style = new ParagraphStyle { Alignment = TextAlignment.Right },
+            };
+            using var buffer = new MemoryStream();
+            new PdfDocumentWriter().WriteAsync(new PortableDocument(new DocumentMetadata(), new Section(paragraph)), buffer,
+                new PdfWriteOptions { Fonts = new Dictionary<string, byte[]> { ["Test"] = bytes } }).GetAwaiter().GetResult();
+            var match = System.Text.RegularExpressions.Regex.Match(PdfStreams.DecompressPages(buffer.ToArray())[0], @"(-?[\d.]+) (-?[\d.]+) Td");
+            return double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        Require(Math.Abs(StartOf(null) - StartOf(Length.FromPoints(12)) - 0.8) < 0.01 && Math.Abs(StartOf(Length.FromPoints(8)) - StartOf(null)) < 0.01,
+            $"TextRun.Kerning turns kerning off below its threshold only ({StartOf(Length.FromPoints(12))} / {StartOf(null)}).");
     }
 
     /// <summary>P03: Arabic contextual forms are chosen via the joining analysis.</summary>

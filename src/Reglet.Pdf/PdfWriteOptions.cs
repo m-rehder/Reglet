@@ -101,4 +101,17 @@ public sealed record PdfWriteOptions : WriteOptions
     /// into the catalog; <see cref="PdfPageMode.Default"/> writes nothing.
     /// </summary>
     public PdfPageMode PageMode { get; init; } = PdfPageMode.Default;
+
+    /// <summary>
+    /// Applies the embedded fonts' kerning (the OpenType <c>kern</c> feature); true by default. False sets every glyph at
+    /// its advance width, as PDFsharp and MigraDoc do. A run's <see cref="TextRun.Kerning"/> threshold still turns it off
+    /// below that size.
+    /// </summary>
+    public bool Kerning { get; init; } = true;
+
+    /// <summary>
+    /// Applies the embedded fonts' standard ligatures (the OpenType <c>liga</c> feature, such as "fi"); true by default.
+    /// The forms Arabic requires stay.
+    /// </summary>
+    public bool Ligatures { get; init; } = true;
 }

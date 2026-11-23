@@ -7,6 +7,9 @@
 - A line also breaks after a hyphen inside a word, before a letter (UAX #14 class HY, as Word and MigraDoc):
   `handelsübliche UP-` / `Kombination`. A hyphen before a digit (`-5`, `2026-09-25`) or at the start of a word keeps
   its neighbours together.
+- `PdfWriteOptions.Kerning = false` and `Ligatures = false` switch off the embedded fonts' kerning and standard
+  ligatures, for documents and `PdfCanvas` (measuring included), as PDFsharp and MigraDoc set text. Both stay on by
+  default. `TextRun.Kerning` is now honoured: below its threshold size a run is not kerned (Word's `w:kern`).
 
 ### Sections
 

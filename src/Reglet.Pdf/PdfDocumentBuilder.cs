@@ -285,7 +285,7 @@ internal static class PdfDocumentBuilder
 
         var standardFonts = new PdfStandardFontManager(file, resources);
         var fonts = ResolveFonts(options, handler);
-        var embeddedFonts = new PdfTrueTypeFontManager(file, resources);
+        var embeddedFonts = new PdfTrueTypeFontManager(file, resources, options.Kerning, options.Ligatures);
         var fontCatalog = new PdfFontCatalog(
             standardFonts,
             embeddedFonts,

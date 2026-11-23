@@ -37,6 +37,18 @@ internal sealed class PdfFontHandle
     }
 
     private readonly Lazy<string> _resourceName;
+    private PdfFontHandle? _withoutKerning;
+
+    /// <summary>The same font drawn and measured without kerning (a run below its kerning threshold); itself when it does not kern.</summary>
+    public PdfFontHandle WithoutKerning()
+    {
+        if (_shaper is null || _shaper.WithoutKerning() is var plain && ReferenceEquals(plain, _shaper))
+        {
+            return this;
+        }
+
+        return _withoutKerning ??= new PdfFontHandle(() => ResourceName, Metrics, IsEmbedded, _encode, _canEncode, SyntheticBold, SyntheticItalic, plain, _recordShaped, _requireGlyphs);
+    }
 
     public string ResourceName => _resourceName.Value;
 

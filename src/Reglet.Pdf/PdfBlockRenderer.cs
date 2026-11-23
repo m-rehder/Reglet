@@ -3018,6 +3018,12 @@ internal sealed class PdfBlockRenderer
             var size = run.FontSize?.Points ?? headingSize ?? _defaults.FontSize.Points;
             var color = run.Color ?? _defaults.TextColor;
 
+            // Word's w:kern: kerning only from the threshold size on.
+            if (run.Kerning is { } kerningThreshold && size < kerningThreshold.Points)
+            {
+                font = font.WithoutKerning();
+            }
+
             var renderedText = run.Text.Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
             if (!font.CanEncode(run.AllCaps == true || run.SmallCaps == true ? renderedText.ToUpperInvariant() : renderedText))
             {

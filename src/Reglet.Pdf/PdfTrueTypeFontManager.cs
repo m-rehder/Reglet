@@ -15,12 +15,17 @@ internal sealed class PdfTrueTypeFontManager
     private readonly List<PdfEmbeddedFont> _order = [];
     private bool _finished;
 
-    public PdfTrueTypeFontManager(PdfFileWriter file, PdfResourceManager resources)
+    private readonly bool _kerning;
+    private readonly bool _ligatures;
+
+    public PdfTrueTypeFontManager(PdfFileWriter file, PdfResourceManager resources, bool kerning = true, bool ligatures = true)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(resources);
         _file = file;
         _resources = resources;
+        _kerning = kerning;
+        _ligatures = ligatures;
     }
 
     /// <summary>
@@ -62,7 +67,7 @@ internal sealed class PdfTrueTypeFontManager
             Face = face,
             Font = font,
             Layout = layout,
-            Shaper = new TextShaper(font, layout), // without layout tables it still applies the bidi order
+            Shaper = new TextShaper(font, layout, _kerning, _ligatures), // without layout tables it still applies the bidi order
             Type0Object = type0Object,
             CidFontObject = _file.ReserveObject(),
             DescriptorObject = _file.ReserveObject(),

@@ -67,7 +67,7 @@ public sealed class PdfCanvas
         var resources = new PdfResourceManager();
         _measureFonts = new PdfFontCatalog(
             new PdfStandardFontManager(file, resources),
-            new PdfTrueTypeFontManager(file, resources),
+            new PdfTrueTypeFontManager(file, resources, _options.Kerning, _options.Ligatures),
             PdfDocumentBuilder.ResolveFonts(_options, new UnsupportedFeatureHandler(UnsupportedContentBehavior.Warn, [])),
             requireEmbeddedFonts: _options.PdfA != PdfAConformance.None);
     }
