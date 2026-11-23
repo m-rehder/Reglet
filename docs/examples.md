@@ -1,6 +1,6 @@
 # Example gallery
 
-Forty small programs, from "Hello World" to a complete invoice and report. Each one builds a document with
+Forty-two small programs, from "Hello World" to a complete invoice and report. Each one builds a document with
 Reglet and writes it to the formats it is meant for (usually DOCX, ODT and PDF); every file is read back, so the
 gallery doubles as a test.
 
@@ -106,6 +106,8 @@ Source: [`examples/Gallery/Pdf.cs`](../examples/Gallery/Pdf.cs)
 | `form-fields` | A fillable form: text fields, check boxes and a drop-down list. |
 | `merge-and-split` | Merges two PDFs into one and takes pages out of a PDF. |
 | `extract-text` | Reads the text of a PDF page by page. |
+| `data-sheet` | A technical data sheet drawn at fixed coordinates (`PdfCanvas`), with measured line breaks; as PDF and HTML. |
+| `html-preview` | The invoice as an HTML preview with the PDF's pages, alone and as a fragment in a host page. |
 
 ## Complete documents
 

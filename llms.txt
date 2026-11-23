@@ -14,7 +14,7 @@
 - [API reference](docs/api-reference.md): every public type and member, one line each with signature and summary; search it instead of reading it whole
 - [README](README.md): overview, install, quick start
 - [Guide](docs/guide.md): writer options per format, fonts, templates
-- [Example gallery](docs/examples.md): 40 runnable examples, from Hello World to invoice and report, with paths to their code
+- [Example gallery](docs/examples.md): 42 runnable examples, from Hello World to invoice and report, with paths to their code
 - [Feature matrix](docs/feature-matrix.md): what each format supports, known limits
 
 ## Optional

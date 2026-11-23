@@ -63,7 +63,7 @@ The exact state of every feature per format is in the [feature matrix](https://g
 
 ## Examples
 
-The [example gallery](https://github.com/m-rehder/Reglet/blob/main/docs/examples.md) has forty runnable programs — from "Hello World" to a complete invoice, a
+The [example gallery](https://github.com/m-rehder/Reglet/blob/main/docs/examples.md) has forty-two runnable programs — from "Hello World" to a complete invoice, a
 report and a business letter:
 
 ```
