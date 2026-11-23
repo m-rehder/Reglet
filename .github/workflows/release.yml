@@ -72,10 +72,8 @@ jobs:
               sleep 30
             done
           done
+          # Each push also uploads the .snupkg beside the .nupkg.
           push "artifacts/packages/Reglet.$version.nupkg"
-          for symbols in artifacts/packages/*.snupkg; do
-            push "$symbols"
-          done
 
       # V02: the release for the tag with the changelog section and the packed artifacts, on the
       # server the workflow runs on. Packages go to nuget.org only from GitHub.
