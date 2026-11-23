@@ -1,6 +1,6 @@
 # Reglet – Release notes
 
-## Unreleased
+## 1.1.0
 
 ### PDF
 
