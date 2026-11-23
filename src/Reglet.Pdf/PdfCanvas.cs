@@ -108,6 +108,26 @@ public sealed class PdfCanvas
     public Task<WriteResult> WriteAsync(Stream output, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(output);
+        var (document, options) = ToDocument();
+        return new PdfDocumentWriter().WriteAsync(document, output, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes the pages as paged HTML (ADR-0039): one element per page, every drawing at the coordinates of the PDF, with the
+    /// same fonts (embedded as <c>@font-face</c>), anchors and measurement; an image drawn several times is embedded once.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">No page was added.</exception>
+    public Task<WriteResult> WriteHtmlAsync(Stream output, PdfHtmlOptions? html = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        var (document, options) = ToDocument();
+        return PdfHtmlWriter.WriteAsync(document, output, options, html ?? PdfHtmlOptions.Default, cancellationToken);
+    }
+
+    /// <summary>The pages as a document of margin-less sections, and the options to write it with.</summary>
+    /// <exception cref="InvalidOperationException">No page was added.</exception>
+    internal (PortableDocument Document, PdfWriteOptions Options) ToDocument()
+    {
         if (_pages.Count == 0)
         {
             throw new InvalidOperationException("The canvas has no page; call AddPage first.");
@@ -119,7 +139,7 @@ public sealed class PdfCanvas
             Orientation = page.Orientation,
             Margins = new PageMargins(Length.Zero),
         });
-        return new PdfDocumentWriter().WriteAsync(new PortableDocument(Metadata, sections), output, _options, cancellationToken);
+        return (new PortableDocument(Metadata, sections), _options);
     }
 
     /// <summary>One image block per distinct content, so the same bytes are embedded once.</summary>

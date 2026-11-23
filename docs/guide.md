@@ -117,6 +117,26 @@ await canvas.WriteAsync(stream);
 `PdfInspection.Read(stream)` lists per page the size, the fonts (base name without subset prefix,
 embedded, subset) and the image XObjects with their pixel size, for tests of written files.
 
+## A preview as paged HTML
+
+`PdfDocumentWriter.WriteHtmlAsync` writes the pages the PDF writer would produce as HTML, for a preview in a web view
+that looks like the saved file: the same page count, page breaks, line breaks, headers, footers with their page
+numbers, landscape sections and floating objects. Every page is a `div` with the class `{prefix}page` and the page's
+size in points, holding an SVG with the drawing and real text: it can be selected, copied and found, in the order
+`PdfDocumentReader` extracts it. The fonts of `PdfWriteOptions.FontCollection` that the pages use are embedded as
+`@font-face`; every text run is stretched to the PDF's width, so it ends where it ends in the PDF. `PdfCanvas.WriteHtmlAsync`
+does the same for a canvas.
+
+```csharp
+var html = new PdfHtmlOptions { Output = HtmlOutput.Fragment, ClassPrefix = "doc-" };
+await new PdfDocumentWriter().WriteHtmlAsync(document, stream, pdfOptions, html);
+await canvas.WriteHtmlAsync(sheetStream, html);
+```
+
+A fragment is one `div` with the class `{prefix}document`; its styles select only prefixed classes, and ids and font
+families carry a token of the document, so several fragments live on one host page. The host decides the background,
+the gap between the pages (`.doc-page { margin: ... }`) and the zoom (CSS `zoom` or `transform` on the root).
+
 ## Templates
 
 A DOCX template supplies the design and named placeholders `{{Name}}`. When writing, the

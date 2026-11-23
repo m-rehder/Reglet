@@ -59,6 +59,24 @@ public sealed class PdfDocumentWriter : IDocumentWriter
     }
 
     /// <summary>
+    /// Writes the document as paged HTML (ADR-0039): laid out exactly as the PDF (page breaks, line breaks, headers, footers,
+    /// fields, floating objects), one element per page drawn as SVG with selectable text in reading order and the fonts of
+    /// <see cref="PdfWriteOptions.FontCollection"/> embedded. Encryption and signature of <paramref name="options"/> are ignored.
+    /// </summary>
+    /// <param name="document">The document to write.</param>
+    /// <param name="output">Target stream; it remains open.</param>
+    /// <param name="options">The PDF options the layout is computed with.</param>
+    /// <param name="html">Document or fragment, and the class prefix.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    public Task<WriteResult> WriteHtmlAsync(
+        PortableDocument document,
+        Stream output,
+        PdfWriteOptions? options = null,
+        PdfHtmlOptions? html = null,
+        CancellationToken cancellationToken = default)
+        => PdfHtmlWriter.WriteAsync(document, output, options, html ?? PdfHtmlOptions.Default, cancellationToken);
+
+    /// <summary>
     /// builds the document in memory, signs it and transfers the result (phase BJ, BJ02).
     /// </summary>
     private static async Task<WriteResult> WriteSignedAsync(

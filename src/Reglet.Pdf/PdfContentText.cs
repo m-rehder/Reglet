@@ -506,7 +506,7 @@ internal static class PdfTextExtractor
     /// Skips an inline image: the dictionary up to the <c>ID</c> operator and the raw data up to
     /// <c>EI</c>. The binary data must not reach the lexer (it may contain any delimiter).
     /// </summary>
-    private static void SkipInlineImage(byte[] content, PdfObjectParser parser)
+    internal static void SkipInlineImage(byte[] content, PdfObjectParser parser)
     {
         var position = parser.Position;
         var id = FindOperator(content, "ID"u8, position);

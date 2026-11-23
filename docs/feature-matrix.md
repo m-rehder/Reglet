@@ -720,6 +720,7 @@ text boxes. Charts, barcodes and equations stay out of scope until their own ADR
 - [x] Writer: document, paragraphs, headings, lists, tables, images, links, formatting; reports for what is omitted
 - [x] Tests (`HtmlChecks`), HTML→PDF/DOCX/ODT through the model; a real page from Word or LibreOffice as input and a visual PDF check still open
 - [x] Swift port (`html` parity)
+- [x] Paged HTML ([ADR-0039](decisions/ADR-0039-paged-html.md)): `PdfDocumentWriter.WriteHtmlAsync` and `PdfCanvas.WriteHtmlAsync` write the PDF writer's pages as SVG pages with real text in reading order, fonts of the collection as `@font-face`, images once; document or scoped fragment (`PdfHtmlOptions`). Tests (`HtmlPagedChecks`): page count, page text and order equal to the PDF, canvas positions; checked by eye in Chrome. Not yet: font subsetting, gradients, form fields and comment annotations, links.
 
 ## DOCX↔PDF conversion
 

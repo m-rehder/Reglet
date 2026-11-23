@@ -1940,6 +1940,13 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 
 ### Reglet
 
+#### HtmlOutput
+
+`enum HtmlOutput` — Whether the paged HTML is a whole document or an element to embed in a host page.
+
+- `Document = 0` — A complete HTML document.
+- `Fragment = 1` — Only the root element (a `div` with the class `{ClassPrefix}document`) and its scoped styles, without `html`, `head` and `body`.
+
 #### PdfAConformance
 
 `enum PdfAConformance` — Desired PDF/A conformance (phase R).
@@ -1995,6 +2002,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `PdfCanvasPage AddPage(PageSize size, PageOrientation orientation = PageOrientation.Portrait)` — Adds a page.
 - `double MeasureText(string text, PdfCanvasFont font, double size)` — The width of a text in points, exactly as `PdfCanvasPage.DrawText` draws it (shaping, kerning, same font).
 - `Task<WriteResult> WriteAsync(Stream output, CancellationToken cancellationToken = default)` — Writes the pages as PDF.
+- `Task<WriteResult> WriteHtmlAsync(Stream output, PdfHtmlOptions? html = null, CancellationToken cancellationToken = default)` — Writes the pages as paged HTML (ADR-0039): one element per page, every drawing at the coordinates of the PDF, with the same fonts (embedded as `@font-face`), anchors and measurement; an image drawn several times is embedded once.
 
 #### PdfCanvasFont
 
@@ -2053,6 +2061,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 
 - `new PdfDocumentWriter()`
 - `Task<WriteResult> WriteAsync(PortableDocument document, Stream output, PdfWriteOptions? options = null, CancellationToken cancellationToken = default)` — Writes the document as PDF to the stream.
+- `Task<WriteResult> WriteHtmlAsync(PortableDocument document, Stream output, PdfWriteOptions? options = null, PdfHtmlOptions? html = null, CancellationToken cancellationToken = default)` — Writes the document as paged HTML (ADR-0039): laid out exactly as the PDF (page breaks, line breaks, headers, footers, fields, floating objects), one element per page drawn as SVG with selectable text in reading order and the fonts of `PdfWriteOptions.FontCollection` embedded. Encryption and signature of `options` are ignored.
 
 #### PdfEncryptionOptions
 
@@ -2062,6 +2071,15 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `string UserPassword { get; init; }` — User password; may be empty (the file can then be opened without a password).
 - `string? OwnerPassword { get; init; }` — Owner password. If it is null or empty, a random one is used, so that `PdfEncryptionOptions.Permissions` also bind whoever can open the file; nobody can then administrate the document.
 - `PdfPermissions Permissions { get; init; }` — Permissions for readers that honour them. Default: `PdfPermissions.All`.
+
+#### PdfHtmlOptions
+
+`sealed record PdfHtmlOptions` — Options of the paged HTML (ADR-0039): the pages of the PDF writer as HTML, one element per page, drawn as SVG with real text and the fonts of `PdfWriteOptions.FontCollection` embedded as `@font-face`.
+
+- `new PdfHtmlOptions()`
+- `static PdfHtmlOptions Default { get; }` — The default options.
+- `HtmlOutput Output { get; init; }` — A complete document (default) or a fragment for a host page.
+- `string ClassPrefix { get; init; }` — The prefix of every class, font family and id (default `reglet-`). The root element has the class `{prefix}document`, every page the class `{prefix}page` and a `data-page` number. The styles select only these classes, so a host page and other fragments are not changed.
 
 #### PdfInspectedFont
 

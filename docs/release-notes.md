@@ -1,5 +1,13 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- Paged HTML: `PdfDocumentWriter.WriteHtmlAsync` and `PdfCanvas.WriteHtmlAsync` write the pages of the PDF writer as
+  HTML (one SVG page each, real text in reading order, the fonts of the collection embedded as `@font-face`, every image
+  once), as a complete document or as a fragment with scoped styles and a class prefix (`PdfHtmlOptions`, ADR-0039).
+
 ## 1.1.0
 
 ### PDF

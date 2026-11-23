@@ -45,5 +45,6 @@ implemented, the known limits, the open work and what is out of scope are kept i
 | [0036](ADR-0036-no-stale-parts.md) | – | Accepted: a changed document carries no removed content, no foreign package, no macros and no stale signature of its source |
 | [0037](ADR-0037-pdf-canvas.md) | – | Accepted: PdfCanvas draws PDF pages at fixed coordinates over the flow renderer; measurement through the writer's font catalog |
 | [0038](ADR-0038-float-anchors.md) | – | Accepted: floating images and shapes anchored to page, margin, column or paragraph, with an alignment instead of an offset |
+| [0039](ADR-0039-paged-html.md) | – | Accepted: paged HTML converts the PDF writer's pages to SVG with real text and embedded fonts; lives in Reglet.Pdf |
 
 A new ADR is added to this table; a change of a status goes into the feature matrix, not here.
