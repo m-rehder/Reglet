@@ -17,6 +17,7 @@ internal static class MigraDocParity2Checks
             LineBreaksAfterHyphen();
             FixedColumnWidthsOverflow();
             HeaderDistanceAndBodyStart();
+            InlineImageStandsOnTheBaseline();
             Console.WriteLine("MigraDoc parity 2: all checks passed.");
             return 0;
         }
@@ -153,6 +154,64 @@ internal static class MigraDocParity2Checks
             "DOCX: the header and footer distance survive.");
         Require(new DocxDocumentReader().Read(Write(new DocxDocumentWriter(), Document(new Section(new Paragraph(new TextRun("x")))))).Document.Sections[0].HeaderDistance is null,
             "DOCX: Word's 0.5 in default reads as null.");
+    }
+
+    private static void InlineImageStandsOnTheBaseline()
+    {
+        var ten = new ParagraphStyle { FontSize = Length.FromPoints(10), SpaceAfter = Length.Zero };
+        var picture = new InlineImage(TestImages.RgbPng(4, 4, 0, 128, 0), ImageMediaType.Png, Length.FromPoints(100), Length.FromPoints(227.2)) ;
+        (double Gap, string Content) Sheet(Paragraph middle)
+        {
+            using var buffer = new MemoryStream();
+            new PdfDocumentWriter().WriteAsync(Document(new Section([new Paragraph(new TextRun("TOP")) { Style = ten }, middle, new Paragraph(new TextRun("NEXT")) { Style = ten }])), buffer)
+                .GetAwaiter().GetResult();
+            var content = PdfStreams.DecompressPages(buffer.ToArray())[0];
+            var pieces = Pages(Document(new Section([new Paragraph(new TextRun("TOP")) { Style = ten }, middle, new Paragraph(new TextRun("NEXT")) { Style = ten }])))[0];
+            return (pieces.Single(piece => piece.Text == "TOP").Y - pieces.Single(piece => piece.Text == "NEXT").Y, content);
+        }
+
+        var text = Sheet(new Paragraph(new TextRun("MID")) { Style = ten });
+        var (gap, content) = Sheet(new Paragraph([new TextRun("A "), picture, new TextRun(" B")]) { Style = ten with { Alignment = TextAlignment.Right } });
+        // Line gap, image and descent: 227.2 pt more than a text line, less the 9.05 pt ascent of 10 pt Helvetica
+        // (with Arial's 11.5 pt line, MigraDoc's 229.65 pt).
+        Require(Math.Abs(gap - text.Gap - (227.2 - 9.05)) < 0.02, $"The image line is 218.15 pt higher than a text line ({gap - text.Gap}).");
+
+        // The image's bottom stands on the baseline of its line, right-aligned with the text around it.
+        var draw = Regex.Match(content, @"([\d.]+) 0 0 ([\d.]+) (-?[\d.]+) (-?[\d.]+) cm\s*/\w+ Do");
+        Require(draw.Success && Number(draw.Groups[1].Value) == 100 && Math.Abs(Number(draw.Groups[2].Value) - 227.2) < 0.01, "The image is drawn at its size.");
+        var pieces = Pages(Document(new Section([new Paragraph(new TextRun("TOP")) { Style = ten },
+            new Paragraph([new TextRun("A "), picture, new TextRun(" B")]) { Style = ten with { Alignment = TextAlignment.Right } }])))[0];
+        var b = pieces.Single(piece => piece.Text == "B");
+        Require(Math.Abs(Number(draw.Groups[4].Value) - b.Y) < 0.01, "The image's bottom is on the text's baseline.");
+        Require(b.X > Number(draw.Groups[3].Value) + 100, "Text, image and text follow each other in the line.");
+
+        // In a table cell the image raises its own line only.
+        var cell = Pages(Document(new Section(new TableBlock([new TableRow(
+            new TableCell([new Paragraph(new TextRun("L1")) { Style = ten }, new Paragraph([picture]) { Style = ten }, new Paragraph(new TextRun("L3")) { Style = ten }]),
+            new TableCell([new Paragraph(new TextRun("R1")) { Style = ten }, new Paragraph(new TextRun("R2")) { Style = ten }]))]))))[0];
+        double Y(string name) => cell.Single(piece => piece.Text == name).Y;
+        var pitch = Y("R1") - Y("R2");
+        Require(Math.Abs(Y("L1") - Y("L3") - (2 * pitch) - (227.2 - 9.05)) < 0.02,
+            $"Only the image line grows, as in a paragraph ({pitch}, {Y("L1") - Y("L3")}).");
+
+        // DOCX: written as wp:inline in a run; read back in its paragraph. A paragraph of a picture alone stays an image block.
+        var mixed = Document(new Section([
+            new Paragraph([new TextRun("A "), picture, new TextRun(" B")]),
+            new ImageBlock(TestImages.RgbPng(2, 2, 255, 0, 0), ImageMediaType.Png),
+        ]));
+        var blocks = new DocxDocumentReader().Read(Write(new DocxDocumentWriter(), mixed)).Document.Sections[0].Blocks;
+        var read = blocks.OfType<Paragraph>().First().Inlines;
+        Require(read.Count == 3 && read[1] is InlineImage { Image.Height: { } height } && Math.Abs(height.Points - 227.2) < 0.01,
+            "DOCX: the inline image survives in its paragraph.");
+        Require(blocks.OfType<ImageBlock>().Count() == 1, "DOCX: an image block stays an image block.");
+
+        // ODT anchors it as a character in the paragraph; HTML writes an <img> in the line.
+        using var odt = new System.IO.Compression.ZipArchive(Write(new OdtDocumentWriter(), mixed));
+        using var contentReader = new StreamReader(odt.GetEntry("content.xml")!.Open());
+        var contentXml = contentReader.ReadToEnd();
+        Require(Regex.IsMatch(contentXml, @"<text:p[^>]*>(<text:span[^>]*>)?A( |<text:s ?/>)(</text:span>)?<draw:frame[^>]*text:anchor-type=""as-char"""), "ODT: the frame stands in the text, as a character.");
+        var html = new StreamReader(Write(new HtmlDocumentWriter(), mixed)).ReadToEnd();
+        Require(Regex.IsMatch(html, @"<p[^>]*>A <img style=""vertical-align:baseline"""), "HTML: the image stands in the paragraph.");
     }
 
     private static MemoryStream Write(IDocumentWriter writer, PortableDocument document)

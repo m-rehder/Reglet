@@ -105,6 +105,20 @@ internal static class OdtImageResources
                 case ImageBlock image:
                     yield return image;
                     break;
+                case Paragraph paragraph:
+                    foreach (var image in InlineImage.In(paragraph.Inlines))
+                    {
+                        yield return image;
+                    }
+
+                    break;
+                case Heading heading:
+                    foreach (var image in InlineImage.In(heading.Inlines))
+                    {
+                        yield return image;
+                    }
+
+                    break;
                 case ListBlock list:
                     foreach (var item in list.Items)
                     {

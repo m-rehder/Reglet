@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Images
+
+- `InlineImage` places an image in the line of a paragraph, next to text runs (Word's `wp:inline`, MigraDoc's image
+  in a paragraph): it stands on the baseline, follows the paragraph's alignment, and its line is as high as the
+  font's line gap, the image and the font's descent. Size, crop and alternative text come from its `ImageBlock`. PDF,
+  DOCX (`wp:inline` in a run), ODT (a frame anchored as a character) and HTML write it; the DOCX reader keeps a picture
+  that stands in a line of text in its paragraph, a paragraph of pictures alone still reads as image blocks.
+
 ### PDF
 
 - A line also breaks after a hyphen inside a word, before a letter (UAX #14 class HY, as Word and MigraDoc):

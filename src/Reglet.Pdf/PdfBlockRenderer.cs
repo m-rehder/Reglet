@@ -1520,7 +1520,7 @@ internal sealed class PdfBlockRenderer
         // default font with the paragraph's font size.
         double LineHeightOf(IReadOnlyList<TextAtom> line)
             => Measured(line) is { Count: > 0 } measured
-                ? measured.Max(atom => atom.Font.Metrics.LineHeightEm * atom.FontSize)
+                ? measured.Max(AtomLineHeight)
                 : defaultFont.Metrics.LineHeightEm * fontSize;
 
         double ScaledLineHeight(IReadOnlyList<TextAtom> line)
@@ -1538,7 +1538,7 @@ internal sealed class PdfBlockRenderer
         // how Word sets the baseline within the line box.
         double LineAscentOf(IReadOnlyList<TextAtom> line)
             => Measured(line) is { Count: > 0 } measured
-                ? measured.Max(atom => atom.Font.Metrics.AscentEm * atom.FontSize)
+                ? measured.Max(AtomAscent)
                 : defaultFont.Metrics.AscentEm * fontSize;
     }
 
@@ -1918,7 +1918,8 @@ internal sealed class PdfBlockRenderer
                     ascent = Math.Max(ascent, line.Empty.Ascent);
                 }
 
-                foreach (var atom in measured)
+                // An inline image raises only its own line (RowLayout.ImageRise), not every line of the row.
+                foreach (var atom in measured.Where(atom => atom.Image is null))
                 {
                     lineHeight = Math.Max(lineHeight, atom.Font.Metrics.LineHeightEm * atom.FontSize);
                     ascent = Math.Max(ascent, atom.Font.Metrics.AscentEm * atom.FontSize);
@@ -2618,7 +2619,7 @@ internal sealed class PdfBlockRenderer
 
                     // Right to left the line is mirrored inside the cell's inner box.
                     var cellMirror = atoms.Count > 0 && atoms[0].RightToLeft ? (2 * (cellX + cell.PadX)) + innerWidth : (double?)null;
-                    WriteAtoms(atoms, lineX, y - line.Before - row.Ascent, justifyExtra, line.TabStops, cellMirror, cellX + cell.PadX);
+                    WriteAtoms(atoms, lineX, y - line.Before - row.Ascent - row.ImageRise(line), justifyExtra, line.TabStops, cellMirror, cellX + cell.PadX);
                     y -= row.HeightOf(line);
                 }
                 else
@@ -2842,8 +2843,17 @@ internal sealed class PdfBlockRenderer
                 LineSpacingRule.AtLeast => Math.Max(LineHeight, spacing.Height.Points),
                 _ => spacing.Height.Points,
             };
-            return height + line.Before + line.After;
+            return height + ImageExtra(line, AtomLineHeight, LineHeight) + line.Before + line.After;
         }
+
+        /// <summary>How far an inline image in the line moves its baseline down, below the row's ascent.</summary>
+        public double ImageRise(CellLine line) => ImageExtra(line, AtomAscent, Ascent);
+
+        // As in a paragraph, an image line is as high as its image needs and its baseline as low.
+        private static double ImageExtra(CellLine line, Func<TextAtom, double> measure, double rowValue)
+            => line.Atoms is { } atoms && atoms.Any(atom => atom.Image is not null)
+                ? Math.Max(0, atoms.Where(atom => atom.Image is not null).Max(measure) - rowValue)
+                : 0;
 
         /// <summary>The height of the row when it is not split.</summary>
         public double NaturalHeight => ExactHeight > 0
@@ -2994,6 +3004,24 @@ internal sealed class PdfBlockRenderer
                     _defaults.TextColor,
                     BaselineShift: (headingSize ?? _defaults.FontSize.Points) * 0.33,
                     Note: !isEndnote ? (number, noteText) : null));
+                continue;
+            }
+
+            if (inline is InlineImage inlineImage)
+            {
+                var image = inlineImage.Image.MediaType == ImageMediaType.Svg ? inlineImage.Image.RasterFallback : inlineImage.Image;
+                if (image is null)
+                {
+                    _handler.Report("PDF: an inline SVG image without a raster fallback is left out.");
+                    continue;
+                }
+
+                // As a block image does, a picture larger than the page is scaled down to fit.
+                var handle = _images.GetImage(image);
+                var fit = Math.Min(1, Math.Min(_page.ContentWidth / handle.Width, _page.ContentHeight * 0.9 / handle.Height));
+                var (imageFont, imageSize, imageColor) = PlainRunFormat(null, headingSize, paragraphStyle);
+                atoms.Add(new TextAtom("\uFFFC", imageFont, imageSize, imageColor,
+                    Image: new InlineImageBox(handle, handle.Width * fit, handle.Height * fit, image.Crop, inlineImage.Image.AltText)));
                 continue;
             }
 
@@ -3579,6 +3607,11 @@ internal sealed class PdfBlockRenderer
             return 0;
         }
 
+        if (atom.Image is { } image)
+        {
+            return image.Width;
+        }
+
         var width = atom.Font.Measure(atom.Text, atom.FontSize) * (atom.HorizontalScaling / 100.0);
         if (Math.Abs(atom.CharacterSpacing) > 1e-9 && atom.Text.Length > 0)
         {
@@ -3754,6 +3787,32 @@ internal sealed class PdfBlockRenderer
                 }
 
                 x = Math.Max(x, textX);
+                continue;
+            }
+
+            if (atom.Image is { } image)
+            {
+                FlushUnderline();
+                FlushStrike();
+                var imageLeft = X(x, image.Width);
+                if (image.AltText is { Length: > 0 } alt)
+                {
+                    _page.BeginAlt(alt);
+                }
+
+                DrawCropped(image.Crop, image.Width, image.Height, imageLeft, baseline,
+                    (drawWidth, drawHeight, drawX, drawY) => _page.DrawImage(image.Handle.ResourceName, drawWidth, drawHeight, drawX, drawY));
+                if (image.AltText is { Length: > 0 })
+                {
+                    _page.EndMarkedContent();
+                }
+
+                if (atom.Hyperlink is { } imageLink)
+                {
+                    _page.AddLinkAnnotation(imageLink, imageLeft, imageLeft + image.Width, baseline, image.Height / 0.8);
+                }
+
+                x += image.Width;
                 continue;
             }
 
@@ -4067,7 +4126,23 @@ internal sealed class PdfBlockRenderer
         string? Hyperlink = null,
         (int Number, string Text)? Note = null,
         Bookmark? Bookmark = null,
-        Comment? Comment = null);
+        Comment? Comment = null,
+        InlineImageBox? Image = null);
+
+    /// <summary>An image in a line: drawn on the baseline at its size.</summary>
+    private sealed record InlineImageBox(PdfImageHandle Handle, double Width, double Height, ImageCrop? Crop, string? AltText);
+
+    /// <summary>Height above the baseline: the ascender, or for an image its height and the font's line gap above it.</summary>
+    private static double AtomAscent(TextAtom atom)
+        => atom.Image is { } image
+            ? image.Height + ((atom.Font.Metrics.LineHeightEm - atom.Font.Metrics.AscentEm - atom.Font.Metrics.DescentEm) * atom.FontSize)
+            : atom.Font.Metrics.AscentEm * atom.FontSize;
+
+    /// <summary>The line height an atom needs: line gap, image and descent for an image (as MigraDoc and Word).</summary>
+    private static double AtomLineHeight(TextAtom atom)
+        => atom.Image is { } image
+            ? image.Height + ((atom.Font.Metrics.LineHeightEm - atom.Font.Metrics.AscentEm) * atom.FontSize)
+            : atom.Font.Metrics.LineHeightEm * atom.FontSize;
 
     private sealed record ListMarker(string Text, double X, Color? Color = null, bool Bold = false);
 }

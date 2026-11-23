@@ -63,6 +63,7 @@ internal static class OdtContentWriter
         paragraphStyles.BookmarkRanges = BookmarkScan.Collect(document).RangeNames;
         OdtComments.Prepare(paragraphStyles, CommentScan.Collect(document));
         paragraphStyles.Revisions = OdtRevisions.MakePlan(document);
+        paragraphStyles.Images = images;
         var columnWidths = CollectColumnWidths(document);
         var numbering = new NumberingLookup(document.Numbering);
         // AJ02: the general fields without a cached result are calculated.
@@ -287,6 +288,7 @@ internal static class OdtContentWriter
         FieldContext? fields = null)
     {
         writer.WriteStartElement("style", localName, OdtNamespaces.Style);
+        styles.ParagraphStyles.Images = images;
         using (styles.ParagraphStyles.Spacing.EnterCompact())
         {
             foreach (var block in band.Blocks)
@@ -1063,8 +1065,6 @@ internal static class OdtContentWriter
             throw new InvalidOperationException("ODT: image without a registered resource.");
         }
 
-        var (width, height) = ImageLayout.Resolve(image);
-
         writer.WriteStartElement("text", "p", OdtNamespaces.Text);
         if (paragraphStyles.Breaks.BreakBefore(image) is { } imageBreak
             && paragraphStyles.TryGetName(ParagraphStyle.Default, compact: false, imageBreak, out var breakStyle))
@@ -1072,16 +1072,25 @@ internal static class OdtContentWriter
             writer.WriteAttributeString("text", "style-name", OdtNamespaces.Text, breakStyle);
         }
 
+        WriteImageFrame(writer, image, resource, xmlBehavior, inLine: false);
+        writer.WriteEndElement();
+    }
+
+    /// <summary>The <c>draw:frame</c> of an image; an inline image (or one without wrap) is anchored as a character.</summary>
+    private static void WriteImageFrame(XmlWriter writer, ImageBlock image, OdtImageResource resource, InvalidXmlCharacterBehavior xmlBehavior, bool inLine)
+    {
+        var (width, height) = ImageLayout.Resolve(image);
+        var floating = !inLine && image.Wrap != ImageWrap.None;
         writer.WriteStartElement("draw", "frame", OdtNamespaces.Draw);
         writer.WriteAttributeString("draw", "name", OdtNamespaces.Draw, $"Image {resource.PartName}");
         if (NeedsImageStyle(image)) writer.WriteAttributeString("draw", "style-name", OdtNamespaces.Draw, resource.StyleName);
         writer.WriteAttributeString(
             "text", "anchor-type", OdtNamespaces.Text,
-            image.Wrap == ImageWrap.None ? "as-char" : "paragraph");
+            floating ? "paragraph" : "as-char");
         writer.WriteAttributeString("svg", "width", OdtNamespaces.Svg, CentimetersText(width));
         writer.WriteAttributeString("svg", "height", OdtNamespaces.Svg, CentimetersText(height));
 
-        if (image.Wrap != ImageWrap.None)
+        if (floating)
         {
             if (image.OffsetX is { } offsetX)
             {
@@ -1110,7 +1119,6 @@ internal static class OdtContentWriter
             writer.WriteElementString("svg", "desc", OdtNamespaces.Svg, altText);
         }
 
-        writer.WriteEndElement();
         writer.WriteEndElement();
     }
 
@@ -2220,6 +2228,15 @@ internal static class OdtContentWriter
                     break;
                 case Footnote footnote when paragraphStyles is not null:
                     WriteNote(writer, footnote, textStyles, xmlBehavior, paragraphStyles);
+                    break;
+                case InlineImage inlineImage:
+                    // All images are registered in advance (see WriteImageBlock).
+                    if (paragraphStyles?.Images is not { } inlineImages || !inlineImages.TryGetValue(inlineImage.Image, out var inlineResource))
+                    {
+                        throw new InvalidOperationException("ODT: inline image without a registered resource.");
+                    }
+
+                    WriteImageFrame(writer, inlineImage.Image, inlineResource, xmlBehavior, inLine: true);
                     break;
                 case PageNumberField:
                     // The text is only a placeholder; the application inserts the current page.

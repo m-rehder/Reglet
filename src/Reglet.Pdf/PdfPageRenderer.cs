@@ -725,6 +725,10 @@ internal sealed class PdfPageRenderer
     public void BeginActualText(string actualText)
         => _content.BeginMarkedContentWithActualText(actualText);
 
+    /// <summary>Starts marked content with an alternative description (BDC with /Alt).</summary>
+    public void BeginAlt(string alt)
+        => _content.BeginMarkedContentWithAlt(alt);
+
     /// <summary>Ends the previously started marked content (EMC).</summary>
     public void EndMarkedContent()
         => _content.EndMarkedContent();

@@ -200,6 +200,13 @@ internal sealed class PdfContentWriter
         return Append("/Span << /ActualText " + AltString(actualText) + " >> BDC\n");
     }
 
+    /// <summary>Starts marked content with an alternative description (an image inside a paragraph's text).</summary>
+    public PdfContentWriter BeginMarkedContentWithAlt(string alt)
+    {
+        ArgumentNullException.ThrowIfNull(alt);
+        return Append("/Span << /Alt " + AltString(alt) + " >> BDC\n");
+    }
+
     /// <summary>Ends marked content (EMC).</summary>
     public PdfContentWriter EndMarkedContent() => Append("EMC\n");
 

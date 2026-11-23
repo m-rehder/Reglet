@@ -94,6 +94,9 @@ internal sealed class OdtParagraphStyles
     /// <summary>The plan for the tracked changes of the body (ADR-0027); null in a band, where there are none.</summary>
     public OdtRevisions.Plan? Revisions { get; set; }
 
+    /// <summary>The registered images, for the inline images a paragraph writes (InlineImage).</summary>
+    public IReadOnlyDictionary<ImageBlock, OdtImageResource>? Images { get; set; }
+
     /// <summary>Returns the next footnote citation number.</summary>
     public int NextFootnoteIndex() => ++_footnoteIndex;
 

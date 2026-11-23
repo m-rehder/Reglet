@@ -170,6 +170,7 @@ internal static class OdtTemplateWriter
             sourceStyles: document.SourceStyles);
         paragraphStyles.CharacterStyles = document.CharacterStyles;
         paragraphStyles.BookmarkRanges = BookmarkScan.Collect(document).RangeNames;
+        paragraphStyles.Images = images;
         var columnWidths = OdtContentWriter.CollectTemplateColumnWidths(insertedBlocks, availableWidth);
         var needsPageBreakStyle = insertedBlocks.Any(block => ContainsPageBreak(block));
 

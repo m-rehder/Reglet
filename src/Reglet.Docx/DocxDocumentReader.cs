@@ -1042,11 +1042,27 @@ public sealed class DocxDocumentReader : IDocumentReader
         // ADR-0010: the run formatting of the paragraph style stays on the style, the runs carry
         // their own formatting only.
         var runFormat = RunFormatOf(styleName, resources);
-        var reader = new InlineReader(resources, warnings);
+        var reader = new InlineReader(resources, warnings, inlineImages: true);
         var segments = reader.Read(p);
+
+        // A picture in the line of text stays there (InlineImage); a paragraph of pictures alone becomes image blocks.
+        var hasText = segments.SelectMany(segment => segment).Any(inline => inline is TextRun run
+            ? !string.IsNullOrWhiteSpace(run.Text)
+            : inline is not (InlineImage or Bookmark or BookmarkEnd or Comment or CommentEnd or TrackedChange or TrackedChangeEnd));
+        if (!hasText && reader.InLine.Count > 0)
+        {
+            foreach (var segment in segments)
+            {
+                segment.RemoveAll(inline => inline is InlineImage);
+            }
+        }
+
         foreach (var image in reader.Images)
         {
-            blocks.Add(image);
+            if (!hasText || image is not ImageBlock picture || !reader.InLine.Contains(picture))
+            {
+                blocks.Add(image);
+            }
         }
 
         if (effective?.Element(W + "numPr") is { } numPr && ReadListKind(numPr, numbering, warnings) is { } list)
@@ -1220,12 +1236,18 @@ public sealed class DocxDocumentReader : IDocumentReader
     /// simple fields are read along; deleted text is not. The result is the
     /// pieces between hard page breaks.
     /// </summary>
-    private sealed class InlineReader(DocxResources resources, List<ReadWarning> warnings)
+    private sealed class InlineReader(DocxResources resources, List<ReadWarning> warnings, bool inlineImages = false)
     {
         private readonly List<List<Inline>> _segments = [[]];
 
         /// <summary>Images found while reading (block level; hoisted by the caller).</summary>
         public List<Block> Images { get; } = [];
+
+        /// <summary>
+        /// The <c>wp:inline</c> pictures, also kept at their place in the text as <see cref="InlineImage"/>; the caller keeps
+        /// them there when the paragraph has text, otherwise it hoists them as blocks.
+        /// </summary>
+        public HashSet<ImageBlock> InLine { get; } = new(ReferenceEqualityComparer.Instance);
 
         // Open complex fields (fldChar begin … separate … end). Per field it is noted whether
         // it is a PAGE field and whether the cached result is currently being read.
@@ -2013,7 +2035,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             var anchor = drawing.Element(WP + "anchor");
             var wrap = ReadWrap(anchor);
             var placement = ImagePlacement(anchor);
-            Images.Add(new ImageBlock(bytes, mediaType)
+            var block = new ImageBlock(bytes, mediaType)
             {
                 AltText = drawing.Descendants(WP + "docPr").FirstOrDefault()?.Attribute("descr")?.Value,
                 Width = Emu(extent?.Attribute("cx")?.Value),
@@ -2027,7 +2049,13 @@ public sealed class DocxDocumentReader : IDocumentReader
                 VerticalAlignment = placement.VerticalAlignment,
                 Crop = ImageCropOf(drawing),
                 RasterFallback = fallback,
-            });
+            };
+            Images.Add(block);
+            if (inlineImages && anchor is null && !InMappedFieldResult)
+            {
+                InLine.Add(block);
+                _segments[^1].Add(new InlineImage(block));
+            }
         }
 
         private Chart? ReadChart(XElement drawing, XElement graphicData)

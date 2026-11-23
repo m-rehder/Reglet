@@ -2883,6 +2883,9 @@ internal static class DocxPackageBuilder
             case Footnote footnote:
                 WriteNoteReference(writer, footnote, context);
                 break;
+            case InlineImage inlineImage:
+                WriteImageBlock(writer, inlineImage.Image, context, inLine: true);
+                break;
             case PageNumberField:
                 WriteField(writer, " PAGE ", result: null, context.XmlBehavior);
                 break;
@@ -4296,6 +4299,20 @@ internal static class DocxPackageBuilder
                 case ImageBlock image:
                     yield return image;
                     break;
+                case Paragraph paragraph:
+                    foreach (var image in InlineImage.In(paragraph.Inlines))
+                    {
+                        yield return image;
+                    }
+
+                    break;
+                case Heading heading:
+                    foreach (var image in InlineImage.In(heading.Inlines))
+                    {
+                        yield return image;
+                    }
+
+                    break;
                 case ListBlock list:
                     foreach (var item in list.Items)
                     {
@@ -4326,8 +4343,11 @@ internal static class DocxPackageBuilder
     private static void WriteImageBlock(
         XmlWriter writer,
         ImageBlock image,
-        DocxWriteContext context)
+        DocxWriteContext context,
+        bool inLine = false)
     {
+        // inLine: an InlineImage, written as a run of the paragraph it stands in.
+        var floating = !inLine && image.Wrap != ImageWrap.None;
         var isSvg = image.MediaType == ImageMediaType.Svg;
         if (isSvg && image.RasterFallback is null)
         {
@@ -4349,7 +4369,7 @@ internal static class DocxPackageBuilder
         if (image.RasterFallback is { } fallback && !context.ImageRelationships.TryGetValue(fallback, out fallbackRelationshipId))
             throw new InvalidOperationException("DOCX: SVG raster fallback without a registered relationship.");
 
-        if (!image.TakesAnchorLine && image.Wrap != ImageWrap.None)
+        if (!image.TakesAnchorLine && floating)
         {
             context.Handler.Report("DOCX: a floating image without an anchor line is written in a paragraph of its own; Word shows that paragraph as an empty line.");
         }
@@ -4357,21 +4377,25 @@ internal static class DocxPackageBuilder
         var (width, height) = ImageLayout.Resolve(image);
         var drawingId = context.NextDrawingId();
 
-        writer.WriteStartElement("w", "p", DocxConstants.WordprocessingML);
-        writer.WriteStartElement("w", "pPr", DocxConstants.WordprocessingML);
-        if (context.ListLevel > 0 && image.Wrap == ImageWrap.None)
+        if (!inLine)
         {
-            // An image in a list item lines up with the text of the item.
-            writer.WriteStartElement("w", "ind", DocxConstants.WordprocessingML);
-            WriteWAttribute(writer, "left", Math.Min(context.ListLevel, 9) * 720L);
+            writer.WriteStartElement("w", "p", DocxConstants.WordprocessingML);
+            writer.WriteStartElement("w", "pPr", DocxConstants.WordprocessingML);
+            if (context.ListLevel > 0 && image.Wrap == ImageWrap.None)
+            {
+                // An image in a list item lines up with the text of the item.
+                writer.WriteStartElement("w", "ind", DocxConstants.WordprocessingML);
+                WriteWAttribute(writer, "left", Math.Min(context.ListLevel, 9) * 720L);
+                writer.WriteEndElement();
+            }
+
             writer.WriteEndElement();
         }
 
-        writer.WriteEndElement();
         writer.WriteStartElement("w", "r", DocxConstants.WordprocessingML);
         writer.WriteStartElement("w", "drawing", DocxConstants.WordprocessingML);
 
-        if (image.Wrap == ImageWrap.None)
+        if (!floating)
         {
             writer.WriteStartElement("wp", "inline", DocxConstants.DrawingWordprocessingNamespace);
             WriteImageDistances(writer);
@@ -4416,7 +4440,10 @@ internal static class DocxPackageBuilder
 
         writer.WriteEndElement();
         writer.WriteEndElement();
-        writer.WriteEndElement();
+        if (!inLine)
+        {
+            writer.WriteEndElement();
+        }
     }
 
     /// <summary>

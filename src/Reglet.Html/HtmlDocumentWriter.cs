@@ -189,6 +189,9 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
                     break;
                 case BookmarkEnd:
                     break;
+                case InlineImage image:
+                    WriteImage(image.Image, inLine: true);
+                    break;
                 case Footnote note:
                     _notes.Add(note.Blocks);
                     _out.Append("<sup><a href=\"#note").Append(_notes.Count).Append("\">").Append(_notes.Count).Append("</a></sup>");
@@ -328,7 +331,7 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
         _out.Append("</table>\n");
     }
 
-    private void WriteImage(ImageBlock image)
+    private void WriteImage(ImageBlock image, bool inLine = false)
     {
         ImageGuard.Check(image, options.Limits);
         if (!options.EmbedImages)
@@ -350,7 +353,7 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
             return;
         }
 
-        _out.Append("<p><img src=\"data:").Append(mime).Append(";base64,").Append(Convert.ToBase64String(image.Data.Span)).Append("\" alt=\"").Append(Escape(image.AltText ?? string.Empty)).Append('"');
+        _out.Append(inLine ? "<img style=\"vertical-align:baseline\" src=\"data:" : "<p><img src=\"data:").Append(mime).Append(";base64,").Append(Convert.ToBase64String(image.Data.Span)).Append("\" alt=\"").Append(Escape(image.AltText ?? string.Empty)).Append('"');
         if (image.Width is { } width)
         {
             _out.Append(" width=\"").Append((width.Points / 0.75).ToString("0", CultureInfo.InvariantCulture)).Append('"');
@@ -361,6 +364,6 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
             _out.Append(" height=\"").Append((height.Points / 0.75).ToString("0", CultureInfo.InvariantCulture)).Append('"');
         }
 
-        _out.Append("></p>\n");
+        _out.Append(inLine ? ">" : "></p>\n");
     }
 }
