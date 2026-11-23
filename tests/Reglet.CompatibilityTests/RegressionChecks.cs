@@ -43,6 +43,7 @@ internal static class RegressionChecks
             UsesSameParagraphSpacingInAllFormats();
             PdfKeepsHeadingWithNextLine();
             UsesSameTableCellPaddingInAllFormats();
+            HorizontalBordersTakeTheirWidthLikeWord();
             OdtHeadingsKeepWithNext();
             OdtWritesHeaderAndFooter();
             OdtPlacesBandsLikeDocx();
@@ -473,6 +474,27 @@ internal static class RegressionChecks
         Require(headingMovedToNextPage, "At least one case pushes the heading to the next page.");
     }
 
+    /// <summary>Word (and LibreOffice) give a horizontal border its width: rows are a border wider apart, the table ends a border lower.</summary>
+    private static void HorizontalBordersTakeTheirWidthLikeWord()
+    {
+        static PortableDocument Table(double border) => new(new DocumentMetadata(), new Section(new Block[]
+        {
+            new TableBlock(new[] { new TableRow(new TableCell("Top")), new TableRow(new TableCell("Bottom")) })
+            {
+                Border = new ParagraphBorder(BorderStyle.Single, Length.FromPoints(border)),
+            },
+            new Paragraph(new TextRun("After")),
+        }));
+
+        var thin = PdfContent(Table(0.5));
+        var thick = PdfContent(Table(1.5));
+        var line = DocumentDefaults.Default.FontSize.Points * Typography.LineHeightFactor;
+        Require(Math.Abs(TextY(thick, "Top") - TextY(thick, "Bottom") - line - 1.5) < 0.01, "The row pitch is the line plus the border width.");
+        Require(Math.Abs(TextY(thin, "Top") - TextY(thick, "Top") - 1.0) < 0.01, "The first row starts below the table's top border.");
+        // Three bands (top, between, bottom) of 1.5 instead of 0.5 pt move the following paragraph 3 pt down.
+        Require(Math.Abs(TextY(thin, "After") - TextY(thick, "After") - 3.0) < 0.01, "The table's bottom border adds to its height.");
+    }
+
     private static void UsesSameTableCellPaddingInAllFormats()
     {
         var document = PortableDocument.Create().Table(t => t.Row("Top").Row("Bottom")).Build();
@@ -486,8 +508,9 @@ internal static class RegressionChecks
         var line = DocumentDefaults.Default.FontSize.Points * Typography.LineHeightFactor;
         Require(Math.Abs(TextX(pdf, "Top") - PageMargins.Normal.Left.Points - Typography.TableCellPaddingHorizontal.Points) < 0.01,
             "PDF: cell padding left like DOCX.");
-        Require(Math.Abs(TextY(pdf, "Top") - TextY(pdf, "Bottom") - line - 2 * Typography.TableCellPaddingVertical.Points) < 0.01,
-            "PDF: line height without additional top/bottom padding.");
+        // As in Word, the horizontal border between the rows takes its width (the default border, 0.5 pt).
+        Require(Math.Abs(TextY(pdf, "Top") - TextY(pdf, "Bottom") - line - 2 * Typography.TableCellPaddingVertical.Points - Typography.TableBorderWidth.Points) < 0.01,
+            "PDF: line height plus the border between the rows, without additional top/bottom padding.");
     }
 
     private static void OdtHeadingsKeepWithNext()

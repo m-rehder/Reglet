@@ -42,6 +42,7 @@ The central typographic values live in `Reglet.Typography` and apply to all writ
 | Space before after a section break | `max(0, SpaceBefore − 6 pt)` (`Typography.SpaceBeforeReductionAtSectionStart`). Measured in LibreOffice (and observed as "~5 pt" in Word at 12 pt); DOCX lets Word/LibreOffice compute it, ODT and PDF reproduce it. After a manual page break: 0. |
 | Baseline | PDF: at the ascender of the font below the line start (Word/LibreOffice model); DOCX and ODT leave it to the renderer |
 | Table border (`TableBorderWidth`) | 0.5 pt, black, outer and inner |
+| Horizontal table borders in the PDF | take their width, as in Word: a row is its top border plus its content, the table ends with its bottom border |
 | Line height (factor) | 1.2 × font size (PDF); DOCX and ODT "single" |
 
 The writers convert these values into their own unit (twips, `pt`, point coordinates).

@@ -236,6 +236,18 @@ internal sealed class PdfBlockRenderer
         return top - bottom;
     }
 
+    /// <summary>
+    /// DOCX and ODT carry a floating object in a paragraph of its own, which Word and LibreOffice lay out as an empty
+    /// line; the PDF takes the same room, so the text after it lines up with theirs.
+    /// </summary>
+    private void RenderAnchorParagraph(ImageWrap wrap, double indent, int listLevel, Block? next)
+    {
+        if (wrap != ImageWrap.None)
+        {
+            RenderBlock(new Paragraph(Array.Empty<Inline>()), indent, listLevel, next);
+        }
+    }
+
     private void RenderBlock(Block block, double indent, int listLevel, Block? next = null)
     {
         if (_band && block is PageBreak or ColumnBreak or TableOfContents or TableOfFigures or AlphabeticalIndex)
@@ -269,6 +281,7 @@ internal sealed class PdfBlockRenderer
                 break;
             case ImageBlock image:
                 RenderImage(image, indent);
+                RenderAnchorParagraph(image.Wrap, indent, listLevel, next);
                 break;
             case CanvasBlock { Drawing: PdfCanvasPage canvasPage }:
                 canvasPage.Render(_page, _images);
@@ -291,6 +304,7 @@ internal sealed class PdfBlockRenderer
                 break;
             case DrawingShape shape:
                 RenderShape(shape, indent);
+                RenderAnchorParagraph(shape.Wrap, indent, listLevel, next);
                 break;
             case FormField field:
                 RenderFormField(field, indent);
@@ -516,9 +530,10 @@ internal sealed class PdfBlockRenderer
                 break;
             }
 
-            // A page-relative object moves the text only when it covers the cursor.
+            // A page-relative object moves the text only when it covers the cursor. The anchor paragraph's empty
+            // line follows right below the object (RenderAnchorParagraph), as in Word and LibreOffice.
             case ImageWrap.TopAndBottom when !placement.IsPageRelative || (_page.CursorY <= top && _page.CursorY > y):
-                _page.Advance(Math.Max(0, _page.CursorY - y + spacing));
+                _page.Advance(Math.Max(0, _page.CursorY - y));
                 break;
         }
     }
@@ -1434,6 +1449,9 @@ internal sealed class PdfBlockRenderer
                 {
                     lineMargins[rest] = (0, 0);
                 }
+
+                // A line without a planned margin falls back to the paragraph's start margins, which belong to the old page.
+                (wrapLeft, wrapRight) = (0, 0);
             }
 
             // The baseline lies at the ascender below the line start so that the
@@ -1751,6 +1769,7 @@ internal sealed class PdfBlockRenderer
             RenderTableRow(rows[index], repeatHeader && index >= headerCount ? header : null, corners);
         }
 
+        _page.Advance(Math.Min(TableBottomBand(rows), Math.Max(0, _page.CursorY - _page.ContentBottom)));
         _page.EndContainer();
     }
 
@@ -1901,9 +1920,35 @@ internal sealed class PdfBlockRenderer
             rowIndex++;
         }
 
+        // As Word does, a horizontal border takes its width in the row below it: the text starts below the border.
+        var previousBottom = 0.0;
+        for (var index = 0; index < result.Count; index++)
+        {
+            var row = result[index];
+            var top = Math.Max(previousBottom, row.Cells.Where(cell => !cell.Continuation).Select(cell => BorderWidth(cell, row.Border, top: true)).DefaultIfEmpty(0).Max());
+            previousBottom = row.Cells.Where(cell => !cell.Merged).Select(cell => BorderWidth(cell, row.Border, top: false)).DefaultIfEmpty(0).Max();
+            if (row.ExactHeight == 0)
+            {
+                result[index] = row with { BorderTop = top };
+            }
+        }
+
         SpreadRowSpans(result);
         return result;
     }
+
+    /// <summary>The width of a cell's top or bottom border, resolved as <see cref="DrawCellBorders"/> draws it.</summary>
+    private static double BorderWidth(CellLayout cell, ParagraphBorder? tableBorder, bool top)
+    {
+        var border = (top ? cell.Cell.Borders?.Top : cell.Cell.Borders?.Bottom) ?? cell.Area?.Border ?? tableBorder ?? DefaultTableBorder;
+        return border.Style == BorderStyle.None ? 0 : border.Width.Points;
+    }
+
+    /// <summary>The bottom border below the last row of a table, which Word adds to the table's height.</summary>
+    private static double TableBottomBand(List<RowLayout> rows)
+        => rows.Count == 0 || rows[^1].ExactHeight > 0
+            ? 0
+            : rows[^1].Cells.Where(cell => !cell.Merged).Select(cell => BorderWidth(cell, rows[^1].Border, top: false)).DefaultIfEmpty(0).Max();
 
     /// <summary>
     /// A row-spanning cell shares its height among its rows: only what they lack together goes to
@@ -1925,7 +1970,7 @@ internal sealed class PdfBlockRenderer
 
                 rows[rowIndex].Cells[index] = cell with { Spanned = true };
                 var height = rows.Skip(rowIndex).Take(last - rowIndex + 1).Sum(row => row.NaturalHeight);
-                var content = cell.Lines.Sum(rows[rowIndex].HeightOf) + (2 * cell.PadY);
+                var content = rows[rowIndex].BorderTop + cell.Lines.Sum(rows[rowIndex].HeightOf) + (2 * cell.PadY);
                 var total = Math.Max(height, content);
                 if (total > _page.ContentHeight || (content > height && rows[last].ExactHeight > 0))
                 {
@@ -2194,7 +2239,7 @@ internal sealed class PdfBlockRenderer
             return new CellLine(null, 0, 0, (_, _) => { });
         }
 
-        var height = rows.Sum(row => row.NaturalHeight);
+        var height = rows.Sum(row => row.NaturalHeight) + TableBottomBand(rows);
         if (height > maxHeight)
         {
             return null;
@@ -2208,7 +2253,7 @@ internal sealed class PdfBlockRenderer
             {
                 var from = new int[row.Cells.Count];
                 var to = row.Cells.Select(cell => cell.Lines.Count).ToArray();
-                DrawRowSlice(row, x, y, row.NaturalHeight, from, to, atPageTop: false, tagged: false, "TD", TableCorners.None);
+                DrawRowSlice(row, x, y, row.NaturalHeight, from, to, atPageTop: false, tagged: false, "TD", TableCorners.None, row.BorderTop);
                 y -= row.NaturalHeight;
             }
         })
@@ -2231,7 +2276,8 @@ internal sealed class PdfBlockRenderer
         _page.BeginContainer("TR");
         while (true)
         {
-            var room = _page.CursorY - _page.ContentBottom - reservedNoteHeight;
+            var band = first ? row.BorderTop : 0;
+            var room = _page.CursorY - _page.ContentBottom - reservedNoteHeight - band;
             var targets = new int[row.Cells.Count];
             double consumed;
             double sliceHeight;
@@ -2306,6 +2352,7 @@ internal sealed class PdfBlockRenderer
                     consumed = row.LineHeight + (2 * row.PadY);
                 }
 
+                consumed += band;
                 sliceHeight = first ? Math.Max(consumed, row.MinHeight) : consumed;
             }
 
@@ -2366,7 +2413,7 @@ internal sealed class PdfBlockRenderer
             // The top radii belong to the first slice of the first row, the bottom radii to the last
             // slice of the last row; a row that continues on the next page is drawn square there.
             var sliceCorners = new TableCorners(first ? corners.Top : 0, rowDone ? corners.Bottom : 0);
-            DrawRowSlice(row, _page.ContentLeft, _page.CursorY, sliceHeight, offsets, targets, _page.IsAtPageTop, tagged: true, role, sliceCorners);
+            DrawRowSlice(row, _page.ContentLeft, _page.CursorY, sliceHeight, offsets, targets, _page.IsAtPageTop, tagged: true, role, sliceCorners, band);
             _page.Advance(sliceHeight);
             offsets = targets;
             first = false;
@@ -2399,7 +2446,7 @@ internal sealed class PdfBlockRenderer
         {
             var from = new int[row.Cells.Count];
             var to = row.Cells.Select(cell => cell.Lines.Count).ToArray();
-            DrawRowSlice(row, _page.ContentLeft, _page.CursorY, row.NaturalHeight, from, to, _page.IsAtPageTop, tagged: false, "TD", TableCorners.None);
+            DrawRowSlice(row, _page.ContentLeft, _page.CursorY, row.NaturalHeight, from, to, _page.IsAtPageTop, tagged: false, "TD", TableCorners.None, row.BorderTop);
             _page.Advance(row.NaturalHeight);
         }
 
@@ -2418,8 +2465,13 @@ internal sealed class PdfBlockRenderer
         bool atPageTop,
         bool tagged,
         string role,
-        TableCorners corners)
+        TableCorners corners,
+        double band = 0)
     {
+        // The border band lies above the text; the cell outline runs through the middle of it, and the
+        // bottom edge through the middle of the band below (the next row's, or the table's bottom border).
+        var outlineTop = top - (band / 2);
+
         // backgrounds and borders per cell (also for each part of a row across pages).
         var cellX = left;
         for (var index = 0; index < row.Cells.Count; index++)
@@ -2440,12 +2492,12 @@ internal sealed class PdfBlockRenderer
             if (cell.Background is { } background)
             {
                 _page.FillRoundedRectangle(
-                    cellX, top - sliceHeight, cell.Width, sliceHeight,
+                    cellX, outlineTop - sliceHeight, cell.Width, sliceHeight,
                     radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft,
                     background);
             }
 
-            DrawCellBorders(cell, row.Border, cellX, top - sliceHeight, cell.Width, sliceHeight, atPageTop, radii);
+            DrawCellBorders(cell, row.Border, cellX, outlineTop - sliceHeight, cell.Width, sliceHeight, atPageTop, radii);
             cellX += cell.Width;
         }
 
@@ -2454,7 +2506,7 @@ internal sealed class PdfBlockRenderer
         {
             if (!row.Cells[index].Spanned)
             {
-                needed = Math.Max(needed, row.Cells[index].Lines.Skip(from[index]).Take(to[index] - from[index]).Sum(row.HeightOf) + (2 * row.Cells[index].PadY));
+                needed = Math.Max(needed, band + row.Cells[index].Lines.Skip(from[index]).Take(to[index] - from[index]).Sum(row.HeightOf) + (2 * row.Cells[index].PadY));
             }
         }
 
@@ -2477,7 +2529,7 @@ internal sealed class PdfBlockRenderer
 
             // vertical alignment (Y02) within the row slice.
             var contentHeight = cell.Lines.Count == 0 ? row.LineHeight : cell.Lines.Sum(row.HeightOf);
-            var slack = Math.Max(0, (cell.Spanned ? Math.Max(sliceHeight, row.KeepHeight) : sliceHeight) - 2 * cell.PadY - contentHeight);
+            var slack = Math.Max(0, (cell.Spanned ? Math.Max(sliceHeight, row.KeepHeight) : sliceHeight) - band - 2 * cell.PadY - contentHeight);
             var verticalOffset = cell.Cell.VerticalAlignment switch
             {
                 TableCellVerticalAlignment.Center => slack / 2,
@@ -2485,7 +2537,7 @@ internal sealed class PdfBlockRenderer
                 _ => 0,
             };
 
-            var y = top - cell.PadY - verticalOffset;
+            var y = top - band - cell.PadY - verticalOffset;
             var innerWidth = cell.Width - 2 * cell.PadX;
             for (var lineIndex = from[index]; lineIndex < to[index]; lineIndex++)
             {
@@ -2724,7 +2776,8 @@ internal sealed class PdfBlockRenderer
         double ExactHeight,
         double PadY,
         ParagraphBorder? Border,
-        double KeepHeight = 0)
+        double KeepHeight = 0,
+        double BorderTop = 0)
     {
         public double HeightOf(CellLine line)
         {
@@ -2747,7 +2800,7 @@ internal sealed class PdfBlockRenderer
             ? ExactHeight
             : Math.Max(
                 MinHeight,
-                Math.Max(
+                BorderTop + Math.Max(
                     LineHeight + (2 * PadY),
                     Cells.Where(cell => !cell.Spanned && cell.Lines.Count > 0).Select(cell => cell.Lines.Sum(HeightOf) + (2 * cell.PadY)).DefaultIfEmpty(0).Max()));
     }

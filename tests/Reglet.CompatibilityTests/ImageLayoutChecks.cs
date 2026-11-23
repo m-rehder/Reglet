@@ -178,14 +178,15 @@ internal static class ImageLayoutChecks
                 Require(imageAt < textAt, $"PDF: an image {wrap} is drawn before the text.");
             }
 
-            // The text is not pushed down: its baseline is the same as without the image.
+            // The text is not pushed below the image: like Word and LibreOffice, the PDF gives only the image's own
+            // (empty) anchor paragraph a line, so the baseline is that of the text after an empty paragraph.
             var withImage = BaselineOf(content, "AFTERIMAGE");
             using var plainBuffer = new MemoryStream();
             new PdfDocumentWriter().WriteAsync(
-                new PortableDocument(new DocumentMetadata(), section with { Blocks = [new Paragraph(new TextRun("AFTERIMAGE"))] }),
+                new PortableDocument(new DocumentMetadata(), section with { Blocks = [new Paragraph(Array.Empty<Inline>()), new Paragraph(new TextRun("AFTERIMAGE"))] }),
                 plainBuffer).GetAwaiter().GetResult();
             Require(Math.Abs(withImage - BaselineOf(PdfStreams.Decompress(plainBuffer.ToArray()), "AFTERIMAGE")) < 0.01,
-                $"PDF: {wrap} does not move the following text.");
+                $"PDF: {wrap} moves the following text by the anchor paragraph only.");
 
             // The readers keep the kind. ODF has one representation for "text in front of the image",
             // so a through wrap reads back as behind there.

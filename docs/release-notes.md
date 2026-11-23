@@ -1,5 +1,20 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- Table rows are as far apart as in Word: a horizontal border takes its width (the text starts below it, the table
+  ends with its bottom border); before, 0.5 pt borders made Reglet fit about 6 % more rows on a page than Word.
+- A floating image or shape takes the line of its own anchor paragraph, as in Word and LibreOffice: text after a
+  logo in front of the text (for example as the first block of a header) no longer moves up by one line.
+- A paragraph that breaks onto the next page beside a floating image no longer indents its last line there.
+
+### Packaging
+
+- The release workflow publishes the facade `Reglet` only after nuget.org lists its dependencies; with 1.2.0 a restore
+  right after the release could fail because `Reglet` was listed before `Reglet.Html`.
+
 ## 1.2.0
 
 ### PDF

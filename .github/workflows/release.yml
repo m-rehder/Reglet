@@ -52,9 +52,29 @@ jobs:
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
-          for package in artifacts/packages/*.nupkg artifacts/packages/*.snupkg; do
-            dotnet nuget push "$package" --api-key "$NUGET_API_KEY" \
+          version="${GITHUB_REF_NAME#v}"
+          push() {
+            dotnet nuget push "$1" --api-key "$NUGET_API_KEY" \
               --source https://api.nuget.org/v3/index.json --skip-duplicate
+          }
+          # The facade goes last, once nuget.org serves its dependencies: pushed together, the facade was
+          # listed first (its file sorts first) and a restore in between failed (1.2.0).
+          for package in artifacts/packages/*.nupkg; do
+            [ "$(basename "$package")" = "Reglet.$version.nupkg" ] || push "$package"
+          done
+          deadline=$((SECONDS + 2400))
+          for id in reglet.core reglet.fonts reglet.docx reglet.odt reglet.pdf reglet.html; do
+            until curl -fsS "https://api.nuget.org/v3-flatcontainer/$id/index.json" | grep -q "\"$version\""; do
+              if [ "$SECONDS" -ge "$deadline" ]; then
+                echo "::warning::$id $version is not listed after 40 minutes; pushing the facade anyway."
+                break 2
+              fi
+              sleep 30
+            done
+          done
+          push "artifacts/packages/Reglet.$version.nupkg"
+          for symbols in artifacts/packages/*.snupkg; do
+            push "$symbols"
           done
 
       # V02: the release for the tag with the changelog section and the packed artifacts, on the

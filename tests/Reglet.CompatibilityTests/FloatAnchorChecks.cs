@@ -11,6 +11,7 @@ internal static class FloatAnchorChecks
         {
             PageAnchoredImageIgnoresTheParagraph();
             AlignsWithinTheMargin();
+            HeaderLogoKeepsItsAnchorLine();
             RoundTripsThroughDocx();
             RoundTripsThroughOdt();
             Console.WriteLine("Float anchors: all checks passed.");
@@ -68,6 +69,29 @@ internal static class FloatAnchorChecks
             .Select(value => double.Parse(value, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
         // Normal margins are 1 inch: centred between them, its bottom on the bottom margin.
         Require(Math.Abs(numbers[4] - (595.28 - 100) / 2) < 0.05 && Math.Abs(numbers[5] - 72) < 0.05, "Centred in the margins, at the bottom margin.");
+    }
+
+    /// <summary>
+    /// A logo in front of the text as the first block of a header: Word and LibreOffice give its anchor paragraph an
+    /// empty line, so the header text below it sits one empty paragraph lower; the PDF does the same.
+    /// </summary>
+    private static void HeaderLogoKeepsItsAnchorLine()
+    {
+        static double HeaderBaseline(Block first)
+        {
+            var section = new Section(new Paragraph(new TextRun("Body")))
+            {
+                Header = new HeaderFooter(new Block[] { first, new Paragraph(new TextRun("HEADERTEXT")) }),
+            };
+            using var buffer = new MemoryStream();
+            new PdfDocumentWriter().WriteAsync(new PortableDocument(new DocumentMetadata(), section), buffer).GetAwaiter().GetResult();
+            var match = Regex.Match(PdfStreams.DecompressPages(buffer.ToArray())[0], @"(-?[\d.]+) (-?[\d.]+) Td\s*\(HEADERTEXT\) Tj");
+            Require(match.Success, "The header text is drawn.");
+            return double.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        Require(Math.Abs(HeaderBaseline(Logo()) - HeaderBaseline(new Paragraph(Array.Empty<Inline>()))) < 0.01,
+            "The header text below a page-anchored logo sits one empty paragraph lower, as in Word.");
     }
 
     private static PortableDocument Sample() => new(new DocumentMetadata(), new Section(new Block[]
