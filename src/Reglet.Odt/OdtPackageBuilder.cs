@@ -41,6 +41,10 @@ internal static class OdtPackageBuilder
 
         blocksWrittenFromSource.UnionWith(coveredBlocks);
         var images = OdtImageResources.Register(package, document, options.Limits, blocksWrittenFromSource, cancellationToken);
+        if (images.Keys.Any(image => !image.TakesAnchorLine && image.Wrap != ImageWrap.None))
+        {
+            handler.Report("ODT: a floating image without an anchor line is written in a paragraph of its own; LibreOffice shows that paragraph as an empty line.");
+        }
         var styleNames = sourceStyles.Elements.Select(element => (string?)element.Attribute(XName.Get("name", OdtNamespaces.Style)))
             .Where(name => name is not null).ToHashSet(StringComparer.Ordinal);
         foreach (var resource in images.Values)

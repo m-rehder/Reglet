@@ -19,7 +19,7 @@ internal sealed class OdtTableCellStyles
 
     private readonly record struct CellKey(
         Color? Background,
-        double? Padding,
+        (double Horizontal, double Vertical)? Padding,
         string Borders,
         TableCellVerticalAlignment VerticalAlignment,
         string AreaBorder,
@@ -27,7 +27,10 @@ internal sealed class OdtTableCellStyles
 
     private readonly record struct RowKey(double Height, TableRowHeightRule Rule);
 
-    private readonly record struct TableKey(double? WidthPercent, string Border, double? CellPadding, string Parent);
+    private readonly record struct TableKey(double? WidthPercent, string Border, double? CellPaddingHorizontal, double? CellPaddingVertical, double? LeftIndent, string Parent)
+    {
+        public bool IsEmpty => WidthPercent is null && Border.Length == 0 && CellPaddingHorizontal is null && CellPaddingVertical is null && LeftIndent is null;
+    }
 
     private readonly Dictionary<CellKey, string> _cells = [];
     private readonly Dictionary<RowKey, string> _rows = [];
@@ -66,13 +69,14 @@ internal sealed class OdtTableCellStyles
 
     /// <summary>Name of the cell style (default position style if there is no direct formatting).</summary>
     public string CellStyleName(
+        TableBlock table,
         TableCell cell,
         bool lastColumn,
         bool lastRow,
         Color? background,
         TableStyleArea? area = null)
     {
-        var key = CellKeyOf(cell, background, area);
+        var key = CellKeyOf(table, cell, background, area);
         if (key == DefaultCellKey)
         {
             return "Cell" + (lastColumn ? "R" : string.Empty) + (lastRow ? "U" : string.Empty);
@@ -91,7 +95,7 @@ internal sealed class OdtTableCellStyles
     public string? TableStyleName(TableBlock table, string? parent)
     {
         var key = TableKeyOf(table, parent);
-        return key.WidthPercent is null && key.Border.Length == 0 && key.CellPadding is null
+        return key.IsEmpty
             ? null
             : _tables.TryGetValue(key, out var name) ? name : null;
     }
@@ -99,9 +103,13 @@ internal sealed class OdtTableCellStyles
     private static readonly CellKey DefaultCellKey = new(
         null, null, string.Empty, TableCellVerticalAlignment.Top, string.Empty, string.Empty);
 
-    private static CellKey CellKeyOf(TableCell cell, Color? background, TableStyleArea? area) => new(
+    // ODF has the padding only on the cells: a cell takes its own, or else the table's.
+    private static CellKey CellKeyOf(TableBlock table, TableCell cell, Color? background, TableStyleArea? area) => new(
         background,
-        cell.Padding?.Points,
+        TableLayout.CellPadding(table, cell) is var (horizontal, vertical)
+            && (horizontal != Typography.TableCellPaddingHorizontal || vertical != Typography.TableCellPaddingVertical)
+                ? (horizontal.Points, vertical.Points)
+                : null,
         BordersKey(cell.Borders),
         cell.VerticalAlignment,
         BorderKey(area?.Border),
@@ -137,7 +145,9 @@ internal sealed class OdtTableCellStyles
     private static TableKey TableKeyOf(TableBlock table, string? parent) => new(
         table.WidthPercent,
         BorderKey(table.Border ?? table.Style?.Border),
-        (table.CellPadding ?? table.Style?.CellPadding)?.Points,
+        (table.CellPaddingHorizontal ?? table.CellPadding ?? table.Style?.CellPadding)?.Points,
+        (table.CellPaddingVertical ?? table.CellPadding ?? table.Style?.CellPadding)?.Points,
+        table.LeftIndent?.Points,
         parent ?? string.Empty);
 
     private static void Walk(IEnumerable<Block> blocks, OdtBreakPlan breaks, OdtTableCellStyles styles)
@@ -185,7 +195,7 @@ internal sealed class OdtTableCellStyles
 
                             var area = TableConditionalStyle.AreaOf(
                                 table, style, row, rowIndex, column, columnCount);
-                            styles.RegisterCell(cell, cell.Background ?? styleBackground, area);
+                            styles.RegisterCell(table, cell, cell.Background ?? styleBackground, area);
                             column += span;
                         }
 
@@ -205,9 +215,9 @@ internal sealed class OdtTableCellStyles
         }
     }
 
-    private void RegisterCell(TableCell cell, Color? background, TableStyleArea? area = null)
+    private void RegisterCell(TableBlock table, TableCell cell, Color? background, TableStyleArea? area = null)
     {
-        var key = CellKeyOf(cell, background, area);
+        var key = CellKeyOf(table, cell, background, area);
         if (key != DefaultCellKey && !_cells.ContainsKey(key))
         {
             _cells[key] = "TC" + (_cellStart + _cells.Count + 1).ToString(CultureInfo.InvariantCulture);
@@ -231,8 +241,7 @@ internal sealed class OdtTableCellStyles
     private void RegisterTable(TableBlock table, string? parent)
     {
         var key = TableKeyOf(table, parent);
-        if ((key.WidthPercent is not null || key.Border.Length > 0 || key.CellPadding is not null)
-            && !_tables.ContainsKey(key))
+        if (!key.IsEmpty && !_tables.ContainsKey(key))
         {
             _tables[key] = "TT" + (_tableStart + _tables.Count + 1).ToString(CultureInfo.InvariantCulture);
         }
@@ -273,11 +282,10 @@ internal sealed class OdtTableCellStyles
 
         if (key.Padding is { } padding)
         {
-            var text = PointsText(padding);
-            writer.WriteAttributeString("fo", "padding-left", OdtNamespaces.Fo, text);
-            writer.WriteAttributeString("fo", "padding-right", OdtNamespaces.Fo, text);
-            writer.WriteAttributeString("fo", "padding-top", OdtNamespaces.Fo, text);
-            writer.WriteAttributeString("fo", "padding-bottom", OdtNamespaces.Fo, text);
+            writer.WriteAttributeString("fo", "padding-left", OdtNamespaces.Fo, PointsText(padding.Horizontal));
+            writer.WriteAttributeString("fo", "padding-right", OdtNamespaces.Fo, PointsText(padding.Horizontal));
+            writer.WriteAttributeString("fo", "padding-top", OdtNamespaces.Fo, PointsText(padding.Vertical));
+            writer.WriteAttributeString("fo", "padding-bottom", OdtNamespaces.Fo, PointsText(padding.Vertical));
         }
         else
         {
@@ -380,9 +388,29 @@ internal sealed class OdtTableCellStyles
             writer.WriteAttributeString("fo", "border", OdtNamespaces.Fo, key.Border);
         }
 
-        if (key.CellPadding is { } padding)
+        if (key.CellPaddingHorizontal == key.CellPaddingVertical && key.CellPaddingHorizontal is { } padding)
         {
             writer.WriteAttributeString("fo", "padding", OdtNamespaces.Fo, PointsText(padding));
+        }
+        else
+        {
+            // Read back by this library; ODF knows the cell padding only on the cells.
+            if (key.CellPaddingHorizontal is { } horizontal)
+            {
+                writer.WriteAttributeString("fo", "padding-left", OdtNamespaces.Fo, PointsText(horizontal));
+            }
+
+            if (key.CellPaddingVertical is { } vertical)
+            {
+                writer.WriteAttributeString("fo", "padding-top", OdtNamespaces.Fo, PointsText(vertical));
+            }
+        }
+
+        if (key.LeftIndent is { } leftIndent)
+        {
+            // LibreOffice honours the left margin only for a left-aligned table.
+            writer.WriteAttributeString("table", "align", OdtNamespaces.Table, "left");
+            writer.WriteAttributeString("fo", "margin-left", OdtNamespaces.Fo, PointsText(leftIndent));
         }
 
         writer.WriteEndElement();

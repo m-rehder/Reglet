@@ -1747,7 +1747,7 @@ internal static class OdtContentWriter
             writer.WriteAttributeString(
                 "table", "style-name", OdtNamespaces.Table,
                 paragraphStyles.CellStyles.CellStyleName(
-                    cell, lastColumn, lastRow, cell.Background ?? styleBackground, area));
+                    table, cell, lastColumn, lastRow, cell.Background ?? styleBackground, area));
             if (span > 1)
             {
                 writer.WriteAttributeString(

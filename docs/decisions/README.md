@@ -46,5 +46,6 @@ implemented, the known limits, the open work and what is out of scope are kept i
 | [0037](ADR-0037-pdf-canvas.md) | – | Accepted: PdfCanvas draws PDF pages at fixed coordinates over the flow renderer; measurement through the writer's font catalog |
 | [0038](ADR-0038-float-anchors.md) | – | Accepted: floating images and shapes anchored to page, margin, column or paragraph, with an alignment instead of an offset |
 | [0039](ADR-0039-paged-html.md) | – | Accepted: paged HTML converts the PDF writer's pages to SVG with real text and embedded fonts; lives in Reglet.Pdf |
+| [0040](ADR-0040-migradoc-parity.md) | – | Accepted: fields and empty lines take their paragraph's font, floats can do without an anchor line, cell padding per axis and a table indent |
 
 A new ADR is added to this table; a change of a status goes into the feature matrix, not here.

@@ -59,6 +59,19 @@ internal static class TableLayout
         return cell.Alignment == TextAlignment.Left ? style : style with { Alignment = cell.Alignment };
     }
 
+    /// <summary>
+    /// The left/right and top/bottom padding of a cell (or, without one, of the table's cells): the cell's own values, then
+    /// the table's, then its style's, then Word's defaults; a value for one axis wins over the uniform one.
+    /// </summary>
+    public static (Length Horizontal, Length Vertical) CellPadding(TableBlock table, TableCell? cell)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        var uniform = table.CellPadding ?? table.Style?.CellPadding;
+        return (
+            cell?.PaddingHorizontal ?? cell?.Padding ?? table.CellPaddingHorizontal ?? uniform ?? Typography.TableCellPaddingHorizontal,
+            cell?.PaddingVertical ?? cell?.Padding ?? table.CellPaddingVertical ?? uniform ?? Typography.TableCellPaddingVertical);
+    }
+
     public static double[] ResolveColumnWidths(TableBlock table, int columnCount, double availablePoints)
     {
         ArgumentNullException.ThrowIfNull(table);

@@ -1990,7 +1990,15 @@ internal static class DocxPackageBuilder
 
         writer.WriteEndElement();
         WriteTableBorders(writer, table.Border ?? table.Style?.Border);
-        WriteTableCellMargins(writer, table.CellPadding ?? table.Style?.CellPadding);
+        if (table.LeftIndent is { } leftIndent)
+        {
+            writer.WriteStartElement("w", "tblInd", DocxConstants.WordprocessingML);
+            WriteWAttribute(writer, "w", Twips(leftIndent));
+            WriteWAttribute(writer, "type", "dxa");
+            writer.WriteEndElement();
+        }
+
+        WriteTableCellMargins(writer, "tblCellMar", TableLayout.CellPadding(table, null));
         if (table.Style is not null)
         {
             // Only the areas the model applies: a first row counts as header when it is marked so.
@@ -2255,11 +2263,11 @@ internal static class DocxPackageBuilder
         writer.WriteEndElement();
     }
 
-    private static void WriteTableCellMargins(XmlWriter writer, Length? padding)
+    private static void WriteTableCellMargins(XmlWriter writer, string element, (Length Horizontal, Length Vertical) padding)
     {
-        writer.WriteStartElement("w", "tblCellMar", DocxConstants.WordprocessingML);
-        var vertical = Twips(padding ?? Typography.TableCellPaddingVertical);
-        var horizontal = Twips(padding ?? Typography.TableCellPaddingHorizontal);
+        writer.WriteStartElement("w", element, DocxConstants.WordprocessingML);
+        var vertical = Twips(padding.Vertical);
+        var horizontal = Twips(padding.Horizontal);
         WriteCellMargin(writer, "top", vertical);
         WriteCellMargin(writer, "left", horizontal);
         WriteCellMargin(writer, "bottom", vertical);
@@ -2436,16 +2444,9 @@ internal static class DocxPackageBuilder
             writer.WriteEndElement();
         }
 
-        var padding = cell.Padding ?? table.CellPadding;
-        if (padding is { } cellPadding)
+        if ((cell.Padding ?? cell.PaddingHorizontal ?? cell.PaddingVertical ?? table.CellPadding ?? table.CellPaddingHorizontal ?? table.CellPaddingVertical) is not null)
         {
-            writer.WriteStartElement("w", "tcMar", DocxConstants.WordprocessingML);
-            var value = Twips(cellPadding);
-            WriteCellMargin(writer, "top", value);
-            WriteCellMargin(writer, "left", value);
-            WriteCellMargin(writer, "bottom", value);
-            WriteCellMargin(writer, "right", value);
-            writer.WriteEndElement();
+            WriteTableCellMargins(writer, "tcMar", TableLayout.CellPadding(table, cell));
         }
 
         if (cell.VerticalAlignment != TableCellVerticalAlignment.Top)
@@ -4331,6 +4332,11 @@ internal static class DocxPackageBuilder
         if (image.RasterFallback is { } fallback && !context.ImageRelationships.TryGetValue(fallback, out fallbackRelationshipId))
             throw new InvalidOperationException("DOCX: SVG raster fallback without a registered relationship.");
 
+        if (!image.TakesAnchorLine && image.Wrap != ImageWrap.None)
+        {
+            context.Handler.Report("DOCX: a floating image without an anchor line is written in a paragraph of its own; Word shows that paragraph as an empty line.");
+        }
+
         var (width, height) = ImageLayout.Resolve(image);
         var drawingId = context.NextDrawingId();
 
@@ -4723,7 +4729,7 @@ internal static class DocxPackageBuilder
 
         writer.WriteStartElement("w", "tblPr", DocxConstants.WordprocessingML);
         WriteTableBorders(writer, style.Border);
-        WriteTableCellMargins(writer, style.CellPadding);
+        WriteTableCellMargins(writer, "tblCellMar", (style.CellPadding ?? Typography.TableCellPaddingHorizontal, style.CellPadding ?? Typography.TableCellPaddingVertical));
         writer.WriteEndElement();
 
         // The conditional formatting of the areas: the background, the borders and the text.

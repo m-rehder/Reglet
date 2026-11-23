@@ -2847,22 +2847,21 @@ public sealed class DocxDocumentReader : IDocumentReader
     }
 
     /// <summary>Reads the cell margins of a table (the horizontal margin in twips).</summary>
-    private static Length? ReadCellMargin(XElement? margins)
+    private static Length? ReadCellMargin(XElement? margins) => ReadCellMargins(margins).Horizontal;
+
+    /// <summary>The left (horizontal) and top (vertical) cell margin; null where it is absent or invalid.</summary>
+    private static (Length? Horizontal, Length? Vertical) ReadCellMargins(XElement? margins)
     {
-        if (margins is null)
-        {
-            return null;
-        }
+        static Length? Side(XElement? side, long minimum)
+            => side?.Attribute(W + "w")?.Value is { } value
+                && long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var twips)
+                && twips >= minimum
+                    ? Length.FromPoints(twips / 20.0)
+                    : null;
 
-        var left = margins.Element(W + "left") ?? margins.Element(W + "start");
-        if (left?.Attribute(W + "w")?.Value is not { } value
-            || !long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var twips)
-            || twips <= 0)
-        {
-            return null;
-        }
-
-        return Length.FromPoints(twips / 20.0);
+        return margins is null
+            ? (null, null)
+            : (Side(margins.Element(W + "left") ?? margins.Element(W + "start"), 1), Side(margins.Element(W + "top"), 0));
     }
 
     /// <summary>
@@ -2883,7 +2882,14 @@ public sealed class DocxDocumentReader : IDocumentReader
                 element.Name.LocalName is "top" or "left" or "bottom" or "right"))
             : null;
 
-        var padding = ReadCellMargin(tblPr?.Element(W + "tblCellMar"));
+        var (horizontalPadding, verticalPadding) = ReadCellMargins(tblPr?.Element(W + "tblCellMar"));
+        var uniformPadding = horizontalPadding == verticalPadding;
+        var leftIndent = tblPr?.Element(W + "tblInd") is { } tblInd
+            && (string?)tblInd.Attribute(W + "type") is null or "dxa"
+            && long.TryParse(tblInd.Attribute(W + "w")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var indentTwips)
+            && indentTwips != 0
+                ? Length.FromPoints(indentTwips / 20.0)
+                : (Length?)null;
 
         double? widthPercent = null;
         if (tblPr?.Element(W + "tblW") is { } width
@@ -2941,7 +2947,10 @@ public sealed class DocxDocumentReader : IDocumentReader
         {
             Style = style,
             Border = border,
-            CellPadding = padding,
+            CellPadding = uniformPadding ? horizontalPadding : null,
+            CellPaddingHorizontal = uniformPadding ? null : horizontalPadding,
+            CellPaddingVertical = uniformPadding ? null : verticalPadding,
+            LeftIndent = leftIndent,
             WidthPercent = widthPercent,
             ColumnWidths = columnWidths is { Count: > 0 } ? columnWidths : null,
         };

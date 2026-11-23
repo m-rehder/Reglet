@@ -721,6 +721,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `ImageScaleMode ScaleMode { get; init; }` — Scaling mode.
 - `ImageCrop? Crop { get; init; }` — cropping cut off on each side (phase AA, AA02); null means no cropping.
 - `ImageWrap Wrap { get; init; }` — wrapping of the text around a floating image (phase AA, AA01); `ImageWrap.None` is inline.
+- `bool TakesAnchorLine { get; init; }` — Whether a floating image takes an empty line of its own (its anchor paragraph), as Word and LibreOffice lay it out; false places it without one, as MigraDoc does, so the next block starts where the image starts. The PDF writer honours it; DOCX and ODT need the anchor paragraph and report that they keep it.
 - `HorizontalAnchor HorizontalRelativeTo { get; init; }` — What `ImageBlock.OffsetX` or `ImageBlock.HorizontalAlignment` of a floating object counts from; the column by default.
 - `VerticalAnchor VerticalRelativeTo { get; init; }` — What `ImageBlock.OffsetY` or `ImageBlock.VerticalAlignment` of a floating object counts from; the paragraph by default.
 - `HorizontalFloatAlignment? HorizontalAlignment { get; init; }` — Aligns a floating object within `ImageBlock.HorizontalRelativeTo`; when set, `ImageBlock.OffsetX` is ignored.
@@ -1399,6 +1400,9 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `ParagraphBorder? Border { get; init; }` — Borders of the table (all grid lines); null means no borders.
 - `Length? CornerRadius { get; init; }` — radius of the corners of the table outline (OF-B04); null means square corners. The PDF draws the background and the outer border of the table with rounded corners; DOCX and ODT have no rounded table corners and report the value.
 - `Length? CellPadding { get; init; }` — Uniform cell padding; null means the default spacing.
+- `Length? CellPaddingHorizontal { get; init; }` — Left and right padding of the cells; overrides `TableBlock.CellPadding` on those sides.
+- `Length? CellPaddingVertical { get; init; }` — Top and bottom padding of the cells; overrides `TableBlock.CellPadding` on those sides.
+- `Length? LeftIndent { get; init; }` — Moves the table and its borders from the left margin (Word's table indent); negative moves it into the margin, for example by the left cell padding so the text of the first column stands at the margin. Null means 0.
 - `double? WidthPercent { get; init; }` — Table width in percent of the available width; null means full width.
 - `TableStyle? Style { get; init; }` — reusable table style (phase Y, Y05). Its borders and cell padding apply where the table has no direct value; header and banded-row backgrounds are conditional formats.
 
@@ -1426,6 +1430,8 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `int RowSpan { get; init; }` — Number of spanned rows (default 1, at most `TableCell.MaxSpan`).
 - `Color? Background { get; init; }` — Background color of the cell; null means none.
 - `Length? Padding { get; init; }` — Padding of the cell; null means the table spacing.
+- `Length? PaddingHorizontal { get; init; }` — Left and right padding of this cell; overrides `TableCell.Padding` on those sides.
+- `Length? PaddingVertical { get; init; }` — Top and bottom padding of this cell; overrides `TableCell.Padding` on those sides.
 - `ParagraphBorders? Borders { get; init; }` — Custom cell borders; null means the table borders.
 
 #### TableCellVerticalAlignment

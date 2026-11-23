@@ -1,5 +1,27 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- Page number, page count, date and other fields take the font and size of their paragraph (its style), like any text
+  run; before they took the document's defaults, so a right-aligned "1 von 3" in a 10 pt paragraph of a document with
+  another default size was measured and drawn in the wrong size and could overlap.
+- A table row is as high as its text: a 9 pt row stays 9 pt in a 10 pt document. The document's font size applies only
+  to a row without text.
+- An empty paragraph is as high as its (empty) text run or its paragraph style's font size, as in Word and MigraDoc,
+  instead of the document's size.
+- `ImageBlock.TakesAnchorLine = false` places a floating image without the empty anchor paragraph (MigraDoc's
+  behaviour); the default keeps Word's. DOCX and ODT keep the anchor paragraph and report it.
+
+### Tables
+
+- `TableBlock.CellPaddingHorizontal`/`CellPaddingVertical` and `TableCell.PaddingHorizontal`/`PaddingVertical` set
+  left/right and top/bottom padding apart; `TableBlock.LeftIndent` (negative allowed) moves the table and its borders.
+  Written to DOCX (`w:tcMar`/`w:tblCellMar`, `w:tblInd`), ODT and PDF, and read back from DOCX and ODT (ADR-0040).
+- DOCX and ODT tables written with the default padding are read back with 5.4 pt left and right and 0 top and bottom,
+  not 5.4 pt on all sides; ODT cells show their table's padding in LibreOffice.
+
 ## 1.3.0
 
 ### PDF

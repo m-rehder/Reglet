@@ -5,6 +5,9 @@ public sealed class TableBlock : Block
 {
     private IReadOnlyList<Length>? _columnWidths;
     private Length? _cellPadding;
+    private Length? _cellPaddingHorizontal;
+    private Length? _cellPaddingVertical;
+    private Length? _leftIndent;
     private Length? _cornerRadius;
     private double? _widthPercent;
 
@@ -80,6 +83,41 @@ public sealed class TableBlock : Block
         }
     }
 
+    /// <summary>Left and right padding of the cells; overrides <see cref="CellPadding"/> on those sides.</summary>
+    public Length? CellPaddingHorizontal
+    {
+        get => _cellPaddingHorizontal;
+        init => _cellPaddingHorizontal = NonNegative(value, nameof(CellPaddingHorizontal));
+    }
+
+    /// <summary>Top and bottom padding of the cells; overrides <see cref="CellPadding"/> on those sides.</summary>
+    public Length? CellPaddingVertical
+    {
+        get => _cellPaddingVertical;
+        init => _cellPaddingVertical = NonNegative(value, nameof(CellPaddingVertical));
+    }
+
+    /// <summary>
+    /// Moves the table and its borders from the left margin (Word's table indent); negative moves it into the margin, for
+    /// example by the left cell padding so the text of the first column stands at the margin. Null means 0.
+    /// </summary>
+    public Length? LeftIndent
+    {
+        get => _leftIndent;
+        init
+        {
+            if (value is { } indent && !double.IsFinite(indent.Points))
+            {
+                throw new ArgumentOutOfRangeException(nameof(LeftIndent), "The table indent must be finite.");
+            }
+
+            _leftIndent = value;
+        }
+    }
+
+    private static Length? NonNegative(Length? value, string name)
+        => value is { Points: < 0 } ? throw new ArgumentOutOfRangeException(name, "Cell padding must not be negative.") : value;
+
     /// <summary>Table width in percent of the available width; null means full width.</summary>
     public double? WidthPercent
     {
@@ -108,6 +146,9 @@ public sealed class TableBlock : Block
         Border = Border,
         CornerRadius = CornerRadius,
         CellPadding = CellPadding,
+        CellPaddingHorizontal = CellPaddingHorizontal,
+        CellPaddingVertical = CellPaddingVertical,
+        LeftIndent = LeftIndent,
         WidthPercent = WidthPercent,
         Style = Style,
     };

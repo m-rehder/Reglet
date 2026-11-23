@@ -34,6 +34,8 @@ public sealed record TableCell
     private int _columnSpan = 1;
     private int _rowSpan = 1;
     private Length? _padding;
+    private Length? _paddingHorizontal;
+    private Length? _paddingVertical;
 
     /// <summary>Creates a cell with a paragraph from the specified text.</summary>
     public TableCell(string text)
@@ -130,6 +132,20 @@ public sealed record TableCell
         }
     }
 
+    /// <summary>Left and right padding of this cell; overrides <see cref="Padding"/> on those sides.</summary>
+    public Length? PaddingHorizontal
+    {
+        get => _paddingHorizontal;
+        init => _paddingHorizontal = value is { Points: < 0 } ? throw new ArgumentOutOfRangeException(nameof(PaddingHorizontal), "Cell padding must not be negative.") : value;
+    }
+
+    /// <summary>Top and bottom padding of this cell; overrides <see cref="Padding"/> on those sides.</summary>
+    public Length? PaddingVertical
+    {
+        get => _paddingVertical;
+        init => _paddingVertical = value is { Points: < 0 } ? throw new ArgumentOutOfRangeException(nameof(PaddingVertical), "Cell padding must not be negative.") : value;
+    }
+
     /// <summary>Custom cell borders; null means the table borders.</summary>
     public ParagraphBorders? Borders { get; init; }
 
@@ -143,5 +159,7 @@ public sealed record TableCell
         ColumnSpan = ColumnSpan,
         RowSpan = RowSpan,
         Padding = Padding,
+        PaddingHorizontal = PaddingHorizontal,
+        PaddingVertical = PaddingVertical,
     };
 }

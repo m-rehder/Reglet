@@ -281,7 +281,11 @@ internal sealed class PdfBlockRenderer
                 break;
             case ImageBlock image:
                 RenderImage(image, indent);
-                RenderAnchorParagraph(image.Wrap, indent, listLevel, next);
+                if (image.TakesAnchorLine)
+                {
+                    RenderAnchorParagraph(image.Wrap, indent, listLevel, next);
+                }
+
                 break;
             case CanvasBlock { Drawing: PdfCanvasPage canvasPage }:
                 canvasPage.Render(_page, _images);
@@ -1166,11 +1170,9 @@ internal sealed class PdfBlockRenderer
 
         var atoms = BuildAtoms(inlines, headingSize, style);
 
-        // An empty paragraph occupies a blank line as in DOCX/ODT.
-        var defaultFont = _page.Fonts.GetFont(null, bold: false, italic: false);
-        var fontSize = atoms.Count == 0
-            ? headingSize ?? _defaults.FontSize.Points
-            : atoms.Max(atom => atom.FontSize);
+        // An empty paragraph occupies a blank line as in DOCX/ODT, in the font of its (empty) run or its style.
+        var (defaultFont, emptySize) = EmptyLineFormat(inlines, headingSize, style);
+        var fontSize = Measured(atoms).Count == 0 ? emptySize : atoms.Max(atom => atom.FontSize);
 
         // left, right and first-line indent limit the wrap width and shift
         // the start position (N06). The list indent is added from the nesting level.
@@ -1729,7 +1731,24 @@ internal sealed class PdfBlockRenderer
     /// <summary>Maximum nesting of tables inside table cells; deeper tables are drawn as text.</summary>
     private const int MaxNestedTableDepth = 4;
 
+    /// <summary>The indent of the table being drawn (a header table drawn on a page break keeps its own).</summary>
+    private double _tableIndent;
+
     private void RenderTable(TableBlock table)
+    {
+        var outerIndent = _tableIndent;
+        _tableIndent = table.LeftIndent?.Points ?? 0;
+        try
+        {
+            RenderTableRows(table);
+        }
+        finally
+        {
+            _tableIndent = outerIndent;
+        }
+    }
+
+    private void RenderTableRows(TableBlock table)
     {
         var rows = LayoutTable(table, _page.ContentWidth, depth: 0);
         if (rows.Count == 0)
@@ -1791,8 +1810,7 @@ internal sealed class PdfBlockRenderer
 
         var style = table.Style;
         var styleBorder = table.Border ?? style?.Border;
-        var stylePadding = table.CellPadding ?? style?.CellPadding;
-        var tablePadY = (stylePadding ?? Typography.TableCellPaddingVertical).Points;
+        var tablePadY = TableLayout.CellPadding(table, null).Vertical.Points;
         var size = _defaults.FontSize.Points;
         var defaultMetrics = _page.Fonts.GetFont(null, bold: false, italic: false).Metrics;
 
@@ -1819,13 +1837,12 @@ internal sealed class PdfBlockRenderer
                 {
                     remaining[columnIndex]--;
                     var spanCell = coveredCell[columnIndex]!;
-                    var continuationPadX = (spanCell.Padding ?? stylePadding ?? Typography.TableCellPaddingHorizontal).Points;
-                    var continuationPadY = (spanCell.Padding ?? stylePadding ?? Typography.TableCellPaddingVertical).Points;
+                    var (continuationPadX, continuationPadY) = TableLayout.CellPadding(table, spanCell);
                     cells.Add(new CellLayout(
                         spanCell,
                         widths[Math.Min(columnIndex, widths.Length - 1)],
-                        continuationPadX,
-                        continuationPadY,
+                        continuationPadX.Points,
+                        continuationPadY.Points,
                         [],
                         coveredBackground[columnIndex],
                         Continuation: true,
@@ -1851,8 +1868,9 @@ internal sealed class PdfBlockRenderer
                     cellWidth += widths[columnIndex + offset];
                 }
 
-                var padX = (cell.Padding ?? stylePadding ?? Typography.TableCellPaddingHorizontal).Points;
-                var padY = (cell.Padding ?? stylePadding ?? Typography.TableCellPaddingVertical).Points;
+                var (padding, verticalPadding) = TableLayout.CellPadding(table, cell);
+                var padX = padding.Points;
+                var padY = verticalPadding.Points;
                 var available = Math.Max(1, cellWidth - 2 * padX);
                 var area = TableConditionalStyle.AreaOf(table, style, row, rowIndex, columnIndex, logicalColumns);
 
@@ -1887,18 +1905,30 @@ internal sealed class PdfBlockRenderer
                 columnIndex += span;
             }
 
-            var lineHeight = defaultMetrics.LineHeightEm * size;
-            var ascent = defaultMetrics.AscentEm * size;
-            foreach (var cell in cells)
+            // The line height comes from the text of the row's cells (an empty line from its paragraph's font);
+            // the document's size only for a row without any text line.
+            var lineHeight = 0.0;
+            var ascent = 0.0;
+            foreach (var line in cells.SelectMany(cell => cell.Lines).Where(line => line.Atoms is not null))
             {
-                foreach (var line in cell.Lines)
+                var measured = Measured(line.Atoms!);
+                if (measured.Count == 0)
                 {
-                    foreach (var atom in Measured(line.Atoms ?? []))
-                    {
-                        lineHeight = Math.Max(lineHeight, atom.Font.Metrics.LineHeightEm * atom.FontSize);
-                        ascent = Math.Max(ascent, atom.Font.Metrics.AscentEm * atom.FontSize);
-                    }
+                    lineHeight = Math.Max(lineHeight, line.Empty.Height);
+                    ascent = Math.Max(ascent, line.Empty.Ascent);
                 }
+
+                foreach (var atom in measured)
+                {
+                    lineHeight = Math.Max(lineHeight, atom.Font.Metrics.LineHeightEm * atom.FontSize);
+                    ascent = Math.Max(ascent, atom.Font.Metrics.AscentEm * atom.FontSize);
+                }
+            }
+
+            if (lineHeight == 0)
+            {
+                lineHeight = defaultMetrics.LineHeightEm * size;
+                ascent = defaultMetrics.AscentEm * size;
             }
 
             if (lineHeight + 2 * tablePadY > _page.ContentHeight)
@@ -2018,6 +2048,9 @@ internal sealed class PdfBlockRenderer
                 var spaceBefore = style.SpaceBefore?.Points ?? 0;
                 var spaceAfter = ParagraphSpacing.SpaceAfter(style, compact: true);
                 var atoms = ExtractAtoms([block], cell, area);
+                var (emptyFont, emptySize) = EmptyLineFormat(block is Heading emptyHeading ? emptyHeading.Inlines : ((Paragraph)block).Inlines,
+                    block is Heading sizedHeading ? Typography.HeadingSize(sizedHeading.Level).Points : null,
+                    TableLayout.CellParagraphStyle(style, cell));
                 var segmentStart = 0;
                 var firstSegment = true;
                 for (var index = 0; index <= atoms.Count; index++)
@@ -2043,6 +2076,7 @@ internal sealed class PdfBlockRenderer
                             Before = first ? spaceBefore : 0,
                             After = index == atoms.Count && line == wrapped.Count - 1 ? spaceAfter : 0,
                             Spacing = style.LineSpacing,
+                            Empty = (emptyFont.Metrics.LineHeightEm * emptySize, emptyFont.Metrics.AscentEm * emptySize),
                         });
                     }
 
@@ -2202,7 +2236,9 @@ internal sealed class PdfBlockRenderer
         FlushText();
         if (lines.Count == 0)
         {
-            lines.Add(CellLine.Text([], lastOfParagraph: true));
+            // A cell without blocks holds an empty paragraph in the document's font, as in Word.
+            var (emptyFont, emptySize) = EmptyLineFormat([], null, null);
+            lines.Add(CellLine.Text([], lastOfParagraph: true) with { Empty = (emptyFont.Metrics.LineHeightEm * emptySize, emptyFont.Metrics.AscentEm * emptySize) });
         }
 
         return lines;
@@ -2246,8 +2282,10 @@ internal sealed class PdfBlockRenderer
         }
 
         var tableWidth = rows.Max(row => row.Cells.Sum(cell => cell.Width));
-        return new CellLine(null, tableWidth, height, (x, top) =>
+        var indent = table.LeftIndent?.Points ?? 0;
+        return new CellLine(null, tableWidth, height, (left, top) =>
         {
+            var x = left + indent;
             var y = top;
             foreach (var row in rows)
             {
@@ -2413,7 +2451,7 @@ internal sealed class PdfBlockRenderer
             // The top radii belong to the first slice of the first row, the bottom radii to the last
             // slice of the last row; a row that continues on the next page is drawn square there.
             var sliceCorners = new TableCorners(first ? corners.Top : 0, rowDone ? corners.Bottom : 0);
-            DrawRowSlice(row, _page.ContentLeft, _page.CursorY, sliceHeight, offsets, targets, _page.IsAtPageTop, tagged: true, role, sliceCorners, band);
+            DrawRowSlice(row, _page.ContentLeft + _tableIndent, _page.CursorY, sliceHeight, offsets, targets, _page.IsAtPageTop, tagged: true, role, sliceCorners, band);
             _page.Advance(sliceHeight);
             offsets = targets;
             first = false;
@@ -2446,7 +2484,7 @@ internal sealed class PdfBlockRenderer
         {
             var from = new int[row.Cells.Count];
             var to = row.Cells.Select(cell => cell.Lines.Count).ToArray();
-            DrawRowSlice(row, _page.ContentLeft, _page.CursorY, row.NaturalHeight, from, to, _page.IsAtPageTop, tagged: false, "TD", TableCorners.None, row.BorderTop);
+            DrawRowSlice(row, _page.ContentLeft + _tableIndent, _page.CursorY, row.NaturalHeight, from, to, _page.IsAtPageTop, tagged: false, "TD", TableCorners.None, row.BorderTop);
             _page.Advance(row.NaturalHeight);
         }
 
@@ -2753,6 +2791,9 @@ internal sealed class PdfBlockRenderer
 
         public LineSpacing? Spacing { get; init; }
 
+        /// <summary>The line height and ascent of the line when it holds no visible text (its paragraph's font).</summary>
+        public (double Height, double Ascent) Empty { get; init; }
+
         /// <summary>An image, tagged as a figure with its alternative text.</summary>
         public bool Figure { get; init; }
 
@@ -2840,7 +2881,7 @@ internal sealed class PdfBlockRenderer
             {
                 // The page number follows the section's numbering (PageNumberStart), as in the
                 // header/footer; the font follows the paragraph values.
-                atoms.Add(FieldAtom(_page.DisplayPageNumber.ToString(CultureInfo.InvariantCulture), headingSize));
+                atoms.Add(FieldAtom(_page.DisplayPageNumber.ToString(CultureInfo.InvariantCulture), headingSize, paragraphStyle));
                 continue;
             }
 
@@ -2848,7 +2889,7 @@ internal sealed class PdfBlockRenderer
             {
                 if (_page.TotalPages is { } total)
                 {
-                    atoms.Add(FieldAtom(total.ToString(CultureInfo.InvariantCulture), headingSize));
+                    atoms.Add(FieldAtom(total.ToString(CultureInfo.InvariantCulture), headingSize, paragraphStyle));
                 }
                 else
                 {
@@ -2862,7 +2903,8 @@ internal sealed class PdfBlockRenderer
             {
                 atoms.Add(FieldAtom(
                     (dateField.Value ?? DateTimeOffset.Now).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                    headingSize));
+                    headingSize,
+                    paragraphStyle));
                 continue;
             }
 
@@ -2896,7 +2938,7 @@ internal sealed class PdfBlockRenderer
             {
                 if (ResolveField(inline) is { } value)
                 {
-                    atoms.Add(FieldAtom(value, headingSize));
+                    atoms.Add(FieldAtom(value, headingSize, paragraphStyle));
                 }
 
                 continue;
@@ -3069,12 +3111,34 @@ internal sealed class PdfBlockRenderer
     }
 
     /// <summary>A field result in the default font (bold in headings) at the paragraph's size.</summary>
-    private TextAtom FieldAtom(string text, double? headingSize)
-        => new(
-            text,
-            _page.Fonts.GetFont(null, bold: headingSize is not null, italic: false),
-            headingSize ?? _defaults.FontSize.Points,
-            _defaults.TextColor);
+    private TextAtom FieldAtom(string text, double? headingSize, ParagraphStyle? paragraphStyle)
+    {
+        var (font, size, color) = PlainRunFormat(null, headingSize, paragraphStyle);
+        return new(text, font, size, color);
+    }
+
+    /// <summary>
+    /// The font, size and colour of <paramref name="raw"/> (or of a run without formatting of its own) in a
+    /// paragraph: fields, and the line of an empty paragraph, take them as a text run does.
+    /// </summary>
+    private (PdfFontHandle Font, double Size, Color Color) PlainRunFormat(TextRun? raw, double? headingSize, ParagraphStyle? paragraphStyle)
+    {
+        var run = RunFormatResolver.Resolve(
+            raw ?? new TextRun(string.Empty),
+            paragraphStyle,
+            raw is null ? null : RunFormatResolver.Find(_characterStyles, raw.CharacterStyleName));
+        return (
+            _page.Fonts.GetFont(run.FontFamily, run.Bold == true || headingSize is not null, run.Italic == true),
+            run.FontSize?.Points ?? headingSize ?? _defaults.FontSize.Points,
+            run.Color ?? _defaults.TextColor);
+    }
+
+    /// <summary>The font and size of the line of a paragraph without visible text: its first run, else its style.</summary>
+    private (PdfFontHandle Font, double Size) EmptyLineFormat(IReadOnlyList<Inline> inlines, double? headingSize, ParagraphStyle? paragraphStyle)
+    {
+        var (font, size, _) = PlainRunFormat(inlines.OfType<TextRun>().FirstOrDefault(), headingSize, paragraphStyle);
+        return (font, size);
+    }
 
     /// <summary>
     /// The result of a page reference, document property or document variable field; null (and

@@ -136,6 +136,13 @@ public sealed class ImageBlock : Block
     /// </summary>
     public ImageWrap Wrap { get; init; } = ImageWrap.None;
 
+    /// <summary>
+    /// Whether a floating image takes an empty line of its own (its anchor paragraph), as Word and LibreOffice lay it
+    /// out; false places it without one, as MigraDoc does, so the next block starts where the image starts. The PDF
+    /// writer honours it; DOCX and ODT need the anchor paragraph and report that they keep it.
+    /// </summary>
+    public bool TakesAnchorLine { get; init; } = true;
+
     /// <summary>What <see cref="OffsetX"/> or <see cref="HorizontalAlignment"/> of a floating object counts from; the column by default.</summary>
     public HorizontalAnchor HorizontalRelativeTo { get; init; }
 

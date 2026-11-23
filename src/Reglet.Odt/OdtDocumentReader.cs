@@ -225,7 +225,10 @@ public sealed class OdtDocumentReader : IDocumentReader
     /// <summary>
     /// The cell styles, including properties inherited from named styles.
     /// </summary>
-    private sealed record CellStyle(Color? Background, Length? Padding, ParagraphBorders? Borders, TableCellVerticalAlignment VerticalAlignment);
+    private sealed record CellStyle(Color? Background, (Length? Horizontal, Length? Vertical) Padding, ParagraphBorders? Borders, TableCellVerticalAlignment VerticalAlignment);
+
+    /// <summary>A non-negative length, or null.</summary>
+    private static Length? Padding(string? text) => ParseLength(text) is { Points: >= 0 } padding ? padding : null;
 
     private static IReadOnlyDictionary<string, CellStyle> ReadCellStyles(XElement? content, XElement? styles, List<ReadWarning> warnings)
     {
@@ -258,7 +261,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         {
             var properties = resolved[name];
             Color? background = null;
-            Length? padding = null;
+            (Length? Horizontal, Length? Vertical) padding = (null, null);
             if (properties is not null)
             {
                 var fill = properties.Attribute(Fo + "background-color")?.Value;
@@ -267,12 +270,9 @@ public sealed class OdtDocumentReader : IDocumentReader
                     background = ParseColor(fill);
                 }
 
-                var paddingText = properties.Attribute(Fo + "padding-left")?.Value
-                    ?? properties.Attribute(Fo + "padding")?.Value;
-                if (paddingText is not null)
-                {
-                    padding = ParseLength(paddingText) is { Points: >= 0 } cellPadding ? cellPadding : null;
-                }
+                var uniform = properties.Attribute(Fo + "padding")?.Value;
+                padding = (Padding(properties.Attribute(Fo + "padding-left")?.Value ?? uniform),
+                    Padding(properties.Attribute(Fo + "padding-top")?.Value ?? uniform));
             }
 
             ParagraphBorders? borders = null;
@@ -389,7 +389,10 @@ public sealed class OdtDocumentReader : IDocumentReader
         string? Relative,
         Length? Absolute,
         ParagraphBorder? Border,
-        Length? Padding);
+        Length? Padding,
+        Length? PaddingHorizontal,
+        Length? PaddingVertical,
+        Length? LeftIndent);
 
     private static IReadOnlyDictionary<string, TableStyleInfo> ReadTableStyles(XElement? content, XElement? styles, List<ReadWarning> warnings)
     {
@@ -406,11 +409,11 @@ public sealed class OdtDocumentReader : IDocumentReader
         if (HasBrokenChain(links))
             Warn(warnings, "ODT: a table style has a missing or cyclic parent and may be incomplete.");
         // Each value comes from the nearest style along the chain that states it (StyleChain).
-        var values = StyleChain.ResolveAll<(string? Width, string? Absolute, string? Border, string? Padding)>(
+        var values = StyleChain.ResolveAll<(string? Width, string? Absolute, string? Border, string? Padding, string? Left, string? Top, string? Margin)>(
             links.Keys,
             name => links.TryGetValue(name, out var link) ? link.Parent : null,
             links.ContainsKey,
-            (null, null, null, null),
+            (null, null, null, null, null, null, null),
             (inherited, name) =>
             {
                 var properties = links[name].Properties;
@@ -418,19 +421,25 @@ public sealed class OdtDocumentReader : IDocumentReader
                     (string?)properties?.Attribute(Style + "rel-width") ?? inherited.Width,
                     (string?)properties?.Attribute(Style + "width") ?? inherited.Absolute,
                     (string?)properties?.Attribute(Fo + "border") ?? inherited.Border,
-                    (string?)properties?.Attribute(Fo + "padding") ?? inherited.Padding);
+                    (string?)properties?.Attribute(Fo + "padding") ?? inherited.Padding,
+                    (string?)properties?.Attribute(Fo + "padding-left") ?? inherited.Left,
+                    (string?)properties?.Attribute(Fo + "padding-top") ?? inherited.Top,
+                    (string?)properties?.Attribute(Fo + "margin-left") ?? inherited.Margin);
             });
         var result = new Dictionary<string, TableStyleInfo>(StringComparer.Ordinal);
         foreach (var name in links.Keys)
         {
-            var (width, absolute, border, padding) = values[name];
+            var (width, absolute, border, padding, left, top, margin) = values[name];
             var length = ParseLength(absolute);
             if (length is not { Points: > 0 }) length = null;
             var tableBorder = ParseBorder(border);
-            var tablePadding = ParseLength(padding) is { Points: >= 0 } tableCellPadding ? tableCellPadding : (Length?)null;
-            if (width is not null || length is not null || tableBorder is not null || tablePadding is not null)
+            var tablePadding = Padding(padding);
+            var (horizontal, vertical) = (Padding(left), Padding(top));
+            var leftIndent = ParseLength(margin) is { } indent && indent.Points != 0 ? indent : (Length?)null;
+            if (width is not null || length is not null || tableBorder is not null || tablePadding is not null
+                || horizontal is not null || vertical is not null || leftIndent is not null)
             {
-                result[name] = new TableStyleInfo(width, length, tableBorder, tablePadding);
+                result[name] = new TableStyleInfo(width, length, tableBorder, tablePadding, horizontal, vertical, leftIndent);
             }
         }
         return result;
@@ -2833,12 +2842,14 @@ public sealed class OdtDocumentReader : IDocumentReader
         Length? absoluteWidth = null;
         ParagraphBorder? tableBorder = null;
         Length? tablePadding = null;
+        TableStyleInfo? tableInfo = null;
         if ((string?)table.Attribute(Table + "style-name") is { } tableStyle
             && context.TableStyles.TryGetValue(tableStyle, out var tableStyleInfo))
         {
             absoluteWidth = tableStyleInfo.Absolute;
             tableBorder = tableStyleInfo.Border;
             tablePadding = tableStyleInfo.Padding;
+            tableInfo = tableStyleInfo;
             if (tableStyleInfo.Relative is { } rawWidth)
             {
                 var text = rawWidth.Trim();
@@ -2872,6 +2883,9 @@ public sealed class OdtDocumentReader : IDocumentReader
             WidthPercent = widthPercent,
             Border = tableBorder,
             CellPadding = tablePadding,
+            CellPaddingHorizontal = tableInfo?.PaddingHorizontal,
+            CellPaddingVertical = tableInfo?.PaddingVertical,
+            LeftIndent = tableInfo?.LeftIndent,
         };
     }
 
@@ -2923,7 +2937,9 @@ public sealed class OdtDocumentReader : IDocumentReader
                 ColumnSpan = span,
                 RowSpan = rowSpan,
                 Background = cellStyle?.Background,
-                Padding = cellStyle?.Padding,
+                Padding = cellStyle?.Padding is ({ } h, { } v) && h == v ? h : null,
+                PaddingHorizontal = cellStyle?.Padding is (var ph, var pv) && ph != pv ? ph : null,
+                PaddingVertical = cellStyle?.Padding is (var qh, var qv) && qh != qv ? qv : null,
                 Borders = cellStyle?.Borders,
                 VerticalAlignment = cellStyle?.VerticalAlignment ?? TableCellVerticalAlignment.Top,
             };
