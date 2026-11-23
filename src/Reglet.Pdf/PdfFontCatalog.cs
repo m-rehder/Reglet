@@ -53,7 +53,7 @@ internal sealed class PdfFontCatalog
                 {
                     var embedded = _embeddedFonts.GetFont(lookup, match.Face);
                     embeddedHandle = new PdfFontHandle(
-                        embedded.ResourceName,
+                        () => embedded.ResourceName,
                         new PdfEmbeddedFontMetrics(embedded.Font),
                         isEmbedded: true,
                         text => EncodeGlyphs(embedded, text),
@@ -80,9 +80,8 @@ internal sealed class PdfFontCatalog
         var standardKey = "standard:" + baseFont;
         if (!_handles.TryGetValue(standardKey, out var standardHandle))
         {
-            var resourceName = _standardFonts.GetFont(baseFont);
             standardHandle = new PdfFontHandle(
-                resourceName,
+                () => _standardFonts.GetFont(baseFont),
                 new PdfStandardFontMetrics(baseFont),
                 isEmbedded: false,
                 PdfWinAnsi.Encode,

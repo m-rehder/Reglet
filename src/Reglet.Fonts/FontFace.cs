@@ -46,6 +46,18 @@ public sealed class FontFace
     /// <summary>Number of glyphs.</summary>
     public int GlyphCount => Font.NumGlyphs;
 
+    /// <summary>Font design units per em (<c>head.unitsPerEm</c>).</summary>
+    public int UnitsPerEm => Font.UnitsPerEm;
+
+    /// <summary>Ascender above the baseline in font units (<c>hhea.ascender</c>), as the PDF writer uses it.</summary>
+    public int Ascent => Font.Ascender;
+
+    /// <summary>Descender below the baseline in font units, as a positive value (<c>-hhea.descender</c>).</summary>
+    public int Descent => -Font.Descender;
+
+    /// <summary>Extra gap between lines in font units (<c>hhea.lineGap</c>).</summary>
+    public int LineGap => Font.LineGap;
+
     /// <summary>Embedding right per OS/2 <c>fsType</c>.</summary>
     public FontEmbeddingPermission Embedding { get; }
 

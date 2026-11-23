@@ -64,6 +64,42 @@ The DOCX and PDF writers can protect a document:
   against caller-supplied trusted roots. `PdfSignatureReader.Read` does the same for PDF
   signatures and document timestamps (byte range, CMS signature, time-stamp token).
 
+## Drawing a PDF page by page
+
+`PdfCanvas` writes a PDF whose pages are drawn at fixed coordinates instead of laid out: data sheets,
+forms, labels. Units are points, the origin is the top left of the page and y points down.
+
+```csharp
+var canvas = new PdfCanvas(new PdfWriteOptions { FontCollection = fonts })
+{
+    Metadata = new DocumentMetadata { Title = "Production data sheet", Creator = "Planning tool 26.11" },
+};
+var font = new PdfCanvasFont("Narrow Sans");
+var page = canvas.AddPage(PageSize.A3, PageOrientation.Landscape);
+page.Translate(20, 20);
+page.DrawRectangle(0, 0, 120, 20, fill: Color.FromRgb(220, 220, 220));
+page.DrawLine(0, 20, 120, 20, width: 0.5);
+page.DrawText("Part no.", font, 8, 2, 10, TextAnchor.CenterLeft);
+page.DrawText("Sheet 1", font, 8, page.Width - 40, 10, TextAnchor.CenterRight);
+page.DrawImage(png, 600, 40, 300, 200);
+await canvas.WriteAsync(stream);
+```
+
+- `MeasureText` (on the canvas, before any page exists, or on a page) returns the width exactly as
+  `DrawText` draws it: same font, shaping and kerning. Text drawn at `right - MeasureText(...)` ends at `right`.
+- `TextAnchor` places the top, the vertical centre or the baseline of the line box at the point. The
+  line box runs from the ascender to the descender of the hhea table; `FontFace.Ascent`, `Descent`
+  (positive), `LineGap` and `UnitsPerEm` give the same values, so a line height is
+  `size * (Ascent + Descent + LineGap) / UnitsPerEm`.
+- `DrawImage` stretches a PNG or JPEG into the rectangle; the same bytes are embedded once.
+  `ImageInfo.Read(bytes)` gives the pixel size and the DPI from the header without decoding.
+- `Translate`, `SaveState` and `RestoreState` move the origin; there is no rotation or clipping.
+- The file is written with the same `PdfWriteOptions` as a flow document: embedded and subset fonts,
+  PDF/A, encryption, signature, viewer settings.
+
+`PdfInspection.Read(stream)` lists per page the size, the fonts (base name without subset prefix,
+embedded, subset) and the image XObjects with their pixel size, for tests of written files.
+
 ## Templates
 
 A DOCX template supplies the design and named placeholders `{{Name}}`. When writing, the

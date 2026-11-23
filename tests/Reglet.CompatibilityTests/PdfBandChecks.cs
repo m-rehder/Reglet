@@ -61,7 +61,7 @@ internal static class PdfBandChecks
         Require(content.Contains("(Left) Tj", StringComparison.Ordinal) && content.Contains("(Right) Tj", StringComparison.Ordinal), "The header table is drawn.");
         Require(content.Contains("/F2 ", StringComparison.Ordinal), "The bold run in the footer uses the bold font.");
         Require(content.Contains("1 0 0 rg", StringComparison.Ordinal), "The footer run keeps its color.");
-        Require(content.Contains("/F1 7 Tf", StringComparison.Ordinal), "The footer run keeps its font size.");
+        Require(System.Text.RegularExpressions.Regex.IsMatch(content, @"/F\d+ 7 Tf"), "The footer run keeps its font size.");
     }
 
     private static void PlacesBandsLikeWord()

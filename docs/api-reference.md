@@ -324,6 +324,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `new DocumentMetadata()`
 - `string? Title { get; init; }` — Title of the document.
 - `string? Author { get; init; }` — Author or creator.
+- `string? Creator { get; init; }` — The application that created the document. Written to PDF as Info `/Creator` and XMP `xmp:CreatorTool`; DOCX and ODT do not store it.
 - `string? Subject { get; init; }` — Subject.
 - `IReadOnlyList<string>? Keywords { get; init; }` — Keywords.
 - `string? Language { get; init; }` — Language (e.g. `en-GB`).
@@ -720,6 +721,18 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 
 - `new ImageException(string message)` — Creates the exception with a message.
 - `new ImageException(string message, Exception innerException)` — Creates the exception with a message and an inner exception.
+
+#### ImageInfo
+
+`sealed record ImageInfo` — The intrinsic size of a PNG or JPEG image, read from its header without decoding the pixels.
+
+- `new ImageInfo(ImageMediaType MediaType, int PixelWidth, int PixelHeight, double? DpiX, double? DpiY)` — The intrinsic size of a PNG or JPEG image, read from its header without decoding the pixels.
+- `ImageMediaType MediaType { get; init; }` — PNG or JPEG, recognised from the file signature.
+- `int PixelWidth { get; init; }` — Width in pixels.
+- `int PixelHeight { get; init; }` — Height in pixels.
+- `double? DpiX { get; init; }` — Horizontal resolution (PNG `pHYs`, JPEG JFIF density); null when the file carries none.
+- `double? DpiY { get; init; }` — Vertical resolution; null when the file carries none.
+- `static ImageInfo Read(ReadOnlySpan<byte> data)` — Reads the header of a PNG or JPEG image.
 
 #### ImageMediaType
 
@@ -1930,6 +1943,43 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `string? Description { get; init; }` — Optional description.
 - `string Relationship { get; init; }` — Relationship to the document (AFRelationship, e.g. `Data`, `Source`).
 
+#### PdfCanvas
+
+`sealed class PdfCanvas` — A PDF drawn page by page at fixed coordinates, without the flow layout: text, lines, rectangles and images. Units are points, the origin is the top left of the page and y points down. The file is written with the same `PdfWriteOptions` as a flow document (fonts embedded and subset, PDF/A, encryption, viewer settings), and its text is extracted by `PdfDocumentReader`.
+
+- `new PdfCanvas(PdfWriteOptions? options = null)` — Creates an empty canvas document.
+- `DocumentMetadata Metadata { get; set; }` — Title, author, creator and the other metadata of the file.
+- `IReadOnlyList<PdfCanvasPage> Pages { get; }` — The pages added so far.
+- `PdfCanvasPage AddPage(PageSize size, PageOrientation orientation = PageOrientation.Portrait)` — Adds a page.
+- `double MeasureText(string text, PdfCanvasFont font, double size)` — The width of a text in points, exactly as `PdfCanvasPage.DrawText` draws it (shaping, kerning, same font).
+- `Task<WriteResult> WriteAsync(Stream output, CancellationToken cancellationToken = default)` — Writes the pages as PDF.
+
+#### PdfCanvasFont
+
+`sealed record PdfCanvasFont` — A font of a `PdfCanvas`: a family of the font collection and its style.
+
+- `new PdfCanvasFont(string Family, bool Bold = false, bool Italic = false)` — A font of a `PdfCanvas`: a family of the font collection and its style.
+- `string Family { get; init; }` — The family name, as in `PdfWriteOptions.FontCollection`; without a matching font, a standard font is used.
+- `bool Bold { get; init; }` — Bold style.
+- `bool Italic { get; init; }` — Italic style.
+
+#### PdfCanvasPage
+
+`sealed class PdfCanvasPage` — A page of a `PdfCanvas`. Coordinates are points from the top left of the page, y pointing down, shifted by `PdfCanvasPage.Translate`.
+
+- `PageSize Size { get; }` — The paper size.
+- `PageOrientation Orientation { get; }` — The orientation.
+- `double Width { get; }` — The width of the page in points (after the orientation).
+- `double Height { get; }` — The height of the page in points (after the orientation).
+- `void DrawImage(ReadOnlySpan<byte> data, double x, double y, double width, double height)` — Draws a PNG or JPEG image stretched into a rectangle. The same bytes drawn several times are embedded once.
+- `void DrawLine(double x1, double y1, double x2, double y2, double width = 1, Color? color = null)` — Draws a straight line.
+- `void DrawRectangle(double x, double y, double width, double height, Color? fill = null, Color? stroke = null, double strokeWidth = 1)` — Draws a rectangle, filled and/or outlined; with neither colour nothing is drawn.
+- `void DrawText(string text, PdfCanvasFont font, double size, double x, double y, TextAnchor anchor = TextAnchor.BaselineLeft, Color? color = null)` — Draws a single line of text.
+- `double MeasureText(string text, PdfCanvasFont font, double size)`
+- `void RestoreState()` — Restores the origin saved by the matching `PdfCanvasPage.SaveState`.
+- `void SaveState()` — Saves the current origin.
+- `void Translate(double dx, double dy)` — Moves the origin of the following drawing.
+
 #### PdfCommentMode
 
 `enum PdfCommentMode` — How the comments of a document (ADR-0026) are written into a PDF.
@@ -1970,6 +2020,42 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `string UserPassword { get; init; }` — User password; may be empty (the file can then be opened without a password).
 - `string? OwnerPassword { get; init; }` — Owner password. If it is null or empty, a random one is used, so that `PdfEncryptionOptions.Permissions` also bind whoever can open the file; nobody can then administrate the document.
 - `PdfPermissions Permissions { get; init; }` — Permissions for readers that honour them. Default: `PdfPermissions.All`.
+
+#### PdfInspectedFont
+
+`sealed record PdfInspectedFont` — A font a PDF page refers to.
+
+- `new PdfInspectedFont(string BaseName, string Subtype, bool IsEmbedded, bool IsSubset)` — A font a PDF page refers to.
+- `string BaseName { get; init; }` — The PostScript name without the subset prefix (`ABCDEF+`).
+- `string Subtype { get; init; }` — The font type: TrueType, Type0, Type1, Type3.
+- `bool IsEmbedded { get; init; }` — Whether the font program is in the file (FontFile, FontFile2, FontFile3, or a Type3 font).
+- `bool IsSubset { get; init; }` — Whether the name carries a subset prefix.
+
+#### PdfInspectedImage
+
+`sealed record PdfInspectedImage` — An image XObject drawn on a page.
+
+- `new PdfInspectedImage(int PixelWidth, int PixelHeight)` — An image XObject drawn on a page.
+- `int PixelWidth { get; init; }` — Width in pixels (`/Width`).
+- `int PixelHeight { get; init; }` — Height in pixels (`/Height`).
+
+#### PdfInspectedPage
+
+`sealed record PdfInspectedPage` — What a PDF page holds.
+
+- `new PdfInspectedPage(double Width, double Height, IReadOnlyList<PdfInspectedFont> Fonts, IReadOnlyList<PdfInspectedImage> Images)` — What a PDF page holds.
+- `double Width { get; init; }` — Width of the media box in points.
+- `double Height { get; init; }` — Height of the media box in points.
+- `IReadOnlyList<PdfInspectedFont> Fonts { get; init; }` — The fonts of the page's resource dictionary. Reglet shares one resource dictionary between pages, so its pages list all fonts of the document.
+- `IReadOnlyList<PdfInspectedImage> Images { get; init; }` — The distinct image XObjects the page draws, also those inside form XObjects; one drawn twice counts once.
+
+#### PdfInspection
+
+`sealed record PdfInspection` — A read-only look at the pages, fonts and images of a PDF, for tests of written files.
+
+- `new PdfInspection(IReadOnlyList<PdfInspectedPage> Pages)` — A read-only look at the pages, fonts and images of a PDF, for tests of written files.
+- `IReadOnlyList<PdfInspectedPage> Pages { get; init; }` — The pages in document order.
+- `static PdfInspection Read(Stream input, PdfReadOptions? options = null)` — Reads a PDF.
 
 #### PdfPageLayout
 
@@ -2147,6 +2233,20 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `PdfPageLayout PageLayout { get; init; }` — optional page layout of the viewer (OF-F02). Written as `/PageLayout` into the catalog; `PdfPageLayout.Default` writes nothing.
 - `PdfPageMode PageMode { get; init; }` — optional mode the viewer opens the document in (OF-F02). Written as `/PageMode` into the catalog; `PdfPageMode.Default` writes nothing.
 
+#### TextAnchor
+
+`enum TextAnchor` — Which point of the text `PdfCanvasPage.DrawText` places at the given position. The line box runs from the ascender above the baseline to the descender below it (hhea of the font file; for a standard font the values of Arial, Times New Roman and Courier New).
+
+- `BaselineLeft = 0` — Left end of the baseline.
+- `BaselineCenter = 1` — Centre of the baseline.
+- `BaselineRight = 2` — Right end of the baseline.
+- `TopLeft = 3` — Top left of the line box (the baseline lies one ascender lower).
+- `TopCenter = 4` — Top centre of the line box.
+- `TopRight = 5` — Top right of the line box.
+- `CenterLeft = 6` — Left end of the line box's vertical centre (half way between ascender and descender).
+- `Center = 7` — Centre of the line box.
+- `CenterRight = 8` — Right end of the line box's vertical centre.
+
 ## Reglet.Html
 
 ### Reglet
@@ -2214,6 +2314,10 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `bool IsBold { get; }` — Whether the file contains a bold style.
 - `bool IsItalic { get; }` — Whether the file contains an italic or oblique style.
 - `int GlyphCount { get; }` — Number of glyphs.
+- `int UnitsPerEm { get; }` — Font design units per em (`head.unitsPerEm`).
+- `int Ascent { get; }` — Ascender above the baseline in font units (`hhea.ascender`), as the PDF writer uses it.
+- `int Descent { get; }` — Descender below the baseline in font units, as a positive value (`-hhea.descender`).
+- `int LineGap { get; }` — Extra gap between lines in font units (`hhea.lineGap`).
 - `FontEmbeddingPermission Embedding { get; }` — Embedding right per OS/2 `fsType`.
 - `bool CanEmbed { get; }` — whether the outlines may be embedded: not for a restricted license and not if the font only allows bitmap embedding (fsType bit 9).
 - `bool AllowsSubsetting { get; }` — Whether the font may be reduced to the used glyphs when embedding (fsType bit 8 not set).

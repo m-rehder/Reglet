@@ -697,6 +697,7 @@ internal static class PdfDocumentBuilder
             WriteStringIfPresent(info, "Title", XmpText(metadata.Title));
             WriteStringIfPresent(info, "Author", XmpText(metadata.Author));
             WriteStringIfPresent(info, "Subject", metadata.Subject);
+            WriteStringIfPresent(info, "Creator", XmpText(metadata.Creator));
 
             if (metadata.Keywords is { Count: > 0 } keywords)
             {
@@ -768,7 +769,7 @@ internal static class PdfDocumentBuilder
         builder.Append("<?xpacket begin=\"\uFEFF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n");
         builder.Append("<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n");
         builder.Append("<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n");
-        builder.Append("<rdf:Description rdf:about=\"\" xmlns:pdf=\"http://ns.adobe.com/pdf/1.3/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"");
+        builder.Append("<rdf:Description rdf:about=\"\" xmlns:pdf=\"http://ns.adobe.com/pdf/1.3/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"");
         if (pdfA != PdfAConformance.None)
         {
             builder.Append(" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\"");
@@ -793,6 +794,11 @@ internal static class PdfDocumentBuilder
         {
             builder.Append("<dc:creator><rdf:Seq><rdf:li>")
                 .Append(EscapeXml(metadata.Author)).Append("</rdf:li></rdf:Seq></dc:creator>\n");
+        }
+
+        if (!string.IsNullOrEmpty(metadata.Creator))
+        {
+            builder.Append("<xmp:CreatorTool>").Append(EscapeXml(metadata.Creator)).Append("</xmp:CreatorTool>\n");
         }
 
         if (!string.IsNullOrEmpty(metadata.Language))
@@ -943,7 +949,7 @@ internal static class PdfDocumentBuilder
     /// together and checks the embedding rights. A font that per OS/2 must not be embedded
     /// is allowed is reported (warning or error depending on <c>UnsupportedContent</c>).
     /// </summary>
-    private static FontCollection? ResolveFonts(PdfWriteOptions options, UnsupportedFeatureHandler handler)
+    internal static FontCollection? ResolveFonts(PdfWriteOptions options, UnsupportedFeatureHandler handler)
     {
         var fonts = options.FontCollection;
         if (options.Fonts is { Count: > 0 } legacy)

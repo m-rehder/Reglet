@@ -19,6 +19,9 @@ internal sealed class PdfEmbeddedFontMetrics : IPdfFontMetrics
     /// <summary>Ascender from hhea (in em); baseline as in Word and LibreOffice.</summary>
     public double AscentEm => (double)_font.Ascender / _font.UnitsPerEm;
 
+    /// <summary>Descender from hhea (in em, positive).</summary>
+    public double DescentEm => -(double)_font.Descender / _font.UnitsPerEm;
+
     /// <summary>Line height from hhea: ascender + descender + line gap (in em).</summary>
     public double LineHeightEm => (double)(_font.Ascender - _font.Descender + _font.LineGap) / _font.UnitsPerEm;
 }

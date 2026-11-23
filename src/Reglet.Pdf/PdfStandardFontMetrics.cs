@@ -12,6 +12,7 @@ internal sealed class PdfStandardFontMetrics : IPdfFontMetrics
     private readonly int[] _widths;
     private readonly double _fallback;
     private readonly double _ascent;
+    private readonly double _descent;
 
     public double GetWidth(int codePoint)
         => codePoint is >= 32 and <= 126 ? _widths[codePoint - 32] : _fallback;
@@ -21,6 +22,9 @@ internal sealed class PdfStandardFontMetrics : IPdfFontMetrics
     /// height of a lowercase "d"; with it capitals and umlauts touched or crossed a cell's top border.
     /// </summary>
     public double AscentEm => _ascent;
+
+    /// <summary>Descender in em of the same hhea tables (Arial 0.212, Times New Roman 0.216, Courier New 0.300).</summary>
+    public double DescentEm => _descent;
 
     /// <summary>
     /// default fonts have no font file and thus no layout metrics; the
@@ -37,18 +41,21 @@ internal sealed class PdfStandardFontMetrics : IPdfFontMetrics
             _widths = CourierWidths;
             _fallback = 600;
             _ascent = 0.833;
+            _descent = 0.300;
         }
         else if (baseFont.StartsWith("Times", StringComparison.Ordinal))
         {
             _widths = baseFont.Contains("Bold", StringComparison.Ordinal) ? TimesBoldWidths : TimesWidths;
             _fallback = 500;
             _ascent = 0.891;
+            _descent = 0.216;
         }
         else
         {
             _widths = baseFont.Contains("Bold", StringComparison.Ordinal) ? HelveticaBoldWidths : HelveticaWidths;
             _fallback = 556;
             _ascent = 0.905;
+            _descent = 0.212;
         }
     }
 

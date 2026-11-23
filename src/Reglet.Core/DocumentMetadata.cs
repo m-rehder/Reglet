@@ -16,6 +16,12 @@ public sealed record DocumentMetadata
     /// <summary>Author or creator.</summary>
     public string? Author { get; init; }
 
+    /// <summary>
+    /// The application that created the document. Written to PDF as Info <c>/Creator</c> and XMP
+    /// <c>xmp:CreatorTool</c>; DOCX and ODT do not store it.
+    /// </summary>
+    public string? Creator { get; init; }
+
     /// <summary>Subject.</summary>
     public string? Subject { get; init; }
 

@@ -173,7 +173,7 @@ internal static class SubsetChecks
     }
 
     /// <summary>Builds a small font with 40 glyphs; glyph 5 is a composite on glyph 3.</summary>
-    private static byte[] BuildFont(bool withGdef = false)
+    internal static byte[] BuildFont(bool withGdef = false)
     {
         const int glyphCount = 40;
         var glyphs = new byte[glyphCount][];

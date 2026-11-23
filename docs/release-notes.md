@@ -1,5 +1,18 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- `PdfCanvas`: a PDF drawn page by page at fixed coordinates (text with anchors, lines, rectangles, PNG/JPEG
+  images, `Translate`/`SaveState`/`RestoreState`), written with the usual `PdfWriteOptions` (ADR-0037).
+- Text measurement (`PdfCanvas.MeasureText`) identical to the drawing; `FontFace.Ascent`, `Descent`, `LineGap`,
+  `UnitsPerEm`.
+- `ImageInfo.Read`: pixel size and DPI of a PNG or JPEG from its header.
+- `PdfInspection.Read`: pages, fonts (embedded, subset) and images of a PDF, for tests.
+- `DocumentMetadata.Creator`: written as Info `/Creator` and XMP `xmp:CreatorTool`, read back by the PDF reader.
+- A standard font that is only measured, never drawn, is no longer written into the resources.
+
 ## 1.0.0
 
 The first public release. Reglet creates, reads and converts DOCX, ODT, PDF and HTML documents in .NET 10 with no

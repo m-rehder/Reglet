@@ -361,6 +361,7 @@ public sealed partial class PdfDocumentReader : IDocumentReader
         {
             Title = PdfText(file, info.Get("Title")),
             Author = PdfText(file, info.Get("Author")),
+            Creator = PdfText(file, info.Get("Creator")),
             Subject = PdfText(file, info.Get("Subject")),
             Keywords = keywords,
             Created = ParsePdfDate(PdfText(file, info.Get("CreationDate"))),

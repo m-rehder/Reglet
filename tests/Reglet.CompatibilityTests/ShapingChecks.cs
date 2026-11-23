@@ -197,7 +197,7 @@ internal static class ShapingChecks
 
         // hmtx: f=600, i=300, ligature=700 -> with the ligature 700, without 900.
         var handle = new PdfFontHandle(
-            "F1",
+            () => "F1",
             new PdfEmbeddedFontMetrics(font),
             isEmbedded: true,
             text => [],

@@ -12,6 +12,9 @@ internal interface IPdfFontMetrics
     /// </summary>
     double AscentEm { get; }
 
+    /// <summary>Descender below the baseline in em, as a positive value.</summary>
+    double DescentEm { get; }
+
     /// <summary>
     /// line height relative to the font size. Embedded fonts use the metrics of the
     /// font file (ascender + descender + line gap); default fonts without

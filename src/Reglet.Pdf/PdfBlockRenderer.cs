@@ -270,6 +270,9 @@ internal sealed class PdfBlockRenderer
             case ImageBlock image:
                 RenderImage(image, indent);
                 break;
+            case CanvasBlock { Drawing: PdfCanvasPage canvasPage }:
+                canvasPage.Render(_page, _images);
+                break;
             case EmbeddedObject embedded:
                 if (PreviewImage(embedded) is { } previewImage)
                 {

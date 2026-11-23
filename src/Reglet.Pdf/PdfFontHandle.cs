@@ -10,8 +10,9 @@ internal sealed class PdfFontHandle
     private readonly TextShaper? _shaper;
     private readonly Action<string, IReadOnlyList<ShapedGlyph>>? _recordShaped;
 
+    // resourceName registers the font resource on first use, so a font that is only measured is not written.
     public PdfFontHandle(
-        string resourceName,
+        Func<string> resourceName,
         IPdfFontMetrics metrics,
         bool isEmbedded,
         Func<string, byte[]> encode,
@@ -25,7 +26,7 @@ internal sealed class PdfFontHandle
         _requireGlyphs = requireGlyphs;
         _recordShaped = recordShaped;
         ArgumentNullException.ThrowIfNull(canEncode);
-        ResourceName = resourceName;
+        _resourceName = new Lazy<string>(resourceName, LazyThreadSafetyMode.None);
         Metrics = metrics;
         IsEmbedded = isEmbedded;
         SyntheticBold = syntheticBold;
@@ -35,7 +36,9 @@ internal sealed class PdfFontHandle
         _shaper = shaper;
     }
 
-    public string ResourceName { get; }
+    private readonly Lazy<string> _resourceName;
+
+    public string ResourceName => _resourceName.Value;
 
     public IPdfFontMetrics Metrics { get; }
 
