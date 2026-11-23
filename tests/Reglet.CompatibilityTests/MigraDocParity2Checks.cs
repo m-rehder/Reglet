@@ -15,6 +15,7 @@ internal static class MigraDocParity2Checks
         {
             RowKeptOnOnePage();
             LineBreaksAfterHyphen();
+            FixedColumnWidthsOverflow();
             Console.WriteLine("MigraDoc parity 2: all checks passed.");
             return 0;
         }
@@ -94,6 +95,29 @@ internal static class MigraDocParity2Checks
         // A minus before a number and a hyphen at the start of a word stay with what follows.
         var minus = Cell("Temperatur zwischen aaaaaaaaaaaaaaaaa -5 und +5 Grad");
         Require(minus.Any(piece => piece.Text == "-5"), "'-5' is not split.");
+    }
+
+    private static void FixedColumnWidthsOverflow()
+    {
+        // Four columns 0.8 cm wider than the 451.28 pt of A4 with normal margins.
+        var widths = new[] { 4.0, 4.0, 4.0, 4.72 }.Select(Length.FromCentimeters).ToList();
+        TableBlock Header(bool fixedWidths) => new([new TableRow(new[] { "A", "B", "C", "PAGE" }.Select(text => new TableCell([new Paragraph(new TextRun(text))])))])
+        {
+            ColumnWidths = widths,
+            FixedColumnWidths = fixedWidths,
+        };
+
+        double PageX(bool fixedWidths) => Pages(Document(new Section(Header(fixedWidths))))[0].Single(piece => piece.Text == "PAGE").X;
+        var expected = 72 + widths.Take(3).Sum(width => width.Points) + 5.4;
+        Require(Math.Abs(PageX(fixedWidths: true) - expected) < 0.01, $"Fixed widths are kept past the margin ({PageX(true)} / {expected}).");
+        Require(PageX(fixedWidths: false) < expected - 10, "By default the table is shrunk to the text width.");
+
+        using var buffer = new MemoryStream();
+        new DocxDocumentWriter().WriteAsync(Document(new Section(Header(fixedWidths: true))), buffer).GetAwaiter().GetResult();
+        buffer.Position = 0;
+        var read = new DocxDocumentReader().Read(buffer).Document.Sections[0].Blocks.OfType<TableBlock>().Single();
+        Require(read.FixedColumnWidths && Math.Abs(read.ColumnWidths!.Sum(width => width.Points) - widths.Sum(width => width.Points)) < 0.1,
+            "DOCX: the fixed layout and its widths survive.");
     }
 
     private static void Require(bool condition, string message)

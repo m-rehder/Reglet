@@ -13,6 +13,10 @@
 - `TableRow.KeepTogether` keeps a row on one page: a row that does not fit at the bottom moves whole to the next page,
   below the repeated header rows (MigraDoc's behaviour). DOCX reads and writes `w:cantSplit`, ODT
   `fo:keep-together`, HTML `break-inside: avoid`. A row taller than a page is still split.
+- `TableBlock.FixedColumnWidths` keeps a full set of column widths wider than the text area, so the table runs into
+  the right margin (Word's fixed table layout, read and written as `w:tblLayout w:type="fixed"`; ODT writes the width
+  on a left-aligned table). The default still shrinks such a table to the text width.
+- DOCX: `w:tblInd` is written before `w:tblBorders`, in schema order (1.4.0 wrote it after).
 
 ## 1.4.0
 

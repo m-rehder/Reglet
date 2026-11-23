@@ -115,6 +115,13 @@ public sealed class TableBlock : Block
         }
     }
 
+    /// <summary>
+    /// Keeps a full set of <see cref="ColumnWidths"/> even when it is wider than the text area, so the table runs into the
+    /// right margin (Word's fixed table layout, <c>w:tblLayout w:type="fixed"</c>). False, the default, shrinks such a
+    /// table in proportion to the text width.
+    /// </summary>
+    public bool FixedColumnWidths { get; init; }
+
     private static Length? NonNegative(Length? value, string name)
         => value is { Points: < 0 } ? throw new ArgumentOutOfRangeException(name, "Cell padding must not be negative.") : value;
 
@@ -149,6 +156,7 @@ public sealed class TableBlock : Block
         CellPaddingHorizontal = CellPaddingHorizontal,
         CellPaddingVertical = CellPaddingVertical,
         LeftIndent = LeftIndent,
+        FixedColumnWidths = FixedColumnWidths,
         WidthPercent = WidthPercent,
         Style = Style,
     };

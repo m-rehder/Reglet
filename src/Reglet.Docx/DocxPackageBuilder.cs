@@ -1989,12 +1989,19 @@ internal static class DocxPackageBuilder
         }
 
         writer.WriteEndElement();
-        WriteTableBorders(writer, table.Border ?? table.Style?.Border);
         if (table.LeftIndent is { } leftIndent)
         {
             writer.WriteStartElement("w", "tblInd", DocxConstants.WordprocessingML);
             WriteWAttribute(writer, "w", Twips(leftIndent));
             WriteWAttribute(writer, "type", "dxa");
+            writer.WriteEndElement();
+        }
+
+        WriteTableBorders(writer, table.Border ?? table.Style?.Border);
+        if (table.FixedColumnWidths)
+        {
+            writer.WriteStartElement("w", "tblLayout", DocxConstants.WordprocessingML);
+            WriteWAttribute(writer, "type", "fixed");
             writer.WriteEndElement();
         }
 

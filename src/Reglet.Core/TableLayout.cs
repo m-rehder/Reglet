@@ -104,7 +104,12 @@ internal static class TableLayout
         }
 
         // A full set wider than the text area is scaled down, as the percent width does: a read table
-        // exceeds it by twip or centimetre rounding, a Word table may reach into the margin.
+        // exceeds it by twip or centimetre rounding, a Word table may reach into the margin. Fixed widths are kept.
+        if (explicitCount == columnCount && table.FixedColumnWidths)
+        {
+            return widths;
+        }
+
         if (explicitCount == columnCount && explicitTotal > availablePoints)
         {
             var factor = availablePoints / explicitTotal;
@@ -176,7 +181,7 @@ internal static class TableLayout
 
         if (explicitCount == columnCount)
         {
-            if (explicitTotal > target && explicitTotal > 0)
+            if (explicitTotal > target && explicitTotal > 0 && !table.FixedColumnWidths)
             {
                 var factor = target / explicitTotal;
                 return custom!.Select(width => width.Points * factor).ToArray();

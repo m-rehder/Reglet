@@ -27,9 +27,9 @@ internal sealed class OdtTableCellStyles
 
     private readonly record struct RowKey(double? Height, TableRowHeightRule Rule, bool KeepTogether);
 
-    private readonly record struct TableKey(double? WidthPercent, string Border, double? CellPaddingHorizontal, double? CellPaddingVertical, double? LeftIndent, string Parent)
+    private readonly record struct TableKey(double? WidthPercent, string Border, double? CellPaddingHorizontal, double? CellPaddingVertical, double? LeftIndent, double? FixedWidth, string Parent)
     {
-        public bool IsEmpty => WidthPercent is null && Border.Length == 0 && CellPaddingHorizontal is null && CellPaddingVertical is null && LeftIndent is null;
+        public bool IsEmpty => WidthPercent is null && Border.Length == 0 && CellPaddingHorizontal is null && CellPaddingVertical is null && LeftIndent is null && FixedWidth is null;
     }
 
     private readonly Dictionary<CellKey, string> _cells = [];
@@ -149,6 +149,9 @@ internal sealed class OdtTableCellStyles
         (table.CellPaddingHorizontal ?? table.CellPadding ?? table.Style?.CellPadding)?.Points,
         (table.CellPaddingVertical ?? table.CellPadding ?? table.Style?.CellPadding)?.Points,
         table.LeftIndent?.Points,
+        table.FixedColumnWidths && table.ColumnWidths is { Count: > 0 } widths && widths.Count == TableLayout.LogicalColumns(table)
+            ? widths.Sum(width => width.Points)
+            : null,
         parent ?? string.Empty);
 
     private static void Walk(IEnumerable<Block> blocks, OdtBreakPlan breaks, OdtTableCellStyles styles)
@@ -409,10 +412,19 @@ internal sealed class OdtTableCellStyles
             }
         }
 
+        if (key.FixedWidth is { } fixedWidth)
+        {
+            writer.WriteAttributeString("style", "width", OdtNamespaces.Style, PointsText(fixedWidth));
+        }
+
+        if (key.LeftIndent is not null || key.FixedWidth is not null)
+        {
+            // LibreOffice honours the left margin and a width past the margin only for a left-aligned table.
+            writer.WriteAttributeString("table", "align", OdtNamespaces.Table, "left");
+        }
+
         if (key.LeftIndent is { } leftIndent)
         {
-            // LibreOffice honours the left margin only for a left-aligned table.
-            writer.WriteAttributeString("table", "align", OdtNamespaces.Table, "left");
             writer.WriteAttributeString("fo", "margin-left", OdtNamespaces.Fo, PointsText(leftIndent));
         }
 

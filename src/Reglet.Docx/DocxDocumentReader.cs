@@ -2891,6 +2891,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                 ? Length.FromPoints(indentTwips / 20.0)
                 : (Length?)null;
 
+        var fixedLayout = (string?)tblPr?.Element(W + "tblLayout")?.Attribute(W + "type") == "fixed";
         double? widthPercent = null;
         if (tblPr?.Element(W + "tblW") is { } width
             && (string?)width.Attribute(W + "type") == "pct"
@@ -2954,6 +2955,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             LeftIndent = leftIndent,
             WidthPercent = widthPercent,
             ColumnWidths = columnWidths is { Count: > 0 } ? columnWidths : null,
+            FixedColumnWidths = fixedLayout && columnWidths is { Count: > 0 },
         };
     }
 
