@@ -136,6 +136,21 @@ public sealed class ImageBlock : Block
     /// </summary>
     public ImageWrap Wrap { get; init; } = ImageWrap.None;
 
+    /// <summary>What <see cref="OffsetX"/> or <see cref="HorizontalAlignment"/> of a floating object counts from; the column by default.</summary>
+    public HorizontalAnchor HorizontalRelativeTo { get; init; }
+
+    /// <summary>What <see cref="OffsetY"/> or <see cref="VerticalAlignment"/> of a floating object counts from; the paragraph by default.</summary>
+    public VerticalAnchor VerticalRelativeTo { get; init; }
+
+    /// <summary>Aligns a floating object within <see cref="HorizontalRelativeTo"/>; when set, <see cref="OffsetX"/> is ignored.</summary>
+    public HorizontalFloatAlignment? HorizontalAlignment { get; init; }
+
+    /// <summary>
+    /// Aligns a floating object within <see cref="VerticalRelativeTo"/>; when set, <see cref="OffsetY"/> is ignored. The PDF writer
+    /// aligns within the page or the margin; relative to the paragraph or line it places the object at the top.
+    /// </summary>
+    public VerticalFloatAlignment? VerticalAlignment { get; init; }
+
     /// <summary>Horizontal offset of a floating image; null means 0.</summary>
     public Length? OffsetX
     {

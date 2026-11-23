@@ -432,6 +432,10 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `ShapeDash Dash { get; init; }` — The dash pattern of the outline.
 - `double Rotation { get; init; }` — Rotation in degrees, clockwise.
 - `ImageWrap Wrap { get; init; }` — Wrapping of the text; `ImageWrap.None` is inline.
+- `HorizontalAnchor HorizontalRelativeTo { get; init; }` — What `DrawingShape.OffsetX` or `DrawingShape.HorizontalAlignment` of a floating object counts from; the column by default.
+- `VerticalAnchor VerticalRelativeTo { get; init; }` — What `DrawingShape.OffsetY` or `DrawingShape.VerticalAlignment` of a floating object counts from; the paragraph by default.
+- `HorizontalFloatAlignment? HorizontalAlignment { get; init; }` — Aligns a floating object within `DrawingShape.HorizontalRelativeTo`; when set, `DrawingShape.OffsetX` is ignored.
+- `VerticalFloatAlignment? VerticalAlignment { get; init; }` — Aligns a floating object within `DrawingShape.VerticalRelativeTo`; when set, `DrawingShape.OffsetY` is ignored. The PDF writer aligns within the page or the margin; relative to the paragraph or line it places the object at the top.
 - `Length? OffsetX { get; init; }` — Horizontal offset of an anchored shape; null means 0.
 - `Length? OffsetY { get; init; }` — Vertical offset of an anchored shape; null means 0.
 - `string? AltText { get; init; }` — Alternative text for accessibility.
@@ -644,6 +648,23 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `Level5 = 5` — Heading 5.
 - `Level6 = 6` — Heading 6.
 
+#### HorizontalAnchor
+
+`enum HorizontalAnchor` — What the horizontal position of a floating image or shape counts from.
+
+- `Column = 0` — The text column (the default).
+- `Page = 1` — The left edge of the page.
+- `Margin = 2` — The left page margin.
+- `Character = 3` — The anchor character; the PDF writer places a block-level object like `HorizontalAnchor.Column`.
+
+#### HorizontalFloatAlignment
+
+`enum HorizontalFloatAlignment` — A horizontal alignment of a floating object within its `HorizontalAnchor`, instead of an offset.
+
+- `Left = 0` — At the left edge.
+- `Center = 1` — Centred.
+- `Right = 2` — At the right edge.
+
 #### Hyperlink
 
 `sealed class Hyperlink : Inline` — a hyperlink with target and visible text. The target is a URL (http, https, mailto or a file path).
@@ -700,6 +721,10 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `ImageScaleMode ScaleMode { get; init; }` — Scaling mode.
 - `ImageCrop? Crop { get; init; }` — cropping cut off on each side (phase AA, AA02); null means no cropping.
 - `ImageWrap Wrap { get; init; }` — wrapping of the text around a floating image (phase AA, AA01); `ImageWrap.None` is inline.
+- `HorizontalAnchor HorizontalRelativeTo { get; init; }` — What `ImageBlock.OffsetX` or `ImageBlock.HorizontalAlignment` of a floating object counts from; the column by default.
+- `VerticalAnchor VerticalRelativeTo { get; init; }` — What `ImageBlock.OffsetY` or `ImageBlock.VerticalAlignment` of a floating object counts from; the paragraph by default.
+- `HorizontalFloatAlignment? HorizontalAlignment { get; init; }` — Aligns a floating object within `ImageBlock.HorizontalRelativeTo`; when set, `ImageBlock.OffsetX` is ignored.
+- `VerticalFloatAlignment? VerticalAlignment { get; init; }` — Aligns a floating object within `ImageBlock.VerticalRelativeTo`; when set, `ImageBlock.OffsetY` is ignored. The PDF writer aligns within the page or the margin; relative to the paragraph or line it places the object at the top.
 - `Length? OffsetX { get; init; }` — Horizontal offset of a floating image; null means 0.
 - `Length? OffsetY { get; init; }` — Vertical offset of a floating image; null means 0.
 
@@ -1660,6 +1685,23 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 `sealed class UnsupportedFeatureException : NotSupportedException, IRegletError` — A feature cannot be rendered in the target format (or in version 1).
 
 - `new UnsupportedFeatureException(string message)` — Creates the exception with a message.
+
+#### VerticalAnchor
+
+`enum VerticalAnchor` — What the vertical position of a floating image or shape counts from.
+
+- `Paragraph = 0` — The top of the anchor paragraph (the default).
+- `Page = 1` — The top edge of the page.
+- `Margin = 2` — The top page margin.
+- `Line = 3` — The anchor line; the PDF writer places a block-level object like `VerticalAnchor.Paragraph`.
+
+#### VerticalFloatAlignment
+
+`enum VerticalFloatAlignment` — A vertical alignment of a floating object within its `VerticalAnchor`, instead of an offset.
+
+- `Top = 0` — At the top edge.
+- `Center = 1` — Centred.
+- `Bottom = 2` — At the bottom edge.
 
 #### Watermark
 

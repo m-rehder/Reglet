@@ -1539,8 +1539,7 @@ internal static class DocxPackageBuilder
             writer.WriteAttributeString("x", "0");
             writer.WriteAttributeString("y", "0");
             writer.WriteEndElement();
-            WriteImagePosition(writer, "positionH", "column", shape.OffsetX ?? Length.Zero);
-            WriteImagePosition(writer, "positionV", "paragraph", shape.OffsetY ?? Length.Zero);
+            WriteImagePositions(writer, FloatPlacement.Of(shape));
         }
 
         WriteImageExtent(writer, shape.Width, shape.Height);
@@ -4374,8 +4373,7 @@ internal static class DocxPackageBuilder
             writer.WriteAttributeString("y", "0");
             writer.WriteEndElement();
 
-            WriteImagePosition(writer, "positionH", "column", image.OffsetX ?? Length.Zero);
-            WriteImagePosition(writer, "positionV", "paragraph", image.OffsetY ?? Length.Zero);
+            WriteImagePositions(writer, FloatPlacement.Of(image));
             WriteImageExtent(writer, width, height);
 
             writer.WriteStartElement("wp", "effectExtent", DocxConstants.DrawingWordprocessingNamespace);
@@ -4459,13 +4457,62 @@ internal static class DocxPackageBuilder
         writer.WriteEndElement();
     }
 
-    private static void WriteImagePosition(XmlWriter writer, string element, string relativeFrom, Length offset)
+    private static void WriteImagePositions(XmlWriter writer, FloatPlacement placement)
+    {
+        WriteImagePosition(
+            writer,
+            "positionH",
+            placement.HorizontalRelativeTo switch
+            {
+                HorizontalAnchor.Page => "page",
+                HorizontalAnchor.Margin => "margin",
+                HorizontalAnchor.Character => "character",
+                _ => "column",
+            },
+            placement.HorizontalAlignment switch
+            {
+                HorizontalFloatAlignment.Left => "left",
+                HorizontalFloatAlignment.Center => "center",
+                HorizontalFloatAlignment.Right => "right",
+                _ => null,
+            },
+            placement.OffsetX ?? Length.Zero);
+        WriteImagePosition(
+            writer,
+            "positionV",
+            placement.VerticalRelativeTo switch
+            {
+                VerticalAnchor.Page => "page",
+                VerticalAnchor.Margin => "margin",
+                VerticalAnchor.Line => "line",
+                _ => "paragraph",
+            },
+            placement.VerticalAlignment switch
+            {
+                VerticalFloatAlignment.Top => "top",
+                VerticalFloatAlignment.Center => "center",
+                VerticalFloatAlignment.Bottom => "bottom",
+                _ => null,
+            },
+            placement.OffsetY ?? Length.Zero);
+    }
+
+    /// <summary>A <c>wp:positionH</c>/<c>wp:positionV</c> with an alignment (<c>wp:align</c>) or an offset (<c>wp:posOffset</c>).</summary>
+    private static void WriteImagePosition(XmlWriter writer, string element, string relativeFrom, string? align, Length offset)
     {
         writer.WriteStartElement("wp", element, DocxConstants.DrawingWordprocessingNamespace);
         writer.WriteAttributeString("relativeFrom", relativeFrom);
-        writer.WriteStartElement("wp", "posOffset", DocxConstants.DrawingWordprocessingNamespace);
-        writer.WriteString(Emu(offset).ToString(CultureInfo.InvariantCulture));
-        writer.WriteEndElement();
+        if (align is not null)
+        {
+            writer.WriteElementString("wp", "align", DocxConstants.DrawingWordprocessingNamespace, align);
+        }
+        else
+        {
+            writer.WriteStartElement("wp", "posOffset", DocxConstants.DrawingWordprocessingNamespace);
+            writer.WriteString(Emu(offset).ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
+        }
+
         writer.WriteEndElement();
     }
 

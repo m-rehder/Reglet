@@ -92,11 +92,11 @@ internal static class ImageLayoutChecks
         System.Xml.Linq.XNamespace wp = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
         var xml = System.Xml.Linq.XDocument.Parse(body);
         xml.Descendants(a + "srcRect").Single().SetAttributeValue("l", "10%");
-        xml.Descendants(wp + "positionH").Single().SetAttributeValue("relativeFrom", "page");
+        xml.Descendants(wp + "positionH").Single().SetAttributeValue("relativeFrom", "leftMargin");
         var changed = TestPackages.ReplacePart(buffer.ToArray(), "word/document.xml", System.Text.Encoding.UTF8.GetBytes(xml.ToString()));
         var read = DocumentReader.Read(new MemoryStream(changed), DocumentFormat.Docx);
         var changedImage = read.Document.Sections.SelectMany(section => section.Blocks).OfType<ImageBlock>().Single();
-        Require(Math.Abs(changedImage.Crop!.Value.Left - 0.1) < 0.01 && changedImage.OffsetX is null
+        Require(Math.Abs(changedImage.Crop!.Value.Left - 0.1) < 0.01 && changedImage.HorizontalRelativeTo == HorizontalAnchor.Column
             && read.Warnings.Any(warning => warning.Message.Contains("image position", StringComparison.Ordinal)),
             "DOCX: percent crops are read and unsupported anchor positions are reported.");
     }

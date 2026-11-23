@@ -118,6 +118,11 @@ internal sealed class PdfPageRenderer
 
     public double ContentLeft => _contentLeft;
 
+    /// <summary>The page size and the area inside the page margins (all columns), in PDF coordinates.</summary>
+    public (double Width, double Height, double MarginLeft, double MarginRight, double MarginTop, double MarginBottom) PageBox
+        => (_pageWidth, _pageHeight, _fullContentLeft, _fullContentLeft + _fullContentWidth,
+            _pageHeight - _section.Margins.Top.Points, _section.Margins.Bottom.Points);
+
     /// <summary>The object of the signature field widget, listed in the first page's Annots.</summary>
     public int? SignatureWidget { get; init; }
 

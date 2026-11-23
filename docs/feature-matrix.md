@@ -140,6 +140,7 @@ Legend:
 | Scaling original/fit width/contain | supported | supported | supported |
 | Images: crop | supported (`a:srcRect`) | supported (`fo:clip`) | supported (clipping path) |
 | Images: floating with wrap | supported (`wp:anchor`, also `Through`/`Behind`/`InFront`) | supported (`draw:frame` and graphic style; ODF cannot distinguish `Through` from `Behind`) | supported (offsets, all six wrap kinds, several images, reflow per line; a `Through` wrap follows the alpha contour of a PNG) |
+| Images and shapes: anchored to page, margin, column or paragraph | supported (`wp:positionH`/`wp:positionV` `relativeFrom` page, margin, column, character, paragraph, line; `wp:align` or `wp:posOffset`; inner/outer/left/right margins approximated when reading) | supported (`style:horizontal-rel`/`vertical-rel` page, page-content, paragraph-content, char, line; `style:horizontal-pos`/`vertical-pos` or `svg:x`/`svg:y`) | supported (page and margin positions independent of the carrying paragraph; character and line placed like column and paragraph; vertical alignment only within page or margin) |
 | SVG images | supported (SVG plus optional caller-provided PNG/JPEG fallback) | supported (`image/svg+xml`) | supported (converted to vector graphics; a documented subset of SVG — paths, basic shapes, simple text with a whole-text or per-glyph rotation (each glyph placed separately, so kerning between glyphs is lost), transforms, colours, opacity, stroke dash patterns, line caps, joins and miter limits, `use` references, style-sheet rules for element/class/id selectors, selected gradients (linear and radial, including repeating linear gradients as tiling patterns and repeating radial gradients as a sampled colour function), tiling patterns and clipping paths (a `clipPath` with several shapes clips to their union; each shape may carry its own transform, rounded-rectangle clips are supported, a nested `clip-path` on a single shape intersects with the outer clip, and a multi-shape union with up to four nested references is applied exactly through the clause decomposition of the union; more than four are reported); masks, markers at the start, the inner vertices and the end of a path (also the `marker` shorthand), base64-embedded PNG/JPEG images; filters and anything else outside the subset are reported) |
 | Page breaks | supported | supported | supported |
 
@@ -507,8 +508,8 @@ otherwise be lost.
   percent width of the text area or, without either, the text area itself; LibreOffice may
   re-adjust `style:rel-width` plus absolute columns.
 - **Images:** a DOCX SVG without a caller-provided raster fallback may not display in older Word
-  versions (reported). An ODT floating image is placed with absolute offsets relative to its
-  paragraph (renderer-dependent), and ODF cannot tell `Through` from `Behind` (reads back as
+  versions (reported). An ODT floating image is placed with absolute offsets or an alignment relative to its
+  anchor (renderer-dependent), and ODF cannot tell `Through` from `Behind` (reads back as
   behind). In the PDF an opaque image, a JPEG or an SVG has no contour and wraps like a box.
 - **Notes:** a reused `Footnote` instance gets one ID (several references share the note); a note
   inside a note becomes a nested `text:note`, which ODF disallows.

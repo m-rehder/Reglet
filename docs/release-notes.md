@@ -13,6 +13,12 @@
 - `DocumentMetadata.Creator`: written as Info `/Creator` and XMP `xmp:CreatorTool`, read back by the PDF reader.
 - A standard font that is only measured, never drawn, is no longer written into the resources.
 
+### Documents
+
+- Floating images and shapes can be anchored to the page, the margin, the column or the paragraph
+  (`HorizontalRelativeTo`, `VerticalRelativeTo`) and aligned instead of offset (`HorizontalAlignment`,
+  `VerticalAlignment`); written and read in DOCX (`wp:positionH`/`wp:positionV`) and ODT, honoured by the PDF (ADR-0038).
+
 ## 1.0.0
 
 The first public release. Reglet creates, reads and converts DOCX, ODT, PDF and HTML documents in .NET 10 with no

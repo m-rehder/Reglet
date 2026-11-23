@@ -1982,6 +1982,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         var graphicStyles = element.Ancestors(Office + "document-styles").Any() ? context.BandGraphicStyles : context.GraphicStyles;
         var properties = name is not null && graphicStyles.TryGetValue(name, out var graphic) ? graphic : null;
         var anchored = (string?)element.Attribute(Text + "anchor-type") is not (null or "as-char");
+        var placement = anchored ? ReadFramePlacement(properties, warnings) : default;
         var wrap = (string?)properties?.Attribute(Style + "wrap");
         var runThrough = (string?)properties?.Attribute(Style + "run-through");
         var shapeWrap = !anchored
@@ -2143,6 +2144,10 @@ public sealed class OdtDocumentReader : IDocumentReader
                 Wrap = shapeWrap,
                 OffsetX = anchored ? Length.FromPoints(x) : null,
                 OffsetY = anchored ? Length.FromPoints(y) : null,
+                HorizontalRelativeTo = placement.HorizontalRelativeTo,
+                VerticalRelativeTo = placement.VerticalRelativeTo,
+                HorizontalAlignment = placement.HorizontalAlignment,
+                VerticalAlignment = placement.VerticalAlignment,
                 AltText = element.Element(svg + "title")?.Value,
             };
         }
@@ -2578,9 +2583,7 @@ public sealed class OdtDocumentReader : IDocumentReader
             Warn(warnings, $"ODT: image wrap '{wrap}' is approximated when reading.");
         if (anchored && (string?)frame.Attribute(Text + "anchor-type") != "paragraph")
             Warn(warnings, "ODT: an image anchor other than paragraph is approximated when reading.");
-        if (anchored && ((string?)properties?.Attribute(Style + "horizontal-pos") is { } horizontal && horizontal != "from-left"
-            || (string?)properties?.Attribute(Style + "vertical-pos") is { } vertical && vertical != "from-top"))
-            Warn(warnings, "ODT: an image alignment other than explicit offsets is approximated when reading.");
+        var placement = anchored ? ReadFramePlacement(properties, warnings) : default;
         // OF-B06: run-through carries the layer in style:run-through (background = behind the text).
         var runThrough = (string?)properties?.Attribute(Style + "run-through");
         var imageWrap = !anchored
@@ -2602,8 +2605,60 @@ public sealed class OdtDocumentReader : IDocumentReader
             Wrap = imageWrap,
             OffsetX = anchored ? ReadImageLength((string?)frame.Attribute(svg + "x"), positive: false, warnings) : null,
             OffsetY = anchored ? ReadImageLength((string?)frame.Attribute(svg + "y"), positive: false, warnings) : null,
+            HorizontalRelativeTo = placement.HorizontalRelativeTo,
+            VerticalRelativeTo = placement.VerticalRelativeTo,
+            HorizontalAlignment = placement.HorizontalAlignment,
+            VerticalAlignment = placement.VerticalAlignment,
             Crop = ReadImageCrop(clip, width, height, warnings),
         };
+    }
+
+    /// <summary>The anchor and alignment of a frame from its graphic style; the offsets are svg:x and svg:y.</summary>
+    private static FloatPlacement ReadFramePlacement(XElement? properties, List<ReadWarning> warnings)
+    {
+        var horizontalPos = (string?)properties?.Attribute(Style + "horizontal-pos");
+        var verticalPos = (string?)properties?.Attribute(Style + "vertical-pos");
+        HorizontalAnchor? horizontal = (string?)properties?.Attribute(Style + "horizontal-rel") switch
+        {
+            null or "paragraph" or "paragraph-content" => HorizontalAnchor.Column,
+            "page" => HorizontalAnchor.Page,
+            "page-content" => HorizontalAnchor.Margin,
+            "char" => HorizontalAnchor.Character,
+            _ => null,
+        };
+        VerticalAnchor? vertical = (string?)properties?.Attribute(Style + "vertical-rel") switch
+        {
+            null or "paragraph" or "paragraph-content" => VerticalAnchor.Paragraph,
+            "page" => VerticalAnchor.Page,
+            "page-content" => VerticalAnchor.Margin,
+            "line" => VerticalAnchor.Line,
+            _ => null,
+        };
+        HorizontalFloatAlignment? horizontalAlignment = horizontalPos switch
+        {
+            "left" => HorizontalFloatAlignment.Left,
+            "center" => HorizontalFloatAlignment.Center,
+            "right" => HorizontalFloatAlignment.Right,
+            _ => null,
+        };
+        VerticalFloatAlignment? verticalAlignment = verticalPos switch
+        {
+            "top" => VerticalFloatAlignment.Top,
+            "middle" => VerticalFloatAlignment.Center,
+            "bottom" => VerticalFloatAlignment.Bottom,
+            _ => null,
+        };
+        if (horizontal is null || vertical is null
+            || (horizontalPos is not (null or "from-left") && horizontalAlignment is null)
+            || (verticalPos is not (null or "from-top") && verticalAlignment is null))
+            Warn(warnings, "ODT: a frame position other than page, margin, paragraph, character or line with an offset, left, centre, right, top, middle or bottom is approximated when reading.");
+        return new FloatPlacement(
+            horizontal ?? HorizontalAnchor.Column,
+            vertical ?? VerticalAnchor.Paragraph,
+            horizontalAlignment,
+            verticalAlignment,
+            null,
+            null);
     }
 
     private static Length? ReadImageLength(string? value, bool positive, List<ReadWarning> warnings)

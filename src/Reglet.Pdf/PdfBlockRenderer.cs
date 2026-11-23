@@ -435,12 +435,12 @@ internal sealed class PdfBlockRenderer
     /// <summary>Places a floating image beside the text (Square wrap) and records the exclusion zone.</summary>
     private void RenderFloatingImage(ImageBlock image, double imageWidth, double imageHeight, Action<double, double, double, double> draw)
         => RenderFloating(
-            image.Wrap, image.OffsetX, image.OffsetY, image.AltText, image.Crop,
+            image.Wrap, FloatPlacement.Of(image), image.AltText, image.Crop,
             () => image.Wrap == ImageWrap.Through ? ImageContour.From(image.RawData.ToArray(), image.MediaType) : null,
             imageWidth, imageHeight, draw);
 
     private void RenderFloating(
-        ImageWrap wrap, Length? offsetXLength, Length? offsetYLength, string? altText, ImageCrop? crop, Func<ImageContour?> contourOf,
+        ImageWrap wrap, FloatPlacement placement, string? altText, ImageCrop? crop, Func<ImageContour?> contourOf,
         double imageWidth, double imageHeight, Action<double, double, double, double> draw,
         string tag = "Figure")
     {
@@ -448,10 +448,41 @@ internal sealed class PdfBlockRenderer
         var scale = Math.Min(1, Math.Min(_page.ContentWidth / imageWidth, Math.Max(1, _page.ContentHeight - spacing) / imageHeight));
         var width = imageWidth * scale;
         var height = imageHeight * scale;
-        var offsetY = offsetYLength?.Points ?? 0;
-        _page.EnsureSpace(Math.Min(height + Math.Max(0, offsetY), _page.ContentHeight));
-        var x = _page.ContentLeft + (offsetXLength?.Points ?? 0);
-        var top = _page.CursorY - offsetY;
+        var offsetY = placement.OffsetY?.Points ?? 0;
+        var box = _page.PageBox;
+
+        // R5: a page- or margin-relative position does not depend on the paragraph that carries it.
+        if (!placement.IsPageRelative)
+        {
+            _page.EnsureSpace(Math.Min(height + Math.Max(0, offsetY), _page.ContentHeight));
+        }
+
+        var (left, right) = placement.HorizontalRelativeTo switch
+        {
+            HorizontalAnchor.Page => (0.0, box.Width),
+            HorizontalAnchor.Margin => (box.MarginLeft, box.MarginRight),
+            _ => (_page.ContentLeft, _page.ContentLeft + _page.ContentWidth),
+        };
+        var x = placement.HorizontalAlignment switch
+        {
+            HorizontalFloatAlignment.Left => left,
+            HorizontalFloatAlignment.Center => (left + right - width) / 2,
+            HorizontalFloatAlignment.Right => right - width,
+            _ => left + (placement.OffsetX?.Points ?? 0),
+        };
+        var (upper, lower) = placement.VerticalRelativeTo switch
+        {
+            VerticalAnchor.Page => (box.Height, 0.0),
+            VerticalAnchor.Margin => (box.MarginTop, box.MarginBottom),
+            _ => (_page.CursorY, _page.CursorY - height),
+        };
+        var top = placement.VerticalAlignment switch
+        {
+            VerticalFloatAlignment.Top => upper,
+            VerticalFloatAlignment.Center => (upper + lower + height) / 2,
+            VerticalFloatAlignment.Bottom => lower + height,
+            _ => upper - offsetY,
+        };
         var y = top - height;
 
         void Draw()
@@ -485,8 +516,9 @@ internal sealed class PdfBlockRenderer
                 break;
             }
 
-            case ImageWrap.TopAndBottom:
-                _page.Advance(Math.Max(0, offsetY + height + spacing));
+            // A page-relative object moves the text only when it covers the cursor.
+            case ImageWrap.TopAndBottom when !placement.IsPageRelative || (_page.CursorY <= top && _page.CursorY > y):
+                _page.Advance(Math.Max(0, _page.CursorY - y + spacing));
                 break;
         }
     }
@@ -520,7 +552,7 @@ internal sealed class PdfBlockRenderer
         if (shape.Wrap != ImageWrap.None)
         {
             RenderFloating(
-                shape.Wrap, shape.OffsetX, shape.OffsetY, shape.AltText, null, () => null,
+                shape.Wrap, FloatPlacement.Of(shape), shape.AltText, null, () => null,
                 shape.Width.Points, Math.Max(shape.Height.Points, 1), Draw, tag ?? "Figure");
             return;
         }

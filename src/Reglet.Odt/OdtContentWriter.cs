@@ -1236,6 +1236,39 @@ internal static class OdtContentWriter
         writer.WriteEndElement();
     }
 
+    /// <summary>The position attributes of an anchored frame's graphic style (ODF 20.290, 20.291, 20.387, 20.388).</summary>
+    internal static void WriteFramePosition(XmlWriter writer, FloatPlacement placement)
+    {
+        writer.WriteAttributeString("style", "horizontal-pos", OdtNamespaces.Style, placement.HorizontalAlignment switch
+        {
+            HorizontalFloatAlignment.Left => "left",
+            HorizontalFloatAlignment.Center => "center",
+            HorizontalFloatAlignment.Right => "right",
+            _ => "from-left",
+        });
+        writer.WriteAttributeString("style", "horizontal-rel", OdtNamespaces.Style, placement.HorizontalRelativeTo switch
+        {
+            HorizontalAnchor.Page => "page",
+            HorizontalAnchor.Margin => "page-content",
+            HorizontalAnchor.Character => "char",
+            _ => "paragraph-content",
+        });
+        writer.WriteAttributeString("style", "vertical-pos", OdtNamespaces.Style, placement.VerticalAlignment switch
+        {
+            VerticalFloatAlignment.Top => "top",
+            VerticalFloatAlignment.Center => "middle",
+            VerticalFloatAlignment.Bottom => "bottom",
+            _ => "from-top",
+        });
+        writer.WriteAttributeString("style", "vertical-rel", OdtNamespaces.Style, placement.VerticalRelativeTo switch
+        {
+            VerticalAnchor.Page => "page",
+            VerticalAnchor.Margin => "page-content",
+            VerticalAnchor.Line => "line",
+            _ => "paragraph",
+        });
+    }
+
     private static bool NeedsImageStyle(ImageBlock image)
         => image.Wrap != ImageWrap.None || image.Crop is { IsEmpty: false };
 
@@ -1271,10 +1304,7 @@ internal static class OdtContentWriter
                         image.Wrap == ImageWrap.InFront ? "foreground" : "background");
                 }
 
-                writer.WriteAttributeString("style", "horizontal-pos", OdtNamespaces.Style, "from-left");
-                writer.WriteAttributeString("style", "horizontal-rel", OdtNamespaces.Style, "paragraph-content");
-                writer.WriteAttributeString("style", "vertical-pos", OdtNamespaces.Style, "from-top");
-                writer.WriteAttributeString("style", "vertical-rel", OdtNamespaces.Style, "paragraph");
+                WriteFramePosition(writer, FloatPlacement.Of(image));
             }
             if (image.Crop is { IsEmpty: false } crop)
             {

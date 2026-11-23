@@ -140,10 +140,7 @@ internal static class OdtShapes
                     writer.WriteAttributeString("style", "run-through", OdtNamespaces.Style, shape.Wrap == ImageWrap.InFront ? "foreground" : "background");
                 }
 
-                writer.WriteAttributeString("style", "horizontal-pos", OdtNamespaces.Style, "from-left");
-                writer.WriteAttributeString("style", "horizontal-rel", OdtNamespaces.Style, "paragraph-content");
-                writer.WriteAttributeString("style", "vertical-pos", OdtNamespaces.Style, "from-top");
-                writer.WriteAttributeString("style", "vertical-rel", OdtNamespaces.Style, "paragraph");
+                OdtContentWriter.WriteFramePosition(writer, FloatPlacement.Of(shape));
             }
 
             writer.WriteEndElement();

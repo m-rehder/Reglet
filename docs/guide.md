@@ -64,6 +64,23 @@ The DOCX and PDF writers can protect a document:
   against caller-supplied trusted roots. `PdfSignatureReader.Read` does the same for PDF
   signatures and document timestamps (byte range, CMS signature, time-stamp token).
 
+## Floating images and shapes
+
+A floating `ImageBlock` or `DrawingShape` (`Wrap` other than `None`) is placed by `OffsetX`/`OffsetY` from
+its column and paragraph. `HorizontalRelativeTo` (`Page`, `Margin`, `Column`, `Character`) and
+`VerticalRelativeTo` (`Page`, `Margin`, `Paragraph`, `Line`) change what the offsets count from;
+`HorizontalAlignment` (`Left`, `Center`, `Right`) and `VerticalAlignment` (`Top`, `Center`, `Bottom`) replace
+the offset. An object anchored to the page lands at the same place whatever paragraph carries it:
+
+```csharp
+new ImageBlock(png, ImageMediaType.Png)
+{
+    Wrap = ImageWrap.InFront,
+    HorizontalRelativeTo = HorizontalAnchor.Page, HorizontalAlignment = HorizontalFloatAlignment.Right,
+    VerticalRelativeTo = VerticalAnchor.Page, OffsetY = Length.FromMillimeters(15),
+};
+```
+
 ## Drawing a PDF page by page
 
 `PdfCanvas` writes a PDF whose pages are drawn at fixed coordinates instead of laid out: data sheets,

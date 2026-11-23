@@ -1842,15 +1842,58 @@ public sealed class DocxDocumentReader : IDocumentReader
                 ? Length.FromPoints(emu / 12700.0)
                 : null;
 
-        private Length? ImageOffset(XElement? position, string expectedRelativeFrom)
+        /// <summary>The anchor, alignment and offsets of <c>wp:positionH</c> and <c>wp:positionV</c>.</summary>
+        private FloatPlacement ImagePlacement(XElement? anchor)
         {
-            if (position is null) return null;
-            if ((string?)position.Attribute("relativeFrom") == expectedRelativeFrom
-                && long.TryParse((string?)position.Element(WP + "posOffset"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
-                return Length.FromPoints(value / 12700.0);
-            Warn(warnings, "DOCX: an image position that is not an offset from its column or paragraph is approximated when reading.");
-            return null;
+            var horizontal = anchor?.Element(WP + "positionH");
+            var vertical = anchor?.Element(WP + "positionV");
+            HorizontalAnchor? horizontalAnchor = (string?)horizontal?.Attribute("relativeFrom") switch
+            {
+                null or "column" => HorizontalAnchor.Column,
+                "page" => HorizontalAnchor.Page,
+                "margin" => HorizontalAnchor.Margin,
+                "character" => HorizontalAnchor.Character,
+                _ => null,
+            };
+            VerticalAnchor? verticalAnchor = (string?)vertical?.Attribute("relativeFrom") switch
+            {
+                null or "paragraph" => VerticalAnchor.Paragraph,
+                "page" => VerticalAnchor.Page,
+                "margin" => VerticalAnchor.Margin,
+                "line" => VerticalAnchor.Line,
+                _ => null,
+            };
+            HorizontalFloatAlignment? horizontalAlignment = (string?)horizontal?.Element(WP + "align") switch
+            {
+                "left" => HorizontalFloatAlignment.Left,
+                "center" => HorizontalFloatAlignment.Center,
+                "right" => HorizontalFloatAlignment.Right,
+                _ => null,
+            };
+            VerticalFloatAlignment? verticalAlignment = (string?)vertical?.Element(WP + "align") switch
+            {
+                "top" => VerticalFloatAlignment.Top,
+                "center" => VerticalFloatAlignment.Center,
+                "bottom" => VerticalFloatAlignment.Bottom,
+                _ => null,
+            };
+            if (horizontalAnchor is null || verticalAnchor is null
+                || (horizontal?.Element(WP + "align") is not null && horizontalAlignment is null)
+                || (vertical?.Element(WP + "align") is not null && verticalAlignment is null))
+                Warn(warnings, "DOCX: an image position relative to an inner, outer, left or right margin, or an inside/outside alignment, is approximated when reading.");
+            return new FloatPlacement(
+                horizontalAnchor ?? HorizontalAnchor.Column,
+                verticalAnchor ?? VerticalAnchor.Paragraph,
+                horizontalAlignment,
+                verticalAlignment,
+                PositionOffset(horizontal),
+                PositionOffset(vertical));
         }
+
+        private static Length? PositionOffset(XElement? position)
+            => long.TryParse((string?)position?.Element(WP + "posOffset"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+                ? Length.FromPoints(value / 12700.0)
+                : null;
 
         private ImageCrop? ImageCropOf(XElement drawing)
         {
@@ -1967,14 +2010,19 @@ public sealed class DocxDocumentReader : IDocumentReader
             var extent = drawing.Descendants(WP + "extent").FirstOrDefault();
             var anchor = drawing.Element(WP + "anchor");
             var wrap = ReadWrap(anchor);
+            var placement = ImagePlacement(anchor);
             Images.Add(new ImageBlock(bytes, mediaType)
             {
                 AltText = drawing.Descendants(WP + "docPr").FirstOrDefault()?.Attribute("descr")?.Value,
                 Width = Emu(extent?.Attribute("cx")?.Value),
                 Height = Emu(extent?.Attribute("cy")?.Value),
                 Wrap = wrap,
-                OffsetX = ImageOffset(anchor?.Element(WP + "positionH"), "column"),
-                OffsetY = ImageOffset(anchor?.Element(WP + "positionV"), "paragraph"),
+                OffsetX = placement.OffsetX,
+                OffsetY = placement.OffsetY,
+                HorizontalRelativeTo = placement.HorizontalRelativeTo,
+                VerticalRelativeTo = placement.VerticalRelativeTo,
+                HorizontalAlignment = placement.HorizontalAlignment,
+                VerticalAlignment = placement.VerticalAlignment,
                 Crop = ImageCropOf(drawing),
                 RasterFallback = fallback,
             });
@@ -2130,6 +2178,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                 ? Length.FromPoints(lineEmu / 12700.0) : Length.FromPoints(1);
             var rotation = long.TryParse(spPr?.Element(A + "xfrm")?.Attribute("rot")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rot)
                 ? rot / 60000.0 : 0;
+            var placement = ImagePlacement(anchor);
             try
             {
                 Images.Add(new DrawingShape(kind.Value, width.Value, height.Value, blocks, steps)
@@ -2140,8 +2189,12 @@ public sealed class DocxDocumentReader : IDocumentReader
                     Dash = dash,
                     Rotation = rotation,
                     Wrap = ReadWrap(anchor),
-                    OffsetX = ImageOffset(anchor?.Element(WP + "positionH"), "column"),
-                    OffsetY = ImageOffset(anchor?.Element(WP + "positionV"), "paragraph"),
+                    OffsetX = placement.OffsetX,
+                    OffsetY = placement.OffsetY,
+                    HorizontalRelativeTo = placement.HorizontalRelativeTo,
+                    VerticalRelativeTo = placement.VerticalRelativeTo,
+                    HorizontalAlignment = placement.HorizontalAlignment,
+                    VerticalAlignment = placement.VerticalAlignment,
                     AltText = drawing.Descendants(WP + "docPr").FirstOrDefault()?.Attribute("descr")?.Value,
                 });
             }
