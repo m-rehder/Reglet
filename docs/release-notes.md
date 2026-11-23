@@ -1,5 +1,13 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### Tables
+
+- `TableRow.KeepTogether` keeps a row on one page: a row that does not fit at the bottom moves whole to the next page,
+  below the repeated header rows (MigraDoc's behaviour). DOCX reads and writes `w:cantSplit`, ODT
+  `fo:keep-together`, HTML `break-inside: avoid`. A row taller than a page is still split.
+
 ## 1.4.0
 
 ### PDF

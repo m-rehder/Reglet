@@ -2296,9 +2296,14 @@ internal static class DocxPackageBuilder
     {
         writer.WriteStartElement("w", "tr", DocxConstants.WordprocessingML);
 
-        if (row.IsHeader || row.Height is not null)
+        if (row.IsHeader || row.Height is not null || row.KeepTogether)
         {
             writer.WriteStartElement("w", "trPr", DocxConstants.WordprocessingML);
+            if (row.KeepTogether)
+            {
+                WriteEmptyElement(writer, "cantSplit");
+            }
+
             if (row.IsHeader)
             {
                 WriteEmptyElement(writer, "tblHeader");

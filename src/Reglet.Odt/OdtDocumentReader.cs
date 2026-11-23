@@ -338,7 +338,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         return result;
     }
 
-    private static IReadOnlyDictionary<string, (Length Height, TableRowHeightRule Rule)> ReadRowStyles(
+    private static IReadOnlyDictionary<string, (Length? Height, TableRowHeightRule Rule, bool KeepTogether)> ReadRowStyles(
         XElement? content, XElement? styles, List<ReadWarning> warnings)
     {
         var links = new Dictionary<string, (string? Parent, XElement? Properties)>(StringComparer.Ordinal);
@@ -355,30 +355,36 @@ public sealed class OdtDocumentReader : IDocumentReader
         if (HasBrokenChain(links))
             Warn(warnings, "ODT: a table row style has a missing or cyclic parent and may be incomplete.");
         // The nearest style along the chain that states a height wins (StyleChain, linear time).
-        var heights = StyleChain.ResolveAll<(string? Height, bool Minimum, string? Optimal)>(
+        var heights = StyleChain.ResolveAll<(string? Height, bool Minimum, string? Optimal, string? Keep)>(
             links.Keys,
             name => links.TryGetValue(name, out var link) ? link.Parent : null,
             links.ContainsKey,
-            (null, false, null),
+            (null, false, null, null),
             (inherited, name) =>
             {
                 var properties = links[name].Properties;
                 var optimal = (string?)properties?.Attribute(Style + "use-optimal-row-height") ?? inherited.Optimal;
+                var keep = (string?)properties?.Attribute(Fo + "keep-together") ?? inherited.Keep;
                 if ((string?)properties?.Attribute(Style + "row-height") is { } exact)
-                    return (exact, false, optimal);
+                    return (exact, false, optimal, keep);
                 if ((string?)properties?.Attribute(Style + "min-row-height") is { } least)
-                    return (least, true, optimal);
-                return (inherited.Height, inherited.Minimum, optimal);
+                    return (least, true, optimal, keep);
+                return (inherited.Height, inherited.Minimum, optimal, keep);
             });
-        var result = new Dictionary<string, (Length, TableRowHeightRule)>(StringComparer.Ordinal);
+        var result = new Dictionary<string, (Length?, TableRowHeightRule, bool)>(StringComparer.Ordinal);
         foreach (var name in links.Keys)
         {
-            var (heightValue, minimum, optimal) = heights[name];
+            var (heightValue, minimum, optimal, keepValue) = heights[name];
+            var keep = keepValue == "always";
             if (heightValue is not null && ParseLength(heightValue) is { Points: > 0 } height)
             {
                 // Earlier Reglet versions wrote a minimum height as row-height with optimal=true.
                 var rule = minimum || optimal is "true" or "1" ? TableRowHeightRule.AtLeast : TableRowHeightRule.Exactly;
-                result[name] = (height, rule);
+                result[name] = (height, rule, keep);
+            }
+            else if (keep)
+            {
+                result[name] = (null, TableRowHeightRule.Auto, true);
             }
         }
         return result;
@@ -2284,8 +2290,8 @@ public sealed class OdtDocumentReader : IDocumentReader
         public IReadOnlyDictionary<string, (Length? Width, double? Weight)> ColumnStyles { get; init; } =
             new Dictionary<string, (Length?, double?)>(StringComparer.Ordinal);
 
-        public IReadOnlyDictionary<string, (Length Height, TableRowHeightRule Rule)> RowStyles { get; init; } =
-            new Dictionary<string, (Length, TableRowHeightRule)>(StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, (Length? Height, TableRowHeightRule Rule, bool KeepTogether)> RowStyles { get; init; } =
+            new Dictionary<string, (Length?, TableRowHeightRule, bool)>(StringComparer.Ordinal);
 
         public IReadOnlyDictionary<string, TableStyleInfo> TableStyles { get; init; } =
             new Dictionary<string, TableStyleInfo>(StringComparer.Ordinal);
@@ -2948,13 +2954,14 @@ public sealed class OdtDocumentReader : IDocumentReader
         }
 
         var rowStyle = (string?)tr.Attribute(Table + "style-name");
-        (Length Height, TableRowHeightRule Rule) height = default;
+        (Length? Height, TableRowHeightRule Rule, bool KeepTogether) height = default;
         var hasHeight = rowStyle is not null && context.RowStyles.TryGetValue(rowStyle, out height);
         return new TableRow(cells)
         {
             IsHeader = isHeader,
             Height = hasHeight ? height.Height : null,
             HeightRule = hasHeight ? height.Rule : TableRowHeightRule.Auto,
+            KeepTogether = hasHeight && height.KeepTogether,
         };
     }
 

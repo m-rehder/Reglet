@@ -1964,6 +1964,15 @@ internal sealed class PdfBlockRenderer
         }
 
         SpreadRowSpans(result);
+        for (var index = 0; index < result.Count; index++)
+        {
+            // A row kept together moves whole to the next page, if a page can hold it.
+            if (table.Rows[index].KeepTogether && result[index].NaturalHeight <= _page.ContentHeight)
+            {
+                result[index] = result[index] with { KeepHeight = Math.Max(result[index].KeepHeight, result[index].NaturalHeight) };
+            }
+        }
+
         return result;
     }
 

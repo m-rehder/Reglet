@@ -286,7 +286,7 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
         _out.Append(table.Border is null ? "<table class=\"b\">\n" : "<table class=\"b\">\n");
         foreach (var row in table.Rows)
         {
-            _out.Append("<tr>");
+            _out.Append(row.KeepTogether ? "<tr style=\"break-inside:avoid\">" : "<tr>");
             foreach (var cell in row.Cells)
             {
                 var tag = row.IsHeader ? "th" : "td";

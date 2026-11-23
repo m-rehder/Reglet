@@ -2940,6 +2940,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                 IsHeader = height.IsHeader,
                 Height = height.Height,
                 HeightRule = height.Rule,
+                KeepTogether = rowElements[rowIndex].Element(W + "trPr")?.Element(W + "cantSplit") is { } cantSplit && IsOn(cantSplit),
             });
         }
 

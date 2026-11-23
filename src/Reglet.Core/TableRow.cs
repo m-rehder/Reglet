@@ -42,11 +42,18 @@ public sealed record TableRow
     /// <summary>Rule for the row height.</summary>
     public TableRowHeightRule HeightRule { get; init; } = TableRowHeightRule.Auto;
 
+    /// <summary>
+    /// Keeps the row on one page (Word's <c>w:cantSplit</c>, ODT's <c>fo:keep-together</c>): a row that does not fit at the
+    /// bottom of a page moves whole to the next one. A row taller than a page is still split.
+    /// </summary>
+    public bool KeepTogether { get; init; }
+
     /// <summary>a copy with other cells and every other property kept (used by the tree rebuilds).</summary>
     internal TableRow WithCells(IEnumerable<TableCell> cells) => new(cells)
     {
         IsHeader = IsHeader,
         Height = Height,
         HeightRule = HeightRule,
+        KeepTogether = KeepTogether,
     };
 }

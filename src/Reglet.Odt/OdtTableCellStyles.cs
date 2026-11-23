@@ -25,7 +25,7 @@ internal sealed class OdtTableCellStyles
         string AreaBorder,
         string AreaText);
 
-    private readonly record struct RowKey(double Height, TableRowHeightRule Rule);
+    private readonly record struct RowKey(double? Height, TableRowHeightRule Rule, bool KeepTogether);
 
     private readonly record struct TableKey(double? WidthPercent, string Border, double? CellPaddingHorizontal, double? CellPaddingVertical, double? LeftIndent, string Parent)
     {
@@ -85,11 +85,12 @@ internal sealed class OdtTableCellStyles
         return _cells.TryGetValue(key, out var name) ? name : "Cell";
     }
 
-    /// <summary>Name of the row style, or null if the row has no fixed height.</summary>
+    /// <summary>Name of the row style, or null if the row has neither a height nor KeepTogether.</summary>
     public string? RowStyleName(TableRow row)
-        => row.Height is { } height && _rows.TryGetValue(new RowKey(height.Points, row.HeightRule), out var name)
-            ? name
-            : null;
+        => RowKeyOf(row) is { } key && _rows.TryGetValue(key, out var name) ? name : null;
+
+    private static RowKey? RowKeyOf(TableRow row)
+        => row.Height is null && !row.KeepTogether ? null : new RowKey(row.Height?.Points, row.HeightRule, row.KeepTogether);
 
     /// <summary>Name of the table style, or null if the table has no width/border/padding.</summary>
     public string? TableStyleName(TableBlock table, string? parent)
@@ -226,13 +227,7 @@ internal sealed class OdtTableCellStyles
 
     private void RegisterRow(TableRow row)
     {
-        if (row.Height is not { } height)
-        {
-            return;
-        }
-
-        var key = new RowKey(height.Points, row.HeightRule);
-        if (!_rows.ContainsKey(key))
+        if (RowKeyOf(row) is { } key && !_rows.ContainsKey(key))
         {
             _rows[key] = "TR" + (_rowStart + _rows.Count + 1).ToString(CultureInfo.InvariantCulture);
         }
@@ -356,11 +351,19 @@ internal sealed class OdtTableCellStyles
         writer.WriteAttributeString("style", "name", OdtNamespaces.Style, name);
         writer.WriteAttributeString("style", "family", OdtNamespaces.Style, "table-row");
         writer.WriteStartElement("style", "table-row-properties", OdtNamespaces.Style);
-        writer.WriteAttributeString("style", key.Rule == TableRowHeightRule.Exactly ? "row-height" : "min-row-height",
-            OdtNamespaces.Style, PointsText(key.Height));
-        writer.WriteAttributeString(
-            "style", "use-optimal-row-height", OdtNamespaces.Style,
-            key.Rule == TableRowHeightRule.Exactly ? "false" : "true");
+        if (key.Height is { } height)
+        {
+            writer.WriteAttributeString("style", key.Rule == TableRowHeightRule.Exactly ? "row-height" : "min-row-height",
+                OdtNamespaces.Style, PointsText(height));
+            writer.WriteAttributeString(
+                "style", "use-optimal-row-height", OdtNamespaces.Style,
+                key.Rule == TableRowHeightRule.Exactly ? "false" : "true");
+        }
+
+        if (key.KeepTogether)
+        {
+            writer.WriteAttributeString("fo", "keep-together", OdtNamespaces.Fo, "always");
+        }
         writer.WriteEndElement();
         writer.WriteEndElement();
     }
