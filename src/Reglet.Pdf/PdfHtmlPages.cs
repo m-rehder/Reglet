@@ -28,7 +28,8 @@ internal static class PdfHtmlWriter
         var result = await new PdfDocumentWriter().WriteAsync(document, buffer, pdf, cancellationToken).ConfigureAwait(false);
         var warnings = result.Warnings.ToList();
         var fonts = PdfDocumentBuilder.ResolveFonts(pdf, new UnsupportedFeatureHandler(UnsupportedContentBehavior.Warn, []));
-        var html = PdfDocumentReader.PagesToHtml(buffer.ToArray(), document.Metadata, fonts, settings, warnings, cancellationToken);
+        var html = PdfDocumentReader.PagesToHtml(
+            buffer.ToArray(), document.Metadata, fonts, settings, new UnsupportedFeatureHandler(pdf.UnsupportedContent, warnings), cancellationToken);
         await output.WriteAsync(new UTF8Encoding(false).GetBytes(html), cancellationToken).ConfigureAwait(false);
         return new WriteResult(warnings.DistinctBy(warning => warning.Message));
     }
@@ -37,7 +38,7 @@ internal static class PdfHtmlWriter
 public sealed partial class PdfDocumentReader
 {
     internal static string PagesToHtml(
-        byte[] data, DocumentMetadata metadata, FontCollection? fonts, PdfHtmlOptions settings, List<WriteWarning> warnings, CancellationToken cancellationToken)
+        byte[] data, DocumentMetadata metadata, FontCollection? fonts, PdfHtmlOptions settings, UnsupportedFeatureHandler handler, CancellationToken cancellationToken)
     {
         var file = PdfFile.Load(data);
         if (file.Dictionary(file.Trailer.Get("Root")) is not { } catalog
@@ -51,7 +52,7 @@ public sealed partial class PdfDocumentReader
 
         // Ids and font families carry a token of the document, so two fragments on one host page do not collide.
         var p = settings.ClassPrefix;
-        var painter = new HtmlPagePainter(file, fonts, p + Convert.ToHexString(SHA256.HashData(data))[..8].ToLowerInvariant(), warnings);
+        var painter = new HtmlPagePainter(file, fonts, p, p + Convert.ToHexString(SHA256.HashData(data))[..8].ToLowerInvariant(), handler);
         var body = new StringBuilder();
         foreach (var page in pages)
         {
@@ -90,7 +91,8 @@ public sealed partial class PdfDocumentReader
     }
 
     /// <summary>Turns the content streams of Reglet's own PDF into SVG: paths, images, clips and text.</summary>
-    private sealed class HtmlPagePainter(PdfFile file, FontCollection? collection, string token, List<WriteWarning> warnings)
+    // prefix: the class prefix of the page elements; token: the prefix plus a token of the document, for ids and font families.
+    private sealed class HtmlPagePainter(PdfFile file, FontCollection? collection, string prefix, string token, UnsupportedFeatureHandler handler)
     {
         private const int MaxFormDepth = 16;
         private readonly Dictionary<PdfDictionary, FontInfo> _fonts = new(ReferenceEqualityComparer.Instance);
@@ -166,7 +168,7 @@ public sealed partial class PdfDocumentReader
             var texts = new List<TextItem>();
             Run(ReadContents(file, page.Page), page.Resources, new State { Ctm = flip }, graphics, texts, depth: 0);
 
-            output.Append("<div class=\"").Append(token[..^8]).Append("page\" data-page=\"").Append(_pageNumber)
+            output.Append("<div class=\"").Append(prefix).Append("page\" data-page=\"").Append(_pageNumber)
                 .Append("\" style=\"width:").Append(N(width)).Append("pt;height:").Append(N(height)).Append("pt\">")
                 .Append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ").Append(N(width)).Append(' ').Append(N(height)).Append("\">\n")
                 .Append(graphics);
@@ -297,6 +299,10 @@ public sealed partial class PdfDocumentReader
                         {
                             state.FillAlpha = file.Number(extGState.Get("ca")) ?? state.FillAlpha;
                             state.StrokeAlpha = file.Number(extGState.Get("CA")) ?? state.StrokeAlpha;
+                            if (extGState.Get("SMask") is { } mask && file.Name(mask) != "None")
+                            {
+                                Report("a soft mask (the mask or opacity group of an SVG image) is ignored");
+                            }
                         }
 
                         break;
@@ -696,7 +702,8 @@ public sealed partial class PdfDocumentReader
         {
             if (_reported.Add(message))
             {
-                warnings.Add(new WriteWarning("HTML: " + message + "."));
+                // With UnsupportedContent = Fail this throws, as the other writers do.
+                handler.Report("HTML: " + message + ".");
             }
         }
 

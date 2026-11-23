@@ -13,6 +13,8 @@ internal static class HtmlPagedChecks
             PagesMatchThePdf();
             CanvasPagesMatchThePdf();
             FragmentsAreScoped();
+            ClipsCroppedImages();
+            FailsOnApproximationWhenAsked();
             Console.WriteLine("Paged HTML: all checks passed.");
             return 0;
         }
@@ -146,6 +148,43 @@ internal static class HtmlPagedChecks
         Require(!Regex.Matches(secondHtml, "id=\"([^\"]+)\"").Any(match => ids.Contains(match.Groups[1].Value)), "Two fragments share no id.");
         Require(!Regex.Matches(secondHtml, "font-family:\"([^\"]+)\"").Any(match => families.Contains(match.Groups[1].Value)), "Two fragments share no font family name.");
         Expect<ArgumentException>(() => _ = new PdfHtmlOptions { ClassPrefix = "a}b" }, "A prefix with CSS syntax is rejected.");
+    }
+
+    private static string Html(PortableDocument document, PdfWriteOptions? options = null)
+    {
+        using var buffer = new MemoryStream();
+        new PdfDocumentWriter().WriteHtmlAsync(document, buffer, options ?? Options).GetAwaiter().GetResult();
+        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+    }
+
+    private static void ClipsCroppedImages()
+    {
+        var cropped = new ImageBlock(TestImages.RgbPng(20, 20, 0, 128, 0), ImageMediaType.Png)
+        {
+            Width = Length.FromPoints(100),
+            Height = Length.FromPoints(100),
+            Crop = new ImageCrop(0.25, 0.25, 0.25, 0.25),
+        };
+        var html = Html(new PortableDocument(new DocumentMetadata(), new Section(cropped)));
+        var clip = Regex.Match(html, "<clipPath id=\"([^\"]+)\"[^>]*><path d=\"([^\"]+)\"");
+        Require(clip.Success, "The crop becomes a clip path.");
+        Require(Regex.IsMatch(html, $"<g clip-path=\"url\\(#{Regex.Escape(clip.Groups[1].Value)}\\)\"><use href="), "The image is drawn inside the clip.");
+    }
+
+    private static void FailsOnApproximationWhenAsked()
+    {
+        // A gradient in an SVG picture is drawn with a shading, which the HTML only approximates.
+        var svg = System.Text.Encoding.UTF8.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"50\"><defs><linearGradient id=\"g\"><stop offset=\"0\" stop-color=\"#f00\"/><stop offset=\"1\" stop-color=\"#00f\"/></linearGradient></defs><rect width=\"100\" height=\"50\" fill=\"url(#g)\"/></svg>");
+        var document = new PortableDocument(new DocumentMetadata(), new Section(new ImageBlock(svg, ImageMediaType.Svg)));
+        using (var buffer = new MemoryStream())
+        {
+            var result = new PdfDocumentWriter().WriteHtmlAsync(document, buffer, Options).GetAwaiter().GetResult();
+            Require(result.Warnings.Any(warning => warning.Message.Contains("gradient", StringComparison.Ordinal)), "The approximated gradient is reported.");
+        }
+
+        Expect<UnsupportedFeatureException>(
+            () => Html(document, Options with { UnsupportedContent = UnsupportedContentBehavior.Fail }),
+            "With Fail the approximation throws.");
     }
 
     private static void Expect<T>(Action action, string message)
