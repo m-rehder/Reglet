@@ -14,6 +14,7 @@ internal static class MigraDocParity2Checks
         try
         {
             RowKeptOnOnePage();
+            LineBreaksAfterHyphen();
             Console.WriteLine("MigraDoc parity 2: all checks passed.");
             return 0;
         }
@@ -75,6 +76,24 @@ internal static class MigraDocParity2Checks
             var rows = reader.Read(buffer).Document.Sections[0].Blocks.OfType<TableBlock>().Single().Rows;
             Require(rows[^1].KeepTogether && !rows[1].KeepTogether, name + ": KeepTogether survives on its row only.");
         }
+    }
+
+    private static void LineBreaksAfterHyphen()
+    {
+        List<(double Size, double X, double Y, string Text)> Cell(string text)
+            => Pages(Document(new Section(new TableBlock([new TableRow(new TableCell([new Paragraph(new TextRun(text))]))])
+            {
+                ColumnWidths = [Length.FromCentimeters(7.5)],
+            })))[0];
+
+        var pieces = Cell("Typ: UP-Lochung, handelsübliche UP-Kombination, Blindabdeckung 80x80mm");
+        var hyphen = pieces.Single(piece => piece.Text == "UP-" && pieces.IndexOf(piece) > 2);
+        var word = pieces.Single(piece => piece.Text == "Kombination,");
+        Require(word.Y < hyphen.Y - 5 && Math.Abs(word.X - pieces[0].X) < 0.01, "The line breaks after 'UP-', 'Kombination' starts the next line.");
+
+        // A minus before a number and a hyphen at the start of a word stay with what follows.
+        var minus = Cell("Temperatur zwischen aaaaaaaaaaaaaaaaa -5 und +5 Grad");
+        Require(minus.Any(piece => piece.Text == "-5"), "'-5' is not split.");
     }
 
     private static void Require(bool condition, string message)

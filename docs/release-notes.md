@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### PDF
+
+- A line also breaks after a hyphen inside a word, before a letter (UAX #14 class HY, as Word and MigraDoc):
+  `handelsübliche UP-` / `Kombination`. A hyphen before a digit (`-5`, `2026-09-25`) or at the start of a word keeps
+  its neighbours together.
+
 ### Tables
 
 - `TableRow.KeepTogether` keeps a row on one page: a row that does not fit at the bottom moves whole to the next page,

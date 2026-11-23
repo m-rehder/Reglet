@@ -3479,12 +3479,21 @@ internal sealed class PdfBlockRenderer
     private static bool IsBreakingSpace(char character)
         => char.IsWhiteSpace(character) && character is not ('\u00A0' or '\u2007' or '\u202F');
 
+    /// <summary>
+    /// A line may break before <paramref name="index"/> after a hyphen inside a word (UAX #14, class HY), as Word and
+    /// MigraDoc do: "UP-|Kombination", "A4-|Blatt"; never before a digit (UAX #14 HY × NU: "-5", "2026-09-25") or in "--".
+    /// </summary>
+    private static bool IsBreakAfterHyphen(string text, int index)
+        => index >= 2
+            && char.IsLetter(text[index])
+            && (text[index - 1] == '\u2010' || (text[index - 1] == '-' && char.IsLetterOrDigit(text[index - 2])));
+
     private static IEnumerable<TextAtom> SplitAtSpaces(TextAtom atom)
     {
         var start = 0;
         for (var index = 1; index < atom.Text.Length; index++)
         {
-            if (IsBreakingSpace(atom.Text[index]) != IsBreakingSpace(atom.Text[start]))
+            if (IsBreakingSpace(atom.Text[index]) != IsBreakingSpace(atom.Text[start]) || IsBreakAfterHyphen(atom.Text, index))
             {
                 yield return atom with { Text = atom.Text[start..index] };
                 start = index;
