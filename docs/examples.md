@@ -1,8 +1,8 @@
 # Example gallery
 
-Forty-two small programs, from "Hello World" to a complete invoice and report. Each one builds a document with
-Reglet and writes it to the formats it is meant for (usually DOCX, ODT and PDF); every file is read back, so the
-gallery doubles as a test.
+Forty-five small programs, from "Hello World" to a complete invoice, report and calculation workbook. Each one
+builds a document or workbook with Reglet and writes it to the formats it is meant for (usually DOCX, ODT and PDF);
+every file is read back and checked by the document validator, so the gallery doubles as a test.
 
 ```
 dotnet run --project examples/Gallery -- --list               # list all examples
@@ -108,6 +108,23 @@ Source: [`examples/Gallery/Pdf.cs`](../examples/Gallery/Pdf.cs)
 | `extract-text` | Reads the text of a PDF page by page. |
 | `data-sheet` | A technical data sheet drawn at fixed coordinates (`PdfCanvas`), with measured line breaks; as PDF and HTML. |
 | `html-preview` | The invoice as an HTML preview with the PDF's pages, alone and as a fragment in a host page. |
+
+## Workbooks
+
+Source: [`examples/Gallery/Workbooks.cs`](../examples/Gallery/Workbooks.cs) (package `Reglet.Xlsx`)
+
+| Example | What it shows |
+| --- | --- |
+| `calculation` | A quotation as an Excel workbook: formulas, number formats, borders, a logo and fit to one page wide. |
+| `read-a-workbook` | Reads a workbook back and lists every cell as Excel shows it. |
+
+## Validation
+
+Source: [`examples/Gallery/Validation.cs`](../examples/Gallery/Validation.cs) (package `Reglet.Validation`)
+
+| Example | What it shows |
+| --- | --- |
+| `validate-files` | Checks a DOCX, ODT, PDF and XLSX for what Word, LibreOffice and PDF readers reject, and finds a planted fault. |
 
 ## Complete documents
 

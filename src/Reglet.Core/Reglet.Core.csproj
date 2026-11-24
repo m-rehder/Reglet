@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <IsShippedLibrary>true</IsShippedLibrary>
-    <Description>Format-neutral document model, value types and writer contracts of Reglet.</Description>
+    <Description>Format-neutral document model, workbook model, value types and writer contracts of Reglet.</Description>
   </PropertyGroup>
 
   <ItemGroup>

@@ -7,6 +7,6 @@ using Gallery;
 IReadOnlyList<Example> all =
 [
     .. Basics.All(), .. Text.All(), .. Layout.All(), .. Tables.All(), .. Graphics.All(),
-    .. Collaboration.All(), .. Automation.All(), .. Pdf.All(), .. Showcase.All(),
+    .. Collaboration.All(), .. Automation.All(), .. Pdf.All(), .. Workbooks.All(), .. Validation.All(), .. Showcase.All(),
 ];
 return await ExampleRunner.RunAsync(args, all);

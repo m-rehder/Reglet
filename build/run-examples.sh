@@ -22,7 +22,8 @@ dotnet run --project examples/Gallery --configuration Release --verbosity quiet 
 
 # Spot checks: the first and the most complete examples exist in every format.
 for file in basics-hello-world.docx basics-hello-world.odt basics-hello-world.pdf basics-one-model-four-formats.html \
-            showcase-invoice.pdf showcase-report.docx showcase-business-letter.odt pdf-digital-signature.pdf; do
+            showcase-invoice.pdf showcase-report.docx showcase-business-letter.odt pdf-digital-signature.pdf \
+            workbooks-calculation.xlsx validation-validate-files.txt; do
   if [ ! -f "$out/$file" ]; then
     echo "ERROR: example output missing: $file" >&2
     exit 1

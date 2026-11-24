@@ -54,7 +54,7 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Description>Create, read and convert Word (DOCX), LibreOffice (ODT), PDF and HTML documents in .NET, with no dependencies beyond the base class library.</Description>
+    <Description>Create, read, convert and validate Word (DOCX), Excel (XLSX), LibreOffice (ODT), PDF and HTML files in .NET, with no dependencies beyond the base class library.</Description>
     <PackageTags>docx;odt;pdf;html;word;libreoffice;documents;office;report;invoice;mail-merge</PackageTags>
 
     <!-- Packing checks the public API and the target frameworks. -->

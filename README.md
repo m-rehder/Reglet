@@ -2,11 +2,13 @@
 
 <h1 align="center">Reglet</h1>
 
-<p align="center"><b>Create, read and convert Word, LibreOffice, PDF and HTML documents in .NET — with no dependencies.</b></p>
+<p align="center"><b>Create, read, convert and validate Word, Excel, LibreOffice, PDF and HTML files in .NET — with no dependencies.</b></p>
 
 Reglet builds documents from one format-neutral model and writes them as **DOCX** (Word), **ODT** (LibreOffice),
-**PDF** and **HTML**. It reads the same formats back, so it also converts between them. It needs nothing but the
-.NET base class library: no Office installation, no LibreOffice, no browser, no native libraries.
+**PDF** and **HTML**. It reads the same formats back, so it also converts between them. Beside documents it writes
+and reads **Excel workbooks** (XLSX), and it **validates** DOCX, XLSX, ODT and PDF files against their standards. It
+needs nothing but the .NET base class library: no Office installation, no LibreOffice, no browser, no native
+libraries.
 
 *A reglet is the strip of wood a printer puts between paragraphs of metal type.*
 
@@ -43,6 +45,31 @@ var read = DocumentReader.Read("report.docx");
 await DocumentWriter.WriteAsync(read.Document, "report.html");
 ```
 
+Workbooks and validation come in their own packages:
+
+```csharp
+// dotnet add package Reglet.Xlsx
+var workbook = new Workbook();
+var sheet = workbook.AddWorksheet("Quotation");
+sheet.Cell("A1").Value = "Monitor arm";
+sheet.Cell("B1").Value = 4;
+sheet.Cell("C1").Value = 89.90;
+sheet.Cell("D1").Formula = "B1*C1";
+sheet.Cell("D1").Style = new CellStyle { NumberFormat = "#,##0.00", Font = new CellFont { Bold = true } };
+await using (var file = File.Create("quotation.xlsx"))
+{
+    await new XlsxWorkbookWriter().WriteAsync(workbook, file);
+}
+
+// dotnet add package Reglet.Validation
+using var input = File.OpenRead("report.docx");
+var report = new DocumentValidator().Validate(input);
+foreach (var issue in report.Issues)
+{
+    Console.WriteLine(issue); // Error word/document.xml:12: The element ... is not allowed here
+}
+```
+
 Every writer returns the list of things a format could not show (for example a chart in HTML), so nothing is lost
 silently.
 
@@ -66,8 +93,8 @@ The exact state of every feature per format is in the [feature matrix](https://g
 
 ## Examples
 
-The [example gallery](https://github.com/m-rehder/Reglet/blob/main/docs/examples.md) has forty-two runnable programs — from "Hello World" to a complete invoice, a
-report and a business letter:
+The [example gallery](https://github.com/m-rehder/Reglet/blob/main/docs/examples.md) has forty-five runnable programs — from "Hello World" to a complete invoice, a
+report, a business letter and a calculation workbook:
 
 ```
 dotnet run --project examples/Gallery -- --list
@@ -77,7 +104,7 @@ dotnet run --project examples/Gallery -- --out ./out
 ## Documentation
 
 - [Example gallery](https://github.com/m-rehder/Reglet/blob/main/docs/examples.md) — what each example shows and where its code is.
-- [Guide](https://github.com/m-rehder/Reglet/blob/main/docs/guide.md) — writer options per format and templates in detail.
+- [Guide](https://github.com/m-rehder/Reglet/blob/main/docs/guide.md) — writer options per format, templates, workbooks and validation in detail.
 - [API reference](https://github.com/m-rehder/Reglet/blob/main/docs/api-reference.md) — every public type and member on one line each, generated; made for
   search and for coding agents.
 - [Feature matrix](https://github.com/m-rehder/Reglet/blob/main/docs/feature-matrix.md) — what each format supports, known limits.

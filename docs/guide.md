@@ -1,6 +1,6 @@
 # Reglet guide
 
-Writer options per format and document templates in detail. For a first overview see the
+Writer options per format, document templates, Excel workbooks and file validation in detail. For a first overview see the
 [README](../README.md) and the [example gallery](examples.md).
 
 ## Format options
@@ -220,3 +220,51 @@ var logo = new ImageBlock(svgBytes, ImageMediaType.Svg)
 };
 ```
 
+## Excel workbooks
+
+`Reglet.Xlsx` writes and reads Excel workbooks (ADR-0043). The model lives in Reglet.Core beside the document model,
+but unlike a document it is filled cell by cell:
+
+```csharp
+var workbook = new Workbook();
+var sheet = workbook.AddWorksheet("Costs");          // Excel's name rules are checked here
+sheet.Cell("A1").Value = "Item";
+sheet.Cell(2, 1).Value = DateTime.Today;             // a date gets Excel's short date format
+sheet.Cell("B2").Formula = "SUM(B3:B9)";             // calculated by Excel when it opens the file
+sheet.SetStyle("A1:B1", style => style with { Font = style.Font with { Bold = true }, Fill = Color.FromHex("D9D9D9") });
+sheet.SetOutsideBorder("A1:B9", new CellBorderLine(CellBorderStyle.Medium));
+sheet.Merge("A10:B10");
+sheet.ColumnWidths[1] = 30;                          // Excel's character units
+sheet.PageSetup = new SheetPageSetup { FitToPagesWide = 1, FitToPagesTall = 0, RepeatRows = (1, 1) };
+await new XlsxWorkbookWriter().WriteAsync(workbook, stream);
+```
+
+- Formulas are written without a cached value; Excel and LibreOffice calculate them on open. There is no calculation
+  engine.
+- `XlsxWorkbookReader.Read` reads a workbook back: values, formulas (shared formulas expanded), number formats,
+  styles with theme and indexed colours resolved, merged ranges, sizes, images and the page setup.
+- `cell.GetFormattedText(culture)` gives the text Excel shows for a value and its number format (sections, conditions,
+  scientific notation, fractions, dates and elapsed time).
+
+## Validating files
+
+`Reglet.Validation` checks a file for what Word, Excel, LibreOffice or a PDF reader would reject (ADR-0044):
+
+```csharp
+var report = new DocumentValidator().Validate(stream);   // the format is recognised from the content
+if (!report.IsValid)
+{
+    foreach (var issue in report.Errors)
+    {
+        Console.WriteLine($"{issue.Part}:{issue.Line} {issue.Message}");
+    }
+}
+```
+
+- DOCX, XLSX and other Office Open XML packages: package structure, content types, relationships, and the ECMA-376
+  Transitional schemas after markup compatibility as Office 2019 reads it.
+- ODT and ODS: mimetype and manifest, and the ODF 1.3 or 1.4 RELAX NG schema (markup in foreign namespaces, such as
+  LibreOffice's `loext`, is removed first).
+- PDF: header, cross-references, trailer, stream lengths, page tree, page boxes, content operators, fonts and
+  annotations. PDF/A conformance is not checked; use veraPDF for that.
+- A warning opens but may lose something; an error is what a program refuses or offers to repair.

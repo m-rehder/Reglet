@@ -8,6 +8,8 @@ namespace Gallery;
 /// </summary>
 public static class ExampleRunner
 {
+    private static readonly DocumentValidator Validator = new();
+
     /// <summary>Runs the chosen examples and returns the exit code.</summary>
     public static async Task<int> RunAsync(string[] args, IReadOnlyList<Example> all)
     {
@@ -79,6 +81,23 @@ public static class ExampleRunner
             foreach (var path in files)
             {
                 Console.WriteLine($"  {Path.GetFileName(path)}");
+                if (Path.GetExtension(path).ToLowerInvariant() is ".docx" or ".odt" or ".pdf" or ".xlsx")
+                {
+                    // Every file the gallery writes must pass the validator (a protected file only its first checks).
+                    using var check = File.OpenRead(path);
+                    var report = Validator.Validate(check);
+                    if (!report.IsValid)
+                    {
+                        throw new InvalidOperationException($"{Path.GetFileName(path)} is not valid: {string.Join("; ", report.Errors)}");
+                    }
+                }
+
+                if (Path.GetExtension(path).ToLowerInvariant() == ".xlsx")
+                {
+                    using var workbook = File.OpenRead(path);
+                    _ = new XlsxWorkbookReader().Read(workbook);
+                }
+
                 if (Path.GetExtension(path).ToLowerInvariant() is ".docx" or ".odt" or ".pdf" or ".html")
                 {
                     // The protected examples share one password; an unprotected file ignores it.
