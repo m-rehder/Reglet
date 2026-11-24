@@ -26,6 +26,24 @@ internal static class DocxConstants
     public const string DrawingPictureNamespace =
         "http://schemas.openxmlformats.org/drawingml/2006/picture";
 
+    public const string MarkupCompatibilityNamespace = "http://schemas.openxmlformats.org/markup-compatibility/2006";
+    public const string Word2010Namespace = "http://schemas.microsoft.com/office/word/2010/wordml";
+    public const string WordprocessingGroupNamespace = "http://schemas.microsoft.com/office/word/2010/wordprocessingGroup";
+
+    /// <summary>
+    /// Declares the Word 2010 extension namespaces a story part may use (w14 attributes and check boxes, wps shapes,
+    /// wpg groups) at its root and marks them ignorable (ECMA-376 part 3), so readers that do not know them, such as
+    /// Word 2007, skip that markup instead of refusing the part. Word 2010 and later read it as before.
+    /// </summary>
+    public static void WriteCompatibilityNamespaces(System.Xml.XmlWriter writer)
+    {
+        writer.WriteAttributeString("xmlns", "mc", null, MarkupCompatibilityNamespace);
+        writer.WriteAttributeString("xmlns", "w14", null, Word2010Namespace);
+        writer.WriteAttributeString("xmlns", "wps", null, WordprocessingShapeNamespace);
+        writer.WriteAttributeString("xmlns", "wpg", null, WordprocessingGroupNamespace);
+        writer.WriteAttributeString("mc", "Ignorable", MarkupCompatibilityNamespace, "w14 wps wpg");
+    }
+
     /// <summary>The namespace of the SVG extension of a picture (Word 2016 and newer).</summary>
     public const string SvgDrawingNamespace =
         "http://schemas.microsoft.com/office/drawing/2016/SVG/main";

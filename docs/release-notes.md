@@ -4,6 +4,13 @@
 
 See ADR-0043 and ADR-0044.
 
+### DOCX
+
+- The story parts (document, headers, footers, notes, comments) declare the Word 2010 extension namespaces they may
+  use (`w14`, `wps`, `wpg`) at their root and mark them ignorable (`mc:Ignorable`), so Word 2007 and ECMA-only readers
+  skip shapes, check boxes and comment ids they do not know instead of refusing the file. Word 2010 and later and
+  LibreOffice read the files as before.
+
 ### Validation (new package Reglet.Validation)
 
 - `DocumentValidator.Validate(stream)` checks DOCX, XLSX, ODF and PDF files for what Word, Excel, LibreOffice and PDF

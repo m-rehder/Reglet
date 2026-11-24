@@ -98,21 +98,23 @@ internal static class ValidationChecks
     private static void AppliesMarkupCompatibility()
     {
         var docx = Write(new DocxDocumentWriter(), Sample());
-        const string mc = "http://schemas.openxmlformats.org/markup-compatibility/2006";
-        string Root(string text, string extra) => text.Replace("<w:document ", $"<w:document xmlns:mc=\"{mc}\" xmlns:x=\"urn:example\" xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\" {extra}", StringComparison.Ordinal);
+        // Reglet declares w14, wps and wpg ignorable at the root; the checks below change that list.
+        string Root(string text, string ignorable) => text
+            .Replace("<w:document ", "<w:document xmlns:x=\"urn:example\" ", StringComparison.Ordinal)
+            .Replace("mc:Ignorable=\"w14 wps wpg\"", $"mc:Ignorable=\"{ignorable}\"", StringComparison.Ordinal);
 
         var ignorable = Validate(Rewrite(docx, (name, text) => name == "word/document.xml"
-            ? Root(text, "mc:Ignorable=\"x w14\" ").Replace("<w:body>", "<w:body><x:unknown/><w:p w14:paraId=\"1\"/>", StringComparison.Ordinal)
+            ? Root(text, "x w14 wps wpg").Replace("<w:body>", "<w:body><x:unknown/><w:p w14:paraId=\"1\"/>", StringComparison.Ordinal)
             : text));
         Require(ignorable.Issues.Count == 0, "Ignorable and Office extension markup is accepted: " + string.Join("; ", ignorable.Issues));
 
         var alternate = Validate(Rewrite(docx, (name, text) => name == "word/document.xml"
-            ? Root(text, string.Empty).Replace("<w:body>", "<w:body><mc:AlternateContent><mc:Choice Requires=\"x\"><x:new/></mc:Choice><mc:Fallback><w:p/></mc:Fallback></mc:AlternateContent>", StringComparison.Ordinal)
+            ? Root(text, "w14 wps wpg").Replace("<w:body>", "<w:body><mc:AlternateContent><mc:Choice Requires=\"x\"><x:new/></mc:Choice><mc:Fallback><w:p/></mc:Fallback></mc:AlternateContent>", StringComparison.Ordinal)
             : text));
         Require(alternate.Issues.Count == 0, "AlternateContent falls back when a choice needs an unknown namespace: " + string.Join("; ", alternate.Issues));
 
         var strict = Validate(Rewrite(docx, (name, text) => name == "word/document.xml"
-            ? Root(text, string.Empty).Replace("<w:body>", "<w:body><x:unknown/><w:p w14:paraId=\"1\"/>", StringComparison.Ordinal)
+            ? Root(text, "wps wpg").Replace("<w:body>", "<w:body><x:unknown/><w:p w14:paraId=\"1\"/>", StringComparison.Ordinal)
             : text));
         Require(strict.Errors.Any(issue => issue.Message.Contains("urn:example", StringComparison.Ordinal))
             && strict.Issues.Any(issue => issue.Severity == ValidationSeverity.Warning && issue.Message.Contains("2010/wordml", StringComparison.Ordinal)),

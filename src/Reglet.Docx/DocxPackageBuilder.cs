@@ -1386,6 +1386,7 @@ internal static class DocxPackageBuilder
         IProgress<WriteProgress>? progress)
     {
         writer.WriteStartElement("w", "document", DocxConstants.WordprocessingML);
+        DocxConstants.WriteCompatibilityNamespaces(writer);
         writer.WriteStartElement("w", "body", DocxConstants.WordprocessingML);
 
         for (var sectionIndex = 0; sectionIndex < document.Sections.Count; sectionIndex++)
@@ -1515,7 +1516,7 @@ internal static class DocxPackageBuilder
     }
 
     private const string WordprocessingShapeNamespace = DocxConstants.WordprocessingShapeNamespace;
-    private const string WordprocessingGroupNamespace = "http://schemas.microsoft.com/office/word/2010/wordprocessingGroup";
+    private const string WordprocessingGroupNamespace = DocxConstants.WordprocessingGroupNamespace;
 
     /// <summary>
     /// A shape or text box (ADR-0022): <c>wps:wsp</c> in an inline or anchored drawing. Word 2010 and
@@ -3092,6 +3093,7 @@ internal static class DocxPackageBuilder
         var root = isEndnote ? "endnotes" : "footnotes";
         var element = isEndnote ? "endnote" : "footnote";
         writer.WriteStartElement("w", root, DocxConstants.WordprocessingML);
+        DocxConstants.WriteCompatibilityNamespaces(writer);
 
         WriteNoteSeparator(writer, element, "separator", -1);
         WriteNoteSeparator(writer, element, "continuationSeparator", 0);
@@ -3455,6 +3457,7 @@ internal static class DocxPackageBuilder
         IReadOnlyDictionary<Block, XElement>? preservedBlocks = null)
     {
         writer.WriteStartElement("w", isHeader ? "hdr" : "ftr", DocxConstants.WordprocessingML);
+        DocxConstants.WriteCompatibilityNamespaces(writer);
 
         // images reference the media via the relationships of their own part;
         // page breaks cannot be represented in the header/footer and are reported.

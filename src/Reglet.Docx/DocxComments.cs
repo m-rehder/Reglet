@@ -100,6 +100,7 @@ internal static class DocxComments
     public static void WriteCommentsPart(XmlWriter writer, DocxWriteContext context, IReadOnlyList<Comment> comments)
     {
         writer.WriteStartElement("w", "comments", DocxConstants.WordprocessingML);
+        DocxConstants.WriteCompatibilityNamespaces(writer);
 
         foreach (var comment in comments.SelectMany(Thread))
         {
