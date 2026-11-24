@@ -21,6 +21,7 @@ internal static class WorkbookChecks
             FormatsNumbers();
             RejectsBrokenInput();
             ReadsExcelFeatures();
+            ReadsForeignWorkbooksTolerantly();
             Console.WriteLine("Workbooks (XLSX): all checks passed.");
             return 0;
         }
@@ -348,6 +349,61 @@ internal static class WorkbookChecks
         var lines = XlsxFormula.Shift("SUM(A:A)+SUM($B:C)+SUM(1:3)+SUM($2:$2)+SUM(Sheet2!D:D)+LOG10(A1)", 1, 1);
         Require(lines == "SUM(B:B)+SUM($B:D)+SUM(2:4)+SUM($2:$2)+SUM(Sheet2!E:E)+LOG10(B2)", $"Whole columns and rows move along their axis, got {lines}.");
         Require(XlsxFormula.Shift("SUM(XFD:XFD)", 0, 1) == "SUM(#REF!)", "A column past the last is #REF!.");
+    }
+
+    /// <summary>Audit 2026-11-24: names and texts beyond Excel's limits are kept on reading; many merges stay fast.</summary>
+    private static void ReadsForeignWorkbooksTolerantly()
+    {
+        const string main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        const string rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+        const string pkg = "http://schemas.openxmlformats.org/package/2006/relationships";
+        var longName = new string('n', 40);
+        var longText = new string('t', 40_000);
+        var merges = string.Concat(Enumerable.Range(1, 20_000).Select(row => $"<mergeCell ref=\"A{row}:B{row}\"/>"));
+        var parts = new Dictionary<string, string>
+        {
+            ["xl/workbook.xml"] = $"<workbook xmlns=\"{main}\" xmlns:r=\"{rel}\"><sheets><sheet name=\"{longName}\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>",
+            ["xl/_rels/workbook.xml.rels"] = $"<Relationships xmlns=\"{pkg}\"><Relationship Id=\"rId1\" Type=\"{rel}/worksheet\" Target=\"worksheets/sheet1.xml\"/></Relationships>",
+            ["xl/worksheets/sheet1.xml"] = $"<worksheet xmlns=\"{main}\"><sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>{longText}</t></is></c></row></sheetData><mergeCells>{merges}</mergeCells></worksheet>",
+        };
+        using var buffer = new MemoryStream();
+        using (var zip = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, xml) in parts)
+            {
+                using var writer = new StreamWriter(zip.CreateEntry(name).Open());
+                writer.Write(xml);
+            }
+        }
+
+        buffer.Position = 0;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var workbook = new XlsxWorkbookReader().Read(buffer);
+        Require(watch.Elapsed < TimeSpan.FromSeconds(10), $"20,000 merges read in bounded time ({watch.Elapsed}).");
+        var sheet = workbook.Worksheets.Single();
+        Require(sheet.Name == longName && sheet.Cell("A1").Value is string { Length: 40_000 } && sheet.MergedRanges.Count == 10_000,
+            "A foreign name and text beyond Excel's limits are kept; merges stop at 10,000.");
+        Throws<DocumentValidationException>(() => Write(workbook, out _), "Writing a name Excel refuses is an error.");
+
+
+        // The continued fraction finds the same fraction as trying every denominator.
+        var random = new Random(7);
+        for (var index = 0; index < 500; index++)
+        {
+            var value = random.NextDouble();
+            foreach (var limit in new long[] { 9, 99, 999 })
+            {
+                var (numerator, denominator) = CellFormatter.Approximate(value, limit);
+                var best = double.MaxValue;
+                for (long candidate = 1; candidate <= limit; candidate++)
+                {
+                    best = Math.Min(best, Math.Abs(value - (Math.Round(value * candidate) / candidate)));
+                }
+
+                Require(denominator <= limit && Math.Abs(Math.Abs(value - ((double)numerator / denominator)) - best) < 1e-12,
+                    $"{value} with denominators up to {limit}: {numerator}/{denominator} is the closest fraction.");
+            }
+        }
     }
 
     private static void Throws<T>(Action action, string message)

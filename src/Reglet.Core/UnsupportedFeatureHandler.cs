@@ -27,4 +27,15 @@ internal sealed class UnsupportedFeatureHandler
 
         _warnings.Add(new WriteWarning(message));
     }
+
+    private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
+
+    /// <summary>Reports a message once, however often the writer meets the same thing (one per run, cell, …).</summary>
+    public void ReportOnce(string message)
+    {
+        if (_reported.Add(message))
+        {
+            Report(message);
+        }
+    }
 }

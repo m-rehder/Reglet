@@ -23,14 +23,29 @@ internal static class PdfStructure
         "Helvetica-BoldOblique", "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", "Symbol", "ZapfDingbats",
     ];
 
+    /// <summary>The deepest page tree that is walked; real files stay far below it, a deeper one would exhaust the stack.</summary>
+    private const int MaxTreeDepth = 256;
+
+    /// <summary>The bytes all decoded streams may add up to; beyond it the remaining streams are not decoded.</summary>
+    private const long MaxDecodedTotal = 512L * 1024 * 1024;
+
+    /// <summary>The decoding budget of one check, shared by the object and the content checks.</summary>
+    private sealed class Budget
+    {
+        public long Remaining { get; set; } = MaxDecodedTotal;
+
+        public bool Exhausted { get; set; }
+    }
+
     public static void Check(byte[] data, PdfFile file, IReadOnlyDictionary<int, int> offsets, PdfDictionary trailer, IssueList issues, CancellationToken cancellationToken)
     {
+        var budget = new Budget();
         foreach (var (number, offset) in offsets.OrderBy(entry => entry.Key))
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (number > 0)
             {
-                CheckObject(data, file, number, offset, issues);
+                CheckObject(data, file, number, offset, budget, issues);
             }
         }
 
@@ -44,7 +59,25 @@ internal static class PdfStructure
         var visited = new HashSet<int>();
         var rootNumber = (file.Dictionary(trailer.Get("Root"))?.Get("Pages") as PdfReference)?.ObjectNumber ?? -1;
         visited.Add(rootNumber);
-        Walk(file, pages, rootNumber, Inherited.Empty, visited, ref pageNumber, issues, cancellationToken);
+        Walk(file, pages, rootNumber, Inherited.Empty, visited, 0, ref pageNumber, budget, issues, cancellationToken);
+        if (budget.Exhausted)
+        {
+            issues.Warning("[file]", null, $"The streams decode to more than {MaxDecodedTotal / (1024 * 1024)} MB; the rest were not decoded and checked.");
+        }
+    }
+
+    /// <summary>Decodes a stream within the budget; null when the budget is spent.</summary>
+    private static byte[]? Decode(PdfFile file, PdfStreamValue stream, Budget budget)
+    {
+        if (budget.Remaining <= 0)
+        {
+            budget.Exhausted = true;
+            return null;
+        }
+
+        var decoded = file.DecodeStream(stream);
+        budget.Remaining -= decoded.Length;
+        return decoded;
     }
 
     private sealed record Inherited(PdfValue? MediaBox, PdfValue? Resources)
@@ -53,8 +86,15 @@ internal static class PdfStructure
     }
 
     /// <summary>Returns the number of pages below the node.</summary>
-    private static int Walk(PdfFile file, PdfDictionary node, int nodeNumber, Inherited inherited, HashSet<int> visited, ref int pageNumber, IssueList issues, CancellationToken cancellationToken)
+    private static int Walk(PdfFile file, PdfDictionary node, int nodeNumber, Inherited inherited, HashSet<int> visited, int depth, ref int pageNumber, Budget budget, IssueList issues, CancellationToken cancellationToken)
     {
+        ReaderGuard.EnsureStack();
+        if (depth > MaxTreeDepth)
+        {
+            issues.Error(nodeNumber > 0 ? $"object {nodeNumber}" : "page tree", null, $"The page tree is nested deeper than {MaxTreeDepth} levels; it is not walked further.");
+            return 0;
+        }
+
         var here = new Inherited(node.Get("MediaBox") ?? inherited.MediaBox, node.Get("Resources") ?? inherited.Resources);
         var part = nodeNumber > 0 ? $"object {nodeNumber}" : "page tree";
         if (file.Name(node.Get("Type")) != "Pages")
@@ -87,12 +127,12 @@ internal static class PdfStructure
             switch (file.Name(child.Get("Type")))
             {
                 case "Pages":
-                    leaves += Walk(file, child, kidNumber, here, visited, ref pageNumber, issues, cancellationToken);
+                    leaves += Walk(file, child, kidNumber, here, visited, depth + 1, ref pageNumber, budget, issues, cancellationToken);
                     break;
                 case "Page":
                     leaves++;
                     pageNumber++;
-                    CheckPage(file, child, pageNumber, here, issues);
+                    CheckPage(file, child, pageNumber, here, budget, issues);
                     break;
                 default:
                     issues.Error(kidNumber > 0 ? $"object {kidNumber}" : part, null, "A /Kids entry is neither /Type /Page nor /Type /Pages.");
@@ -108,7 +148,7 @@ internal static class PdfStructure
         return leaves;
     }
 
-    private static void CheckPage(PdfFile file, PdfDictionary page, int number, Inherited inherited, IssueList issues)
+    private static void CheckPage(PdfFile file, PdfDictionary page, int number, Inherited inherited, Budget budget, IssueList issues)
     {
         var part = $"page {number}";
         var box = file.Array(page.Get("MediaBox") ?? inherited.MediaBox);
@@ -145,7 +185,12 @@ internal static class PdfStructure
 
                 try
                 {
-                    content.AddRange(file.DecodeStream(stream));
+                    if (Decode(file, stream, budget) is not { } decoded)
+                    {
+                        return;
+                    }
+
+                    content.AddRange(decoded);
                     content.Add((byte)'\n');
                 }
                 catch (Exception exception) when (exception is not IssueList.FullException and not OperationCanceledException)
@@ -383,7 +428,7 @@ internal static class PdfStructure
     }
 
     /// <summary>The object's syntax: header, value, endobj, and for a stream a /Length that lands on endstream.</summary>
-    private static void CheckObject(byte[] data, PdfFile file, int number, int offset, IssueList issues)
+    private static void CheckObject(byte[] data, PdfFile file, int number, int offset, Budget budget, IssueList issues)
     {
         var part = $"object {number}";
         try
@@ -428,7 +473,7 @@ internal static class PdfStructure
                 {
                     try
                     {
-                        file.DecodeStream(stream);
+                        Decode(file, stream, budget);
                     }
                     catch (Exception exception) when (exception is not IssueList.FullException and not OperationCanceledException)
                     {

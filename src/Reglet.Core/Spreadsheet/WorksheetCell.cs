@@ -37,7 +37,7 @@ public sealed class WorksheetCell
         get => _value;
         set
         {
-            _value = Normalize(value);
+            _value = Normalize(value, checkLength: true);
             _formula = null;
         }
     }
@@ -75,17 +75,27 @@ public sealed class WorksheetCell
     internal void SetFormulaResult(string formula, object? cached)
     {
         _formula = formula;
-        _value = Normalize(cached);
+        _value = Normalize(cached, checkLength: false);
     }
 
-    private static object? Normalize(object? value) => value switch
+    /// <summary>Sets a value read from a file, also a text longer than Excel's limit (used by the reader).</summary>
+    internal void SetReadValue(object? value)
     {
-        string text when text.Length > MaxText => throw new ArgumentException($"A cell holds at most {MaxText} characters.", nameof(value)),
-        RichText rich when rich.ToString().Length > MaxText => throw new ArgumentException($"A cell holds at most {MaxText} characters.", nameof(value)),
+        _value = Normalize(value, checkLength: false);
+        _formula = null;
+    }
+
+    /// <summary>Whether the value is a text longer than Excel's 32,767 characters (possible only for read cells).</summary>
+    internal bool IsTooLong => _value is string text && text.Length > MaxText || _value is RichText rich && rich.ToString().Length > MaxText;
+
+    private static object? Normalize(object? value, bool checkLength) => value switch
+    {
+        string text when checkLength && text.Length > MaxText => throw new ArgumentException($"A cell holds at most {MaxText} characters.", nameof(value)),
+        RichText rich when checkLength && rich.ToString().Length > MaxText => throw new ArgumentException($"A cell holds at most {MaxText} characters.", nameof(value)),
         null or string or RichText or bool or DateTime => value,
         DateOnly date => date.ToDateTime(TimeOnly.MinValue),
         double number => double.IsFinite(number) ? number : throw new ArgumentException("A cell number must be finite.", nameof(value)),
-        float number => Normalize((double)number),
+        float number => Normalize((double)number, checkLength),
         int or long or short or byte or sbyte or uint or ulong or ushort => Convert.ToDouble(value, CultureInfo.InvariantCulture),
         decimal number => (double)number,
         _ => throw new ArgumentException($"A cell cannot hold a {value.GetType().Name}.", nameof(value)),

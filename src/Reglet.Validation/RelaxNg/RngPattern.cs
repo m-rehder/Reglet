@@ -156,11 +156,20 @@ internal abstract class Pattern(int id)
     }
 }
 
-/// <summary>Creates patterns, shares equal ones and applies the simplifications of Clark's algorithm.</summary>
+/// <summary>
+/// Creates patterns, shares equal ones and applies the simplifications of Clark's algorithm. A schema owns one factory
+/// that is frozen once the schema is loaded; each validation derives its patterns in a child factory that reads the
+/// schema's and keeps its own, so nothing grows across validations and validations run in parallel without a lock.
+/// </summary>
 internal sealed class RngPatterns
 {
+    /// <summary>The most patterns one validation may derive; a document that needs more stops being checked.</summary>
+    public const int MaxDerived = 400_000;
+
+    private readonly RngPatterns? _parent;
     private readonly Dictionary<(int Kind, int First, int Second), Pattern> _shared = [];
     private readonly Dictionary<string, Pattern> _leaves = new(StringComparer.Ordinal);
+    private readonly int _first;
     private int _next;
 
     public RngPatterns()
@@ -170,7 +179,25 @@ internal sealed class RngPatterns
         Text = new Pattern.Text(_next++);
     }
 
+    /// <summary>A child factory for one validation: it shares the parent's patterns and keeps the ones it derives.</summary>
+    public RngPatterns(RngPatterns parent)
+    {
+        _parent = parent;
+        Empty = parent.Empty;
+        NotAllowed = parent.NotAllowed;
+        Text = parent.Text;
+        _first = _next = parent._next;
+    }
+
+    /// <summary>Thrown when one validation derives more than <see cref="MaxDerived"/> patterns.</summary>
+    public sealed class BudgetExceededException : Exception
+    {
+    }
+
     public Pattern Empty { get; }
+
+    /// <summary>How many patterns this factory has created (with its parent's); for tests.</summary>
+    internal int Count => _next;
 
     public Pattern NotAllowed { get; }
 
@@ -253,9 +280,9 @@ internal sealed class RngPatterns
 
     public Pattern List(Pattern content) => content is Pattern.NotAllowed ? NotAllowed : Shared(6, content, content, (id, a, _) => new Pattern.List(id, a));
 
-    public Pattern Attribute(NameClass name, Pattern content) => new Pattern.Attribute(_next++, name, content);
+    public Pattern Attribute(NameClass name, Pattern content) => new Pattern.Attribute(NextId(), name, content);
 
-    public Pattern.Element Element(NameClass name) => new(_next++, name);
+    public Pattern.Element Element(NameClass name) => new(NextId(), name);
 
     public Pattern Data(Datatype type, Pattern? except)
         => Leaf($"d|{type.Key}|{except?.Id}", id => new Pattern.Data(id, type, except));
@@ -264,9 +291,14 @@ internal sealed class RngPatterns
 
     private Pattern Shared(int kind, Pattern first, Pattern second, Func<int, Pattern, Pattern, Pattern> create)
     {
+        if (_parent?._shared.TryGetValue((kind, first.Id, second.Id), out var inherited) == true)
+        {
+            return inherited!;
+        }
+
         if (!_shared.TryGetValue((kind, first.Id, second.Id), out var pattern))
         {
-            pattern = create(_next++, first, second);
+            pattern = create(NextId(), first, second);
             _shared.Add((kind, first.Id, second.Id), pattern);
         }
 
@@ -275,12 +307,27 @@ internal sealed class RngPatterns
 
     private Pattern Leaf(string key, Func<int, Pattern> create)
     {
+        if (_parent?._leaves.TryGetValue(key, out var inherited) == true)
+        {
+            return inherited!;
+        }
+
         if (!_leaves.TryGetValue(key, out var pattern))
         {
-            pattern = create(_next++);
+            pattern = create(NextId());
             _leaves.Add(key, pattern);
         }
 
         return pattern;
+    }
+
+    private int NextId()
+    {
+        if (_parent is not null && _next - _first >= MaxDerived)
+        {
+            throw new BudgetExceededException();
+        }
+
+        return _next++;
     }
 }

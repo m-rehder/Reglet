@@ -30,7 +30,14 @@ internal static class OdfValidator
         issues.Format = format;
         CheckMimetypeEntry(data, mimetype, issues);
 
-        var files = zip.Entries.Where(entry => !entry.FullName.EndsWith('/')).ToDictionary(entry => entry.FullName, StringComparer.Ordinal);
+        var files = new Dictionary<string, ZipArchiveEntry>(StringComparer.Ordinal);
+        foreach (var entry in zip.Entries.Where(entry => !entry.FullName.EndsWith('/')))
+        {
+            if (!files.TryAdd(entry.FullName, entry))
+            {
+                issues.Error("[package]", null, $"The entry '{entry.FullName}' occurs twice in the package.");
+            }
+        }
         var encrypted = new HashSet<string>(StringComparer.Ordinal);
         if (zip.GetEntry(Manifest) is not { } manifestEntry)
         {

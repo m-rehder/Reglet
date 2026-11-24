@@ -1,5 +1,32 @@
 # Reglet – Release notes
 
+## 1.6.1
+
+Fixes from a review of 1.6.0, most of them for files built to harm a service that validates or reads untrusted input.
+
+### Validation
+
+- A PDF whose page tree is nested very deeply no longer exhausts the stack (which ends the process); trees deeper
+  than 256 levels are reported and not walked further.
+- Decoding PDF streams has a budget of 512 MB per check, so a file of many highly compressed streams, or one content
+  stream shared by very many pages, cannot keep a validation busy for long; the rest is reported as not checked.
+- The ODF schema check no longer keeps the patterns it derives in the shared schema: memory stays flat across
+  validations, validations run in parallel without a lock, and one part that would need more than 400,000 patterns
+  stops with a warning.
+- Whatever stops a check (an ODF package with an entry twice, a part over the size limit, …) is now a finding in the
+  report instead of an exception.
+
+### Workbooks
+
+- `XlsxWorkbookReader` keeps sheet names and cell texts beyond Excel's limits (from other programs) instead of
+  refusing the workbook; `XlsxWorkbookWriter` refuses such a name and warns about such a text.
+- Reading stops at 10,000 merged ranges per sheet, so a workbook with very many merges reads in bounded time.
+- Fractions in number formats (`# ??/??`) are found by continued fractions instead of trying every denominator.
+
+### DOCX
+
+- The warning that a highlight colour falls back to shading comes once per colour, not once per run.
+
 ## 1.6.0
 
 See ADR-0043 and ADR-0044.

@@ -30,6 +30,16 @@ public sealed class XlsxWorkbookWriter
             throw new DocumentValidationException("XLSX: a workbook needs at least one sheet.");
         }
 
+        // A workbook read from a file may carry names Excel refuses; Excel would repair (rename) them.
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var sheet in workbook.Worksheets)
+        {
+            if (!Workbook.IsValidSheetName(sheet.Name) || !names.Add(sheet.Name))
+            {
+                throw new DocumentValidationException($"XLSX: '{sheet.Name}' is not a valid or unique sheet name; Excel would refuse it.");
+            }
+        }
+
         var effective = options ?? XlsxWriteOptions.Default;
         var warnings = new List<WriteWarning>();
         return WriterOutput.Write(
@@ -255,6 +265,11 @@ public sealed class XlsxWorkbookWriter
 
             foreach (var cell in byRow[row])
             {
+                if (cell.IsTooLong)
+                {
+                    warnings.Add(new WriteWarning($"XLSX: the text of {sheet.Name}!{cell.Reference} is longer than Excel's 32,767 characters; Excel cuts it."));
+                }
+
                 WriteCell(writer, cell, styles, strings);
             }
 

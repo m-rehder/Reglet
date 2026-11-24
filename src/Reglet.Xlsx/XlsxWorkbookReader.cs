@@ -16,6 +16,9 @@ public sealed class XlsxWorkbookReader
     private static readonly XNamespace S = XlsxConstants.Main;
     private static readonly XNamespace R = XlsxConstants.Relationships;
 
+    /// <summary>The most merged ranges read per sheet (Excel files rarely have more than a few hundred).</summary>
+    private const int MaxMerges = 10_000;
+
     /// <summary>Reads a workbook from the stream; the stream stays open.</summary>
     /// <exception cref="DocumentValidationException">The stream is not a readable XLSX package.</exception>
     public Workbook Read(Stream input, CancellationToken cancellationToken = default)
@@ -43,7 +46,7 @@ public sealed class XlsxWorkbookReader
             foreach (var sheetElement in sheets)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var sheet = workbook.AddWorksheet((string?)sheetElement.Attribute("name") ?? string.Empty);
+                var sheet = workbook.AddReadWorksheet((string?)sheetElement.Attribute("name") ?? string.Empty);
                 var id = (string?)sheetElement.Attribute(R + "id");
                 if (id is not null && relationships.TryGetValue(id, out var target) && Load(zip, target.Target) is { } sheetXml)
                 {
@@ -95,12 +98,13 @@ public sealed class XlsxWorkbookReader
             }
         }
 
-        foreach (var merge in xml.Element(S + "mergeCells")?.Elements(S + "mergeCell") ?? [])
+        // An overlapping or malformed merge in a foreign file is skipped rather than failing the whole read. Each merge
+        // is checked against the earlier ones, so a hostile file with very many merges is cut off at MaxMerges.
+        foreach (var merge in (xml.Element(S + "mergeCells")?.Elements(S + "mergeCell") ?? []).Take(MaxMerges))
         {
-            // An overlapping or malformed merge in a foreign file is skipped rather than failing the whole read.
             if ((string?)merge.Attribute("ref") is { } reference && reference.Contains(':')
-                && !sheet.MergedRanges.Any(existing => TryParseRange(reference) is not { } range || existing.Overlaps(range))
-                && TryParseRange(reference) is { } parsed && parsed.First != parsed.Last)
+                && TryParseRange(reference) is { } parsed && parsed.First != parsed.Last
+                && !sheet.MergedRanges.Any(existing => existing.Overlaps(parsed)))
             {
                 sheet.Merge(reference);
             }
@@ -177,7 +181,7 @@ public sealed class XlsxWorkbookReader
         }
         else if (value is not null)
         {
-            cell.Value = value;
+            cell.SetReadValue(value);
         }
     }
 

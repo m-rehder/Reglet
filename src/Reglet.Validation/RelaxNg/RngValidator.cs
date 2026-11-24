@@ -5,11 +5,12 @@ namespace Reglet.RelaxNg;
 /// <summary>
 /// Validates an element tree against a <see cref="RngSchema"/> with James Clark's derivative algorithm. Each element
 /// that does not fit gets one finding; validation then goes on with its parent as if the element had fitted, so one
-/// fault does not cascade. Not thread-safe: the schema's pattern factory grows while validating (callers lock).
+/// fault does not cascade. One instance validates one part; its derived patterns live in its own child factory, so
+/// several validators may share a schema across threads.
 /// </summary>
 internal sealed class RngValidator(RngSchema schema, Action<XObject, string> report)
 {
-    private readonly RngPatterns _p = schema.Patterns;
+    private readonly RngPatterns _p = new(schema.Patterns);
     private readonly Dictionary<(int, QualifiedName), Pattern> _open = [];
     private readonly Dictionary<int, Pattern> _close = [];
     private readonly Dictionary<int, Pattern> _end = [];
@@ -25,6 +26,7 @@ internal sealed class RngValidator(RngSchema schema, Action<XObject, string> rep
 
     private Pattern Element(Pattern state, XElement element)
     {
+        ReaderGuard.EnsureStack();
         var name = new QualifiedName(element.Name.NamespaceName, element.Name.LocalName);
         var opened = StartTagOpen(state, name);
         if (opened is Pattern.NotAllowed)

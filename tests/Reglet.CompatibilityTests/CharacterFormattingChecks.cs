@@ -245,6 +245,7 @@ internal static class CharacterFormattingChecks
         {
             new TextRun("a") { Highlight = Color.FromHex("FF0000"), Background = Color.FromHex("00FF00") },
             new TextRun("b") { Highlight = Color.FromHex("123456") },
+            new TextRun("c") { Highlight = Color.FromHex("123456"), Bold = true },
         })));
 
         using var docx = new MemoryStream();
@@ -254,8 +255,8 @@ internal static class CharacterFormattingChecks
         Require(marker >= 0 && body.IndexOf("w:fill=\"00FF00\"", StringComparison.Ordinal) > marker,
             "DOCX: a marker colour and a background are both written, in schema order.");
         Require(body.Contains("w:fill=\"123456\"", StringComparison.Ordinal), "DOCX: an unnamed highlight falls back to shading.");
-        Require(result.Warnings.Any(warning => warning.Message.Contains("123456", StringComparison.Ordinal)),
-            "DOCX: the shading fallback is reported.");
+        Require(result.Warnings.Count(warning => warning.Message.Contains("123456", StringComparison.Ordinal)) == 1,
+            "DOCX: the shading fallback is reported once, however many runs use the colour.");
 
         using var read = new MemoryStream(docx.ToArray());
         var runs = ((Paragraph)new DocxDocumentReader().Read(read).Document.Sections[0].Blocks[0]).Inlines.OfType<TextRun>().ToList();

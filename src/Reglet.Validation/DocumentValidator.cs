@@ -35,6 +35,12 @@ public sealed class DocumentValidator
         {
             format = issues.Format ?? "unknown";
         }
+        catch (Exception exception) when (exception is not (OperationCanceledException or OutOfMemoryException))
+        {
+            // A validator answers with a report: whatever stops a check is a finding, not a crash of the caller.
+            format = issues.Format ?? "unknown";
+            issues.TryError("[file]", null, "The check stopped: " + exception.Message);
+        }
 
         return new ValidationReport(issues.Format ?? format, issues.Items, issues.Truncated);
     }
@@ -97,6 +103,18 @@ internal sealed class IssueList
     public void Error(string part, int? line, string message) => Add(new(ValidationSeverity.Error, part, line, message));
 
     public void Warning(string part, int? line, string message) => Add(new(ValidationSeverity.Warning, part, line, message));
+
+    /// <summary>Adds an error unless the list is full (for the last finding of a stopped check).</summary>
+    public void TryError(string part, int? line, string message)
+    {
+        try
+        {
+            Error(part, line, message);
+        }
+        catch (FullException)
+        {
+        }
+    }
 
     private void Add(ValidationIssue issue)
     {

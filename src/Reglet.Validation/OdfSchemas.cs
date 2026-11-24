@@ -7,8 +7,8 @@ namespace Reglet;
 /// <summary>
 /// The ODF 1.3 and 1.4 RELAX NG schemas (OASIS, embedded unmodified): the document schema for content, styles, meta and
 /// settings parts, and the manifest schema. A part declaring version 1.4 is checked against 1.4, any other against 1.3
-/// (the earlier versions' documents are, with few exceptions, valid 1.3). Loaded once each; validation against one
-/// schema is serialised, because the derivative algorithm grows the schema's shared patterns.
+/// (the earlier versions' documents are, with few exceptions, valid 1.3). Loaded once each and frozen; each validation
+/// derives its patterns in a factory of its own.
 /// </summary>
 internal static class OdfSchemas
 {
@@ -30,9 +30,13 @@ internal static class OdfSchemas
     public static void Validate(RngSchema schema, XElement root, string part, IssueList issues)
     {
         RemoveForeign(root, schema.Namespaces);
-        lock (schema)
+        try
         {
             new RngValidator(schema, (node, message) => issues.Error(part, MarkupCompatibility.Line(node), message)).Validate(root);
+        }
+        catch (RngPatterns.BudgetExceededException)
+        {
+            issues.Warning(part, null, "The part is too complex to check against the schema completely; the check stopped.");
         }
     }
 

@@ -3383,7 +3383,7 @@ internal static class DocxPackageBuilder
         var background = format.Background;
         if (format.Highlight is { } unnamed && highlightName is null)
         {
-            handler?.Report(background is null
+            handler?.ReportOnce(background is null
                 ? $"DOCX: the highlight colour {HexColor(unnamed)} is not one of Word's 16 marker colours; it is written as shading."
                 : $"DOCX: the highlight colour {HexColor(unnamed)} is not one of Word's 16 marker colours and the run has a background; the highlight is omitted.");
             background ??= unnamed;

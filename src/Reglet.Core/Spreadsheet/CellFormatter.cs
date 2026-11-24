@@ -333,18 +333,7 @@ internal static class CellFormatter
         else
         {
             var limit = (long)Math.Pow(10, Math.Clamp(denominatorPattern.Length, 1, 4)) - 1;
-            (numerator, denominator) = (0, 1);
-            var best = double.MaxValue;
-            for (long candidate = 1; candidate <= limit; candidate++)
-            {
-                var top = Math.Round(fraction * candidate, MidpointRounding.AwayFromZero);
-                var error = Math.Abs(fraction - (top / candidate));
-                if (error < best - 1e-12)
-                {
-                    best = error;
-                    (numerator, denominator) = ((long)top, candidate);
-                }
-            }
+            (numerator, denominator) = Approximate(fraction, limit);
         }
 
         if (hasInteger && numerator == denominator && fixedDenominator.Length == 0)
@@ -374,6 +363,51 @@ internal static class CellFormatter
             : index >= slash && index < denominatorEnd ? string.Empty
             : integerText.Length == 0 && hasInteger && index > integerAt && index < numeratorAt && tokens[index].Kind == TokenKind.Literal ? new string(' ', tokens[index].Value.Length)
             : null);
+    }
+
+    /// <summary>
+    /// The fraction closest to <paramref name="value"/> (0 ≤ value ≤ 1 for a mixed number, any for an improper one)
+    /// whose denominator is at most <paramref name="limit"/>: continued-fraction convergents and the last semiconvergent.
+    /// </summary>
+    internal static (long Numerator, long Denominator) Approximate(double value, long limit)
+    {
+        if (!double.IsFinite(value) || value > 1e15)
+        {
+            // Beyond a long's exact range a fraction part is meaningless; the whole number stands alone.
+            return (double.IsFinite(value) ? (long)Math.Min(value, long.MaxValue) : 0, 1);
+        }
+
+        long p0 = 0, q0 = 1, p1 = 1, q1 = 0;
+        var rest = value;
+        for (var step = 0; step < 64; step++)
+        {
+            var whole = (long)Math.Floor(rest);
+            var q2 = q0 + (whole * q1);
+            if (q2 > limit)
+            {
+                break;
+            }
+
+            (p0, q0, p1, q1) = (p1, q1, p0 + (whole * p1), q2);
+            var fraction = rest - whole;
+            if (fraction < 1e-12)
+            {
+                break;
+            }
+
+            rest = 1 / fraction;
+        }
+
+        if (q1 == 0)
+        {
+            return ((long)Math.Round(value), 1);
+        }
+
+        var k = (limit - q0) / q1;
+        var (semiNumerator, semiDenominator) = (p0 + (k * p1), q0 + (k * q1));
+        return Math.Abs(value - ((double)p1 / q1)) <= Math.Abs(value - ((double)semiNumerator / semiDenominator))
+            ? (p1, q1)
+            : (semiNumerator, semiDenominator);
     }
 
     private static bool IsGeneral(string? code) => string.IsNullOrEmpty(code) || code.Equals("General", StringComparison.OrdinalIgnoreCase);

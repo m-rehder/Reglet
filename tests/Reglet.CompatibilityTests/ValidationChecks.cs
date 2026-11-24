@@ -21,6 +21,7 @@ internal static class ValidationChecks
             FindsPdfFaults();
             FindsPdfStructureFaults();
             FindsPdfContentFaults();
+            WithstandsHostileInput();
             Console.WriteLine("Validation: all checks passed.");
             return 0;
         }
@@ -274,6 +275,52 @@ internal static class ValidationChecks
             Require(bad.Errors.Any(issue => issue.Part == "page 1" && issue.Message.Contains(expected, StringComparison.Ordinal)),
                 $"The content fault '{expected}' is found: " + string.Join("; ", bad.Issues));
         }
+    }
+
+    /// <summary>Audit 2026-11-24: hostile input gives a report, never a crash, and costs bounded memory.</summary>
+    private static void WithstandsHostileInput()
+    {
+        // A page tree 2000 levels deep would exhaust the stack if it were walked to the bottom.
+        var builder = new StringBuilder("%PDF-1.7\n");
+        var offsets = new List<int>();
+        const int Depth = 2000;
+        void Add(string body)
+        {
+            offsets.Add(builder.Length);
+            builder.Append($"{offsets.Count} 0 obj\n{body}\nendobj\n");
+        }
+
+        Add("<< /Type /Catalog /Pages 2 0 R >>");
+        for (var level = 0; level < Depth; level++)
+        {
+            var number = 2 + level;
+            Add($"<< /Type /Pages /Kids [{number + 1} 0 R] /Count 1{(level > 0 ? $" /Parent {number - 1} 0 R" : string.Empty)} >>");
+        }
+
+        Add($"<< /Type /Page /Parent {Depth + 1} 0 R /MediaBox [0 0 10 10] /Resources << >> >>");
+        var xref = builder.Length;
+        builder.Append($"xref\n0 {offsets.Count + 1}\n0000000000 65535 f \n");
+        foreach (var offset in offsets)
+        {
+            builder.Append($"{offset:D10} 00000 n \n");
+        }
+
+        builder.Append($"trailer\n<< /Size {offsets.Count + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n");
+        var deep = Validate(Encoding.Latin1.GetBytes(builder.ToString()));
+        Require(deep.Errors.Any(issue => issue.Message.Contains("nested deeper", StringComparison.Ordinal)), "A page tree too deep to walk is reported: " + string.Join("; ", deep.Issues.Take(3)));
+
+        // An ODF package with an entry twice is a finding, not an exception.
+        var entries = Entries(Write(new OdtDocumentWriter(), Sample()));
+        var doubled = Validate(Zip(entries.Append(entries.Single(entry => entry.Name == "styles.xml"))));
+        Require(doubled.Errors.Any(issue => issue.Message.Contains("occurs twice", StringComparison.Ordinal)), "A doubled entry is reported.");
+
+        // Validations derive their patterns privately: the schema does not grow, and parallel checks agree.
+        var odt = Write(new OdtDocumentWriter(), Sample());
+        _ = Validate(odt);
+        var before = OdfSchemas.Document("1.3").Patterns.Count;
+        var results = Enumerable.Range(0, 8).AsParallel().Select(_ => Validate(odt).Issues.Count).ToList();
+        Require(results.All(count => count == 0), "Parallel ODF validations all pass.");
+        Require(OdfSchemas.Document("1.3").Patterns.Count == before, "The schema's patterns do not grow across validations.");
     }
 
     private static byte[] WorkbookBytes()

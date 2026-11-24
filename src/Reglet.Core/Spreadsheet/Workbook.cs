@@ -33,6 +33,17 @@ public sealed class Workbook
         return worksheet;
     }
 
+    /// <summary>
+    /// Adds a sheet read from a file as it is named there, without the name rules: a reader keeps what the file holds;
+    /// the writer checks the names.
+    /// </summary>
+    internal Worksheet AddReadWorksheet(string name)
+    {
+        var worksheet = new Worksheet(name);
+        _worksheets.Add(worksheet);
+        return worksheet;
+    }
+
     /// <summary>The worksheet with this name, ignoring case.</summary>
     /// <exception cref="KeyNotFoundException">There is no such sheet.</exception>
     public Worksheet this[string name]
