@@ -384,6 +384,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                 Baseline = run.Baseline,
                 Color = run.Color,
                 Background = run.Background,
+                Highlight = run.Highlight,
                 FontSize = run.FontSize,
                 FontFamily = run.FontFamily,
                 Kerning = run.Kerning,
@@ -2435,6 +2436,7 @@ public sealed class DocxDocumentReader : IDocumentReader
         },
         UnderlineColor = ReadHexColor(rPr?.Element(W + "u")?.Attribute(W + "color")?.Value),
         Background = ReadHexColor(rPr?.Element(W + "shd")?.Attribute(W + "fill")?.Value),
+        Highlight = DocxHighlight.ColorOf(rPr?.Element(W + "highlight")?.Attribute(W + "val")?.Value),
         CharacterSpacing = TryPoints(rPr?.Element(W + "spacing")?.Attribute(W + "val")?.Value, out var spacing)
             && double.IsFinite(spacing) ? Length.FromPoints(spacing) : null,
         Kerning = HalfPointLength(rPr?.Element(W + "kern")?.Attribute(W + "val")?.Value, nonnegative: true),

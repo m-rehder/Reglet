@@ -21,6 +21,7 @@ internal static class CharacterFormattingChecks
             ReadsOdtCharacterFormatting();
             ReadsOdtNamedBaselineShift();
             ReportsHighlightBackgroundConflict();
+            WritesDocxHighlight();
             WritesZeroKerning();
             WritesHiddenText();
             WritesCharacterBorder();
@@ -69,7 +70,7 @@ internal static class CharacterFormattingChecks
         Require(body.Contains("<w:dstrike", StringComparison.Ordinal), "DOCX: double strikethrough.");
         Require(body.Contains("w:vertAlign w:val=\"superscript\"", StringComparison.Ordinal), "DOCX: Superscript.");
         Require(body.Contains("w:position w:val=\"6\"", StringComparison.Ordinal), "DOCX: baseline shift (3 pt = 6).");
-        Require(body.Contains("w:shd", StringComparison.Ordinal) && body.Contains("w:fill=\"FFFF00\"", StringComparison.Ordinal), "DOCX: background colour.");
+        Require(body.Contains("<w:highlight w:val=\"yellow\"", StringComparison.Ordinal) && !body.Contains("w:shd", StringComparison.Ordinal), "DOCX: highlight as Word's marker.");
         Require(body.Contains("w:u w:val=\"dash\"", StringComparison.Ordinal), "DOCX: dashed underline.");
         Require(body.Contains("w:u w:val=\"dash\" w:color=\"FF0000\"", StringComparison.Ordinal), "DOCX: underline colour.");
         Require(body.Contains("w:spacing w:val=\"30\"", StringComparison.Ordinal), "DOCX: character spacing (1.5 pt = 30).");
@@ -235,6 +236,31 @@ internal static class CharacterFormattingChecks
         Require(
             result.Warnings.Any(warning => warning.Message.Contains("background", StringComparison.Ordinal)),
             "ODT: a distinct highlight and background are reported.");
+    }
+
+    /// <summary>A marker colour is w:highlight beside the shading; another colour falls back to shading.</summary>
+    private static void WritesDocxHighlight()
+    {
+        var document = new PortableDocument(new DocumentMetadata(), new Section(new Paragraph(new Inline[]
+        {
+            new TextRun("a") { Highlight = Color.FromHex("FF0000"), Background = Color.FromHex("00FF00") },
+            new TextRun("b") { Highlight = Color.FromHex("123456") },
+        })));
+
+        using var docx = new MemoryStream();
+        var result = new DocxDocumentWriter().WriteAsync(document, docx).GetAwaiter().GetResult();
+        var body = ReadZipEntry(docx.ToArray(), "word/document.xml");
+        var marker = body.IndexOf("<w:highlight w:val=\"red\"", StringComparison.Ordinal);
+        Require(marker >= 0 && body.IndexOf("w:fill=\"00FF00\"", StringComparison.Ordinal) > marker,
+            "DOCX: a marker colour and a background are both written, in schema order.");
+        Require(body.Contains("w:fill=\"123456\"", StringComparison.Ordinal), "DOCX: an unnamed highlight falls back to shading.");
+        Require(result.Warnings.Any(warning => warning.Message.Contains("123456", StringComparison.Ordinal)),
+            "DOCX: the shading fallback is reported.");
+
+        using var read = new MemoryStream(docx.ToArray());
+        var runs = ((Paragraph)new DocxDocumentReader().Read(read).Document.Sections[0].Blocks[0]).Inlines.OfType<TextRun>().ToList();
+        Require(runs[0].Highlight == Color.FromHex("FF0000") && runs[0].Background == Color.FromHex("00FF00"),
+            "DOCX: w:highlight is read back as the highlight, w:shd as the background.");
     }
 
     /// <summary>A zero kerning threshold survives the DOCX writer and reader.</summary>

@@ -3261,7 +3261,7 @@ internal static class DocxPackageBuilder
             WriteValElement(writer, "rStyle", run.CharacterStyleName);
         }
 
-        WriteRunFormat(writer, format, context.XmlBehavior);
+        WriteRunFormat(writer, format, context.XmlBehavior, context.Handler);
         writer.WriteEndElement();
     }
 
@@ -3270,7 +3270,7 @@ internal static class DocxPackageBuilder
     /// inherited value applies; an explicit off is written as <c>w:val="0"</c> or
     /// <c>w:u w:val="none"</c>.
     /// </summary>
-    private static void WriteRunFormat(XmlWriter writer, RunFormat format, InvalidXmlCharacterBehavior xmlBehavior)
+    private static void WriteRunFormat(XmlWriter writer, RunFormat format, InvalidXmlCharacterBehavior xmlBehavior, UnsupportedFeatureHandler? handler = null)
     {
         if (format.FontFamily is not null)
         {
@@ -3281,7 +3281,6 @@ internal static class DocxPackageBuilder
         WriteToggle(writer, "i", format.Italic);
         WriteToggle(writer, "caps", format.AllCaps);
         WriteToggle(writer, "smallCaps", format.SmallCaps);
-        WriteToggle(writer, "vanish", format.Hidden);
 
         switch (format.Strikethrough)
         {
@@ -3306,24 +3305,11 @@ internal static class DocxPackageBuilder
             WriteToggle(writer, "imprint", effects.HasFlag(TextEffects.Engrave));
         }
 
-        if (format.Border is { } runBorder)
-        {
-            WriteParagraphBorder(writer, "bdr", runBorder);
-        }
+        WriteToggle(writer, "vanish", format.Hidden);
 
         if (format.Color is { } color)
         {
             WriteValElement(writer, "color", HexColor(color));
-        }
-
-        var background = format.Highlight ?? format.Background;
-        if (background is { } fill)
-        {
-            writer.WriteStartElement("w", "shd", DocxConstants.WordprocessingML);
-            WriteWAttribute(writer, "val", "clear");
-            WriteWAttribute(writer, "color", "auto");
-            WriteWAttribute(writer, "fill", HexColor(fill));
-            writer.WriteEndElement();
         }
 
         if (format.CharacterSpacing is { } characterSpacing && characterSpacing.Points != 0)
@@ -3354,6 +3340,13 @@ internal static class DocxPackageBuilder
             WriteValElement(writer, "szCs", size);
         }
 
+        // Word's marker knows 16 colours; any other highlight falls back to shading below.
+        var highlightName = format.Highlight is { } highlight ? DocxHighlight.NameOf(highlight) : null;
+        if (highlightName is not null)
+        {
+            WriteValElement(writer, "highlight", highlightName);
+        }
+
         if (format.EffectiveUnderline is { } underline)
         {
             writer.WriteStartElement("w", "u", DocxConstants.WordprocessingML);
@@ -3363,6 +3356,29 @@ internal static class DocxPackageBuilder
                 WriteWAttribute(writer, "color", HexColor(underlineColor));
             }
 
+            writer.WriteEndElement();
+        }
+
+        if (format.Border is { } runBorder)
+        {
+            WriteParagraphBorder(writer, "bdr", runBorder);
+        }
+
+        var background = format.Background;
+        if (format.Highlight is { } unnamed && highlightName is null)
+        {
+            handler?.Report(background is null
+                ? $"DOCX: the highlight colour {HexColor(unnamed)} is not one of Word's 16 marker colours; it is written as shading."
+                : $"DOCX: the highlight colour {HexColor(unnamed)} is not one of Word's 16 marker colours and the run has a background; the highlight is omitted.");
+            background ??= unnamed;
+        }
+
+        if (background is { } fill)
+        {
+            writer.WriteStartElement("w", "shd", DocxConstants.WordprocessingML);
+            WriteWAttribute(writer, "val", "clear");
+            WriteWAttribute(writer, "color", "auto");
+            WriteWAttribute(writer, "fill", HexColor(fill));
             writer.WriteEndElement();
         }
 

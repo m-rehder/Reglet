@@ -72,7 +72,7 @@ Legend:
 | Superscript/subscript (`Baseline`) | supported | supported | approximated (baseline shift; no automatic reduction) |
 | Casing (`AllCaps`/`SmallCaps`) | supported | supported | approximated (SmallCaps reduced to 80 %) |
 | Text effects (`TextEffects`: outline, shadow, emboss, engrave) | supported (`w:outline`, `w:shadow`, `w:emboss`, `w:imprint`) | supported (`style:text-outline`, `fo:text-shadow`, `style:font-relief`) | not drawn |
-| Character background/highlight | supported (as shading) | supported (one `fo:background-color`; a highlight wins over a background) | supported |
+| Character background/highlight | supported (background as `w:shd`, a highlight in one of Word's 16 marker colours as `w:highlight`, any other highlight as shading with a warning) | supported (one `fo:background-color`; a highlight wins over a background) | supported |
 | Named character styles | supported (AI01, `w:rStyle`) | supported (AI01, `style:parent-style-name`) | applied (AI01, no style mechanism) |
 | Kerning | supported (threshold) | approximated (boolean; a threshold is written as enabled and read back as 0) | approximated (shaping of embedded fonts, no kerning below a run's threshold; standard fonts without kerning; `PdfWriteOptions.Kerning = false` switches it off) |
 | Standard ligatures (`liga`) | target program | target program | supported (embedded fonts; `PdfWriteOptions.Ligatures = false` switches them off) |

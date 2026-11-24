@@ -1,5 +1,18 @@
 # Reglet – Release notes
 
+## 1.5.1
+
+### DOCX
+
+- `TextRun.Highlight` (and a character or paragraph style's highlight) is written as Word's marker, `w:highlight`,
+  when its colour is one of Word's 16 marker colours (`FF0000` → `red`, `FFFF00` → `yellow`, …), so Word shows it as
+  highlighting and "No Color" removes it. Highlight and `Background` now stay apart: a run with both writes
+  `w:highlight` and `w:shd`. Any other highlight colour is written as shading, as before, and reported in the write
+  warnings (body text; a style's highlight falls back without a warning). 1.5.0 wrote every highlight as `w:shd`.
+- The reader reads `w:highlight` back into `Highlight` (it was dropped before).
+- Run properties are written in schema order: `w:vanish` after the text effects, `w:bdr` and `w:shd` after
+  `w:u` (1.5.0 wrote them earlier).
+
 ## 1.5.0
 
 See ADR-0041.
