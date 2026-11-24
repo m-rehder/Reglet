@@ -115,3 +115,31 @@ This document and the information contained herein is provided on an "AS IS" bas
 WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION HEREIN WILL
 NOT INFRINGE ANY OWNERSHIP RIGHTS OR ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 ```
+
+## OpenDocument schemas (Reglet.Validation)
+
+`src/Reglet.Validation/Schemas/` also contains, unmodified, the RELAX NG schemas of the OASIS Standards Open Document
+Format for Office Applications (OpenDocument) Version 1.3 (27 April 2021) and Version 1.4 (6 October 2025): the
+document schema and the manifest schema of each (https://docs.oasis-open.org/office/OpenDocument/). Reglet.Validation
+embeds them to check ODF documents. They are used under the OASIS copyright notice:
+
+```
+Copyright (c) OASIS Open 2021, 2025. All Rights Reserved.
+
+All capitalized terms in the following text have the meanings assigned to them in the OASIS Intellectual Property
+Rights Policy (the "OASIS IPR Policy"). The full Policy may be found at the OASIS website.
+
+This document and translations of it may be copied and furnished to others, and derivative works that comment on or
+otherwise explain it or assist in its implementation may be prepared, copied, published, and distributed, in whole or
+in part, without restriction of any kind, provided that the above copyright notice and this section are included on
+all such copies and derivative works. However, this document itself may not be modified in any way, including by
+removing the copyright notice or references to OASIS, except as needed for the purpose of developing any document or
+deliverable produced by an OASIS Technical Committee (in which case the rules applicable to copyrights, as set forth
+in the OASIS IPR Policy, must be followed) or as required to translate it into languages other than English.
+
+The limited permissions granted above are perpetual and will not be revoked by OASIS or its successors or assigns.
+
+This document and the information contained herein is provided on an "AS IS" basis and OASIS DISCLAIMS ALL
+WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION HEREIN WILL
+NOT INFRINGE ANY OWNERSHIP RIGHTS OR ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+```

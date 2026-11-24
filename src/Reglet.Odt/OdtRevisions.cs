@@ -231,6 +231,8 @@ internal static class OdtRevisions
         foreach (var region in plan.Regions)
         {
             writer.WriteStartElement("text", "changed-region", OdtNamespaces.Text);
+            // ODF 1.2+ identifies the region by xml:id; text:id stays for older consumers (LibreOffice writes both).
+            writer.WriteAttributeString("xml", "id", null, region.Name);
             writer.WriteAttributeString("text", "id", OdtNamespaces.Text, region.Name);
             var insertion = region.Change.Kind == TrackedChangeKind.Insertion;
             writer.WriteStartElement("text", insertion ? "insertion" : "deletion", OdtNamespaces.Text);

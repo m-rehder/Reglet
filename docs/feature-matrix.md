@@ -791,7 +791,8 @@ text boxes. Charts, barcodes and equations stay out of scope until their own ADR
 - [x] Office Open XML (DOCX, XLSX, other OOXML): part names, `[Content_Types].xml`, relationships and their targets, well-formed XML, ECMA-376 5th edition Transitional schemas (embedded, unmodified) after markup compatibility as Office 2019 reads it; Office 2010+ extension namespaces understood but not schema-checked, a warning when they are not declared ignorable. Line numbers for every XML finding. `docProps/core.xml` only for well-formedness
 - [x] ODF: mimetype first, stored, without extra field, ODF media type; manifest complete in both directions with the package's media type; well-formed XML (encrypted parts skipped)
 - [x] PDF: header, `%%EOF`, cross-references without repair, object offsets, compressed objects' streams, trailer `/Size` and `/Root` catalog
-- [ ] Stage 2: ODF schema validation (own RELAX NG validator). Stage 3: deeper PDF structure. PDF/A conformance stays with veraPDF
+- [x] Stage 2: ODF RELAX NG schemas 1.3 and 1.4 (embedded, unmodified) with an own validator (Clark's derivative algorithm), foreign markup removed first (extended conformance); one finding per element, with line. LibreOffice 26.8's ODT is valid. Not checked: ID uniqueness, IDREF targets
+- [ ] Stage 3: deeper PDF structure. PDF/A conformance stays with veraPDF
 
 ## Out of scope
 

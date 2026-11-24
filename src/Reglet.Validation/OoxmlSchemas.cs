@@ -27,7 +27,7 @@ internal static class OoxmlSchemas
         var assembly = typeof(OoxmlSchemas).Assembly;
         var resolver = new EmbeddedResolver(file => assembly.GetManifestResourceStream(Prefix + file));
         var set = new XmlSchemaSet { XmlResolver = resolver };
-        foreach (var name in assembly.GetManifestResourceNames().Where(name => name.StartsWith(Prefix, StringComparison.Ordinal)).Order(StringComparer.Ordinal))
+        foreach (var name in assembly.GetManifestResourceNames().Where(name => name.StartsWith(Prefix, StringComparison.Ordinal) && name.EndsWith(".xsd", StringComparison.Ordinal)).Order(StringComparer.Ordinal))
         {
             var file = name[Prefix.Length..];
             using var stream = assembly.GetManifestResourceStream(name)!;

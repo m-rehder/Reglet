@@ -1,6 +1,6 @@
 # ADR-0044: A document validator for all formats
 
-Status: Accepted (2026-11-24); stage 1 implemented
+Status: Accepted (2026-11-24); stages 1 and 2 implemented
 
 ## Context
 
@@ -36,8 +36,14 @@ format Reglet handles, not only one.
   cross-references read as the file states them (`PdfFile.ReadCrossReferencesStrict`, without the reader's repair),
   every offset landing on its `N G obj` header, every compressed object's stream listed, a trailer `/Size` covering
   every object and `/Root` the catalog (not checked for an encrypted file, which needs the password).
-- **Stages**: (2) ODF schema validation with an own RELAX NG validator, since .NET has none; (3) deeper PDF structure
-  (page tree, resources, fonts, streams). **PDF/A conformance stays with veraPDF**: its rule set is a project of its
+- **ODF schemas (stage 2)**: content, styles, meta and settings parts and the manifest are validated against the OASIS
+  ODF RELAX NG schemas, 1.4 for parts that declare version 1.4 and 1.3 for all others (LibreOffice 26.8 writes 1.4).
+  .NET has no RELAX NG validator, so Reglet.Validation has its own: James Clark's derivative algorithm over the
+  simplified schema (shared patterns, cached derivatives), the XML Schema datatypes the ODF schemas use (facets
+  included; XSD regular expressions translated), one finding per element that does not fit and then on with its
+  parent, so a fault does not cascade. Markup in namespaces the schema does not know (LibreOffice's `loext`, …) is
+  removed first: ODF calls such a document an extended conforming one. ID uniqueness and IDREF targets are not checked.
+- **Stage 3**: deeper PDF structure (page tree, resources, fonts, streams). **PDF/A conformance stays with veraPDF**: its rule set is a project of its
   own. Microsoft's Office extension schemas could later be added under the Open Specifications terms to check the
   extension markup too.
 - **Licence**: the Ecma schemas are used under Ecma's default copyright notice, which allows implementing the
@@ -46,7 +52,10 @@ format Reglet handles, not only one.
 
 ## Consequences
 
-- The validator is as strict as the standard where Office is: Reglet's own DOCX output is valid, with warnings where
-  it writes Office 2010 shapes and Word 2010 attributes without declaring them ignorable.
+- The validator found faults in Reglet's own output, fixed with it: DOCX story parts now declare the Word 2010
+  extensions ignorable; ODT heading styles order paragraph before text properties, tracked-change regions carry
+  `xml:id`, a pie chart keeps its categories in an x axis, and the table's border and cell padding (which ODF has no
+  attribute for on a table; the cells draw the grid) are kept as `reglet:*` attributes instead of `fo:*` outside the
+  schema (the reader still reads the old ones). Reglet's DOCX, XLSX, ODT and PDF output is valid.
 - The package carries about 1 MB of schemas (compressed in the NuGet package).
 - Line numbers are reported for XML parts; `ReaderGuard`'s depth limiter now passes line information through.

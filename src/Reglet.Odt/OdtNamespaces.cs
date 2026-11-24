@@ -19,6 +19,12 @@ internal static class OdtNamespaces
     public const string DublinCore = "http://purl.org/dc/elements/1.1/";
     public const string Config = "urn:oasis:names:tc:opendocument:xmlns:config:1.0";
 
+    /// <summary>
+    /// Reglet's own attributes, for values ODF has no place for but the reader reads back (the table's border and cell
+    /// padding). Foreign attributes keep a document an extended conforming one; other programs ignore them.
+    /// </summary>
+    public const string Reglet = "urn:reglet:xmlns:odf:1.0";
+
     public const string XmlContentType = "text/xml";
     public const string PngContentType = "image/png";
     public const string JpegContentType = "image/jpeg";

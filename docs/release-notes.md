@@ -11,13 +11,21 @@ See ADR-0043 and ADR-0044.
   skip shapes, check boxes and comment ids they do not know instead of refusing the file. Word 2010 and later and
   LibreOffice read the files as before.
 
+### ODT
+
+- The output is valid against the ODF schema: heading styles write their paragraph properties before their text
+  properties, tracked-change regions carry `xml:id` (beside `text:id`), a pie chart keeps its categories in an x axis,
+  and a table's border and cell padding, which ODF only knows on cells, are written as `reglet:border`/`reglet:padding*`
+  instead of `fo:*` on the table (read back as before; the old attributes are still read). LibreOffice shows the files
+  as before.
+
 ### Validation (new package Reglet.Validation)
 
 - `DocumentValidator.Validate(stream)` checks DOCX, XLSX, ODF and PDF files for what Word, Excel, LibreOffice and PDF
   readers reject and reports each finding with severity, part and line. Office Open XML: package structure, content
   types, relationships, well-formed XML and the ECMA-376 Transitional schemas (embedded) after Office's markup
-  compatibility; ODF: mimetype and manifest, well-formed XML; PDF: header, end marker, cross-references without repair,
-  trailer and catalog.
+  compatibility; ODF: mimetype and manifest and the ODF 1.3/1.4 RELAX NG schemas (own validator, foreign markup removed
+  first); PDF: header, end marker, cross-references without repair, trailer and catalog.
 
 ### Workbooks (new package Reglet.Xlsx)
 

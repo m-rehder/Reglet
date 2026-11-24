@@ -12,8 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- ECMA-376 5th edition schemas, unmodified (Copyright Ecma International, see THIRD-PARTY-NOTICES.md). -->
-    <EmbeddedResource Include="Schemas\*.xsd" LogicalName="Reglet.Validation.Schemas.%(Filename)%(Extension)" />
+    <!-- ECMA-376 5th edition and ODF 1.3 schemas, unmodified (Copyright Ecma International and OASIS Open, see THIRD-PARTY-NOTICES.md). -->
+    <EmbeddedResource Include="Schemas\*.xsd;Schemas\*.rng" LogicalName="Reglet.Validation.Schemas.%(Filename)%(Extension)" />
     <None Include="$(MSBuildThisFileDirectory)..\..\THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
 

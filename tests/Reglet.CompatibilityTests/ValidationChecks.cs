@@ -17,6 +17,7 @@ internal static class ValidationChecks
             FindsOoxmlFaults();
             AppliesMarkupCompatibility();
             FindsOdfFaults();
+            ValidatesOdfSchema();
             FindsPdfFaults();
             Console.WriteLine("Validation: all checks passed.");
             return 0;
@@ -136,6 +137,41 @@ internal static class ValidationChecks
             "A manifest entry without its file is an error.");
         Require(Validate(Zip(entries.Select(entry => entry.Name == "content.xml" ? (entry.Name, Encoding.UTF8.GetBytes("<office:document-content")) : entry)))
             .Errors.Any(issue => issue.Part == "content.xml"), "Malformed content.xml is an error.");
+    }
+
+    /// <summary>Stage 2: the ODF RELAX NG schema, foreign markup removed first; Reglet's ODT passes it.</summary>
+    private static void ValidatesOdfSchema()
+    {
+        var categories = new[] { "a", "b", "c" };
+        var rich = new PortableDocument(new DocumentMetadata(), new Section(new Block[]
+        {
+            new Heading(HeadingLevel.Level1, new TextRun("Heading")),
+            new Chart(ChartKind.Pie, new[] { new ChartSeries("p", new[] { 1.0, 2.0, 3.0 }) }, categories),
+            new Chart(ChartKind.Column, new[] { new ChartSeries("c", new[] { 1.0, 2.0, 3.0 }) }, categories),
+            new TableBlock([new TableRow([new TableCell([new Paragraph(new TextRun("x"))])])]) { Border = new ParagraphBorder(BorderStyle.Single, Length.FromPoints(1), Color.FromHex("0000FF")), CellPadding = Length.FromPoints(4) },
+            new Paragraph(new Inline[]
+            {
+                new TextRun("a "), new TrackedChange(0, TrackedChangeKind.Insertion, "Ann"), new TextRun("new"), new TrackedChangeEnd(0),
+            }),
+        }));
+        var odt = Write(new OdtDocumentWriter(), rich);
+        var report = Validate(odt);
+        Require(report.Format == "ODT" && report.Issues.Count == 0, "Headings, charts, a bordered table and a tracked change are valid ODF: " + string.Join("; ", report.Issues));
+        var table = ((TableBlock)new OdtDocumentReader().Read(new MemoryStream(odt)).Document.Sections[0].Blocks.OfType<TableBlock>().Single());
+        Require(table.Border?.Color == Color.FromHex("0000FF") && table.CellPadding?.Points == 4, "The table border and padding still read back from the Reglet attributes.");
+
+        var element = Validate(Rewrite(odt, (name, text) => name == "content.xml" ? text.Replace("<office:text>", "<office:text><text:bogus xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\"/>", StringComparison.Ordinal) : text));
+        Require(element.Errors.Any(issue => issue.Part == "content.xml" && issue.Line is not null && issue.Message.Contains("text:bogus", StringComparison.Ordinal)),
+            "An element the schema does not know is an error: " + string.Join("; ", element.Issues));
+
+        var value = Validate(Rewrite(odt, (name, text) => name == "styles.xml" ? text.Replace("fo:margin-top=\"12pt\"", "fo:margin-top=\"12xx\"", StringComparison.Ordinal) : text));
+        Require(value.Errors.Any(issue => issue.Message.Contains("'12xx'", StringComparison.Ordinal) && issue.Message.Contains("fo:margin-top", StringComparison.Ordinal)),
+            "An invalid attribute value is an error: " + string.Join("; ", value.Issues));
+
+        var foreign = Validate(Rewrite(odt, (name, text) => name == "content.xml"
+            ? text.Replace("<office:text>", "<office:text><x:extra xmlns:x=\"urn:example\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" x:a=\"1\"><text:bogus/></x:extra>", StringComparison.Ordinal)
+            : text));
+        Require(foreign.Issues.Count == 0, "Foreign markup is removed before validation (extended conformance): " + string.Join("; ", foreign.Issues));
     }
 
     private static void FindsPdfFaults()

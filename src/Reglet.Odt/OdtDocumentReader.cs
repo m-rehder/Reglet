@@ -21,6 +21,7 @@ public sealed class OdtDocumentReader : IDocumentReader
     private static readonly XNamespace Table = OdtNamespaces.Table;
     private static readonly XNamespace Style = OdtNamespaces.Style;
     private static readonly XNamespace Fo = OdtNamespaces.Fo;
+    private static readonly XNamespace RegletNs = OdtNamespaces.Reglet;
     private static readonly XNamespace Dc = OdtNamespaces.DublinCore;
     private static readonly XNamespace Meta = OdtNamespaces.Meta;
 
@@ -426,10 +427,11 @@ public sealed class OdtDocumentReader : IDocumentReader
                 return (
                     (string?)properties?.Attribute(Style + "rel-width") ?? inherited.Width,
                     (string?)properties?.Attribute(Style + "width") ?? inherited.Absolute,
-                    (string?)properties?.Attribute(Fo + "border") ?? inherited.Border,
-                    (string?)properties?.Attribute(Fo + "padding") ?? inherited.Padding,
-                    (string?)properties?.Attribute(Fo + "padding-left") ?? inherited.Left,
-                    (string?)properties?.Attribute(Fo + "padding-top") ?? inherited.Top,
+                    // Reglet's own attributes; files from Reglet 1.5 and older carry them as fo:* (outside the schema).
+                    (string?)properties?.Attribute(RegletNs + "border") ?? (string?)properties?.Attribute(Fo + "border") ?? inherited.Border,
+                    (string?)properties?.Attribute(RegletNs + "padding") ?? (string?)properties?.Attribute(Fo + "padding") ?? inherited.Padding,
+                    (string?)properties?.Attribute(RegletNs + "padding-left") ?? (string?)properties?.Attribute(Fo + "padding-left") ?? inherited.Left,
+                    (string?)properties?.Attribute(RegletNs + "padding-top") ?? (string?)properties?.Attribute(Fo + "padding-top") ?? inherited.Top,
                     (string?)properties?.Attribute(Fo + "margin-left") ?? inherited.Margin);
             });
         var result = new Dictionary<string, TableStyleInfo>(StringComparer.Ordinal);

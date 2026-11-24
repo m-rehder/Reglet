@@ -226,6 +226,18 @@ internal static class OdtCharts
             Axis(writer, "x", "axisX", chart.CategoryAxisTitle, scatter ? null : Range(0, 2, 0, count + 1), Clean);
             Axis(writer, "y", "axisY", chart.ValueAxisTitle, null, Clean, grid: true);
         }
+        else
+        {
+            // The slice names come from the categories of the first column; the schema keeps them in an x axis
+            // (before the series), as LibreOffice writes a pie chart.
+            writer.WriteStartElement("chart", "axis", ChartNs);
+            writer.WriteAttributeString("chart", "dimension", ChartNs, "x");
+            writer.WriteAttributeString("chart", "name", ChartNs, "primary-x");
+            writer.WriteStartElement("chart", "categories", ChartNs);
+            writer.WriteAttributeString("table", "cell-range-address", OdtNamespaces.Table, Range(0, 2, 0, count + 1));
+            writer.WriteEndElement();
+            writer.WriteEndElement();
+        }
 
         for (var s = 0; s < seriesCount; s++)
         {
@@ -258,14 +270,6 @@ internal static class OdtCharts
                 writer.WriteEndElement();
             }
 
-            writer.WriteEndElement();
-        }
-
-        if (pie)
-        {
-            // The slice names come from the categories of the first column.
-            writer.WriteStartElement("chart", "categories", ChartNs);
-            writer.WriteAttributeString("table", "cell-range-address", OdtNamespaces.Table, Range(0, 2, 0, count + 1));
             writer.WriteEndElement();
         }
 

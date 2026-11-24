@@ -7,13 +7,14 @@ namespace Reglet;
 
 /// <summary>
 /// ODF packages (ODF 1.3 part 2): the mimetype entry first, stored and without an extra field; the manifest listing every
-/// file and only existing ones, with the package's media type; every XML part well-formed. shortcut: no schema check
-/// against the ODF RELAX NG schema yet (stage 2 of ADR-0044).
+/// file and only existing ones, with the package's media type; every XML part well-formed; content, styles, meta and
+/// settings parts and the manifest valid against the ODF 1.3 or 1.4 RELAX NG schema (foreign markup removed first).
 /// </summary>
 internal static class OdfValidator
 {
     private const string Manifest = "META-INF/manifest.xml";
     private static readonly XNamespace M = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
+    private static readonly XNamespace Office = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
 
     public static string Validate(byte[] data, ZipArchive zip, IssueList issues, CancellationToken cancellationToken)
     {
@@ -37,6 +38,7 @@ internal static class OdfValidator
         }
         else if (PackageXml.Load(manifestEntry, issues) is { Root: { } root })
         {
+            OdfSchemas.Validate(OdfSchemas.Manifest((string?)root.Attribute(M + "version")), root, Manifest, issues);
             if (root.Name != M + "manifest")
             {
                 issues.Error(Manifest, MarkupCompatibility.Line(root), "The root element is not manifest:manifest.");
@@ -86,7 +88,11 @@ internal static class OdfValidator
         foreach (var (name, entry) in files.Where(file => file.Key.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) && file.Key != Manifest && !encrypted.Contains(file.Key)))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            PackageXml.Load(entry, issues);
+            if (PackageXml.Load(entry, issues) is { Root: { } part } && part.Name.Namespace == Office
+                && part.Name.LocalName is "document-content" or "document-styles" or "document-meta" or "document-settings")
+            {
+                OdfSchemas.Validate(OdfSchemas.Document((string?)part.Attribute(Office + "version")), part, name, issues);
+            }
         }
 
         return format;

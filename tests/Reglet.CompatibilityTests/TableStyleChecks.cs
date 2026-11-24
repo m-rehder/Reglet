@@ -81,7 +81,8 @@ internal static class TableStyleChecks
         Require(content.Contains("fo:background-color=\"#AAAAAA\"", StringComparison.Ordinal), "ODT: first column background.");
         Require(content.Contains("fo:background-color=\"#BBBBBB\"", StringComparison.Ordinal), "ODT: last column background.");
         Require(content.Contains("fo:background-color=\"#DDDDDD\"", StringComparison.Ordinal), "ODT: last row background.");
-        Require(content.Contains("fo:border=\"1pt solid #0000FF\"", StringComparison.Ordinal), "ODT: style border.");
+        Require(content.Contains("reglet:border=\"1pt solid #0000FF\"", StringComparison.Ordinal),
+            "ODT: style border, kept as a Reglet attribute for reading back (ODF has no table border).");
     }
 
     private static void RendersPdfStyle()

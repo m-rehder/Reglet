@@ -359,16 +359,18 @@ internal static class OdtStylesWriter
             writer.WriteStartElement("style", "style", OdtNamespaces.Style);
             writer.WriteAttributeString("style", "name", OdtNamespaces.Style, $"Heading{level}");
             writer.WriteAttributeString("style", "family", OdtNamespaces.Style, "paragraph");
-            writer.WriteStartElement("style", "text-properties", OdtNamespaces.Style);
-            writer.WriteAttributeString("fo", "font-weight", OdtNamespaces.Fo, "bold");
-            writer.WriteAttributeString("fo", "font-size", OdtNamespaces.Fo, PointsText(Typography.HeadingSize((HeadingLevel)level)));
-            writer.WriteEndElement();
+
+            // The schema orders the paragraph properties before the text properties.
             writer.WriteStartElement("style", "paragraph-properties", OdtNamespaces.Style);
             writer.WriteAttributeString("fo", "margin-top", OdtNamespaces.Fo, PointsText(Typography.HeadingSpaceBefore));
             writer.WriteAttributeString("fo", "margin-bottom", OdtNamespaces.Fo, PointsText(Typography.HeadingSpaceAfter));
 
             // Like keepNext in DOCX: a heading never stands alone at the end of a page.
             writer.WriteAttributeString("fo", "keep-with-next", OdtNamespaces.Fo, "always");
+            writer.WriteEndElement();
+            writer.WriteStartElement("style", "text-properties", OdtNamespaces.Style);
+            writer.WriteAttributeString("fo", "font-weight", OdtNamespaces.Fo, "bold");
+            writer.WriteAttributeString("fo", "font-size", OdtNamespaces.Fo, PointsText(Typography.HeadingSize((HeadingLevel)level)));
             writer.WriteEndElement();
             writer.WriteEndElement();
         }

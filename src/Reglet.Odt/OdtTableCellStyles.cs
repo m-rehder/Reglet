@@ -391,24 +391,24 @@ internal sealed class OdtTableCellStyles
 
         if (key.Border.Length > 0)
         {
-            writer.WriteAttributeString("fo", "border", OdtNamespaces.Fo, key.Border);
+            writer.WriteAttributeString("reglet", "border", OdtNamespaces.Reglet, key.Border);
         }
 
         if (key.CellPaddingHorizontal == key.CellPaddingVertical && key.CellPaddingHorizontal is { } padding)
         {
-            writer.WriteAttributeString("fo", "padding", OdtNamespaces.Fo, PointsText(padding));
+            writer.WriteAttributeString("reglet", "padding", OdtNamespaces.Reglet, PointsText(padding));
         }
         else
         {
-            // Read back by this library; ODF knows the cell padding only on the cells.
+            // Read back by this library; ODF knows the cell padding only on the cells, so it is a Reglet attribute.
             if (key.CellPaddingHorizontal is { } horizontal)
             {
-                writer.WriteAttributeString("fo", "padding-left", OdtNamespaces.Fo, PointsText(horizontal));
+                writer.WriteAttributeString("reglet", "padding-left", OdtNamespaces.Reglet, PointsText(horizontal));
             }
 
             if (key.CellPaddingVertical is { } vertical)
             {
-                writer.WriteAttributeString("fo", "padding-top", OdtNamespaces.Fo, PointsText(vertical));
+                writer.WriteAttributeString("reglet", "padding-top", OdtNamespaces.Reglet, PointsText(vertical));
             }
         }
 
