@@ -40,6 +40,22 @@ public sealed class UnsupportedFeatureException : NotSupportedException, IReglet
     }
 }
 
+/// <summary>A worksheet formula cannot be calculated (see <see cref="WorksheetCell.Evaluate"/>).</summary>
+public sealed class FormulaException : InvalidOperationException, IRegletError
+{
+    /// <summary>Creates the exception with a message.</summary>
+    public FormulaException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates the exception with a message and an inner exception.</summary>
+    public FormulaException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}
+
 /// <summary>A font file is corrupted or unsupported.</summary>
 public sealed class FontException : Exception, IRegletError
 {

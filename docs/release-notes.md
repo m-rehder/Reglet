@@ -1,5 +1,21 @@
 # Reglet – Release notes
 
+## Unreleased
+
+See ADR-0046.
+
+### Workbooks
+
+- `Worksheet.ColumnWidths` is now the width Excel shows (Format → Column Width): the writer adds Excel's cell padding
+  (5 px at Calibri 11) when it stores a width, and the reader takes it off. Before, a width of 40 showed as 39.29 in
+  Excel. Excel rounds widths to whole pixels, so 10.5 reads back as 10.43.
+- A cell with an indent and General alignment is written left aligned; Excel indents only left or right aligned cells
+  and ignored the indent before.
+- `WorksheetCell.Evaluate()` calculates a cell for tests: numbers, references (also to other sheets), `SUM` and
+  `PRODUCT` over references and ranges, `+ - * / ^`, sign, `%` and parentheses; referenced formulas are calculated
+  too. Anything else throws a `FormulaException` that names the cell and the reason. Excel still calculates the file
+  itself when it opens it.
+
 ## 1.7.0
 
 See ADR-0045.

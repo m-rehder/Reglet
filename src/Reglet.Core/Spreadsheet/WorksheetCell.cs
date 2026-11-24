@@ -11,11 +11,26 @@ public sealed class WorksheetCell
     private object? _value;
     private string? _formula;
 
-    internal WorksheetCell(int row, int column)
+    internal WorksheetCell(int row, int column, Worksheet sheet)
     {
         Row = row;
         Column = column;
+        Sheet = sheet;
     }
+
+    /// <summary>The sheet the cell belongs to.</summary>
+    internal Worksheet Sheet { get; }
+
+    /// <summary>
+    /// Calculates the cell (ADR-0046): the formula when there is one, otherwise the value as a number. The formula may
+    /// use numbers, cell references (also <c>Sheet2!B3</c> and <c>'My sheet'!$B$3</c>), <c>SUM</c> and <c>PRODUCT</c>
+    /// over references and ranges, <c>+ - * / ^</c>, a sign, <c>%</c> and parentheses; referenced formula cells are
+    /// calculated too, an empty cell counts as 0. Meant for checking a workbook in tests: Excel and LibreOffice calculate
+    /// the file themselves when they open it.
+    /// </summary>
+    /// <exception cref="FormulaException">The formula uses something outside that scope, refers in a circle, divides
+    /// by zero or uses a text that is no number.</exception>
+    public double Evaluate() => FormulaEvaluator.Evaluate(this);
 
     /// <summary>The 1-based row.</summary>
     public int Row { get; }

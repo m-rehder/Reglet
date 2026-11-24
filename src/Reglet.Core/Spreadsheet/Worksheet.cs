@@ -6,7 +6,14 @@ public sealed class Worksheet
     private readonly SortedDictionary<(int Row, int Column), WorksheetCell> _cells = [];
     private readonly List<CellRange> _merged = [];
 
-    internal Worksheet(string name) => Name = name;
+    internal Worksheet(string name, Workbook workbook)
+    {
+        Name = name;
+        Workbook = workbook;
+    }
+
+    /// <summary>The workbook the sheet belongs to (for references to other sheets).</summary>
+    internal Workbook Workbook { get; }
 
     /// <summary>The sheet name.</summary>
     public string Name { get; }
@@ -18,7 +25,7 @@ public sealed class Worksheet
         CellReference.Check(row, column);
         if (!_cells.TryGetValue((row, column), out var cell))
         {
-            cell = new WorksheetCell(row, column);
+            cell = new WorksheetCell(row, column, this);
             _cells.Add((row, column), cell);
         }
 
@@ -39,7 +46,12 @@ public sealed class Worksheet
     /// <summary>Merged ranges, in the order they were merged.</summary>
     public IReadOnlyList<CellRange> MergedRanges => _merged;
 
-    /// <summary>Column widths in Excel's character units, by 1-based column; a column without one has the default width.</summary>
+    /// <summary>
+    /// Column widths as Excel shows them (Format → Column Width): characters of the default font's digit width, by
+    /// 1-based column; a column without one has the default width (8.43). The writer adds Excel's cell padding (5 px at
+    /// Calibri 11) when it stores the width, and the reader takes it off again; Excel rounds widths to whole pixels, so
+    /// 10.5 reads back as 10.43.
+    /// </summary>
     public IDictionary<int, double> ColumnWidths { get; } = new SortedDictionary<int, double>();
 
     /// <summary>Row heights in points, by 1-based row; a row without one is as high as its content.</summary>

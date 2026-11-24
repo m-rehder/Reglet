@@ -234,7 +234,7 @@ sheet.Cell("B2").Formula = "SUM(B3:B9)";             // calculated by Excel when
 sheet.SetStyle("A1:B1", style => style with { Font = style.Font with { Bold = true }, Fill = Color.FromHex("D9D9D9") });
 sheet.SetOutsideBorder("A1:B9", new CellBorderLine(CellBorderStyle.Medium));
 sheet.Merge("A10:B10");
-sheet.ColumnWidths[1] = 30;                          // Excel's character units
+sheet.ColumnWidths[1] = 30;                          // as Excel shows it (Format → Column Width)
 sheet.PageSetup = new SheetPageSetup { FitToPagesWide = 1, FitToPagesTall = 0, RepeatRows = (1, 1) };
 await new XlsxWorkbookWriter().WriteAsync(workbook, stream);
 ```
@@ -245,6 +245,9 @@ await new XlsxWorkbookWriter().WriteAsync(workbook, stream);
   styles with theme and indexed colours resolved, merged ranges, sizes, images and the page setup.
 - `cell.GetFormattedText(culture)` gives the text Excel shows for a value and its number format (sections, conditions,
   scientific notation, fractions, dates and elapsed time).
+- `cell.Evaluate()` calculates a cell for tests: references (also `Sheet2!B3`), `SUM` and `PRODUCT` over ranges,
+  `+ - * / ^`, sign, `%` and parentheses; anything beyond throws a `FormulaException` with the reason.
+- An indent applies to left or right aligned cells; an indented General cell is written left aligned.
 
 ## Validating files
 

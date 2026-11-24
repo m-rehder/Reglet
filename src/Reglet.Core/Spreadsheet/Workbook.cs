@@ -28,7 +28,7 @@ public sealed class Workbook
             throw new ArgumentException($"The workbook already has a sheet named '{name}'.", nameof(name));
         }
 
-        var worksheet = new Worksheet(name);
+        var worksheet = new Worksheet(name, this);
         _worksheets.Add(worksheet);
         return worksheet;
     }
@@ -39,7 +39,7 @@ public sealed class Workbook
     /// </summary>
     internal Worksheet AddReadWorksheet(string name)
     {
-        var worksheet = new Worksheet(name);
+        var worksheet = new Worksheet(name, this);
         _worksheets.Add(worksheet);
         return worksheet;
     }

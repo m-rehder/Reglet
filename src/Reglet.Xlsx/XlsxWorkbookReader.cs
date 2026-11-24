@@ -72,7 +72,7 @@ public sealed class XlsxWorkbookReader
             {
                 for (var index = min.Value; index <= max; index++)
                 {
-                    sheet.ColumnWidths[index] = width;
+                    sheet.ColumnWidths[index] = XlsxConstants.DisplayedWidth(width);
                 }
             }
         }

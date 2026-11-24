@@ -208,7 +208,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `CellHorizontalAlignment HorizontalAlignment { get; init; }` — Horizontal alignment; General aligns text left and numbers right.
 - `CellVerticalAlignment VerticalAlignment { get; init; }` — Vertical alignment; Excel's default is bottom.
 - `bool WrapText { get; init; }` — Wraps text onto several lines inside the cell.
-- `int Indent { get; init; }` — Indent in Excel's steps (about three characters each); 0 means none.
+- `int Indent { get; init; }` — Indent in Excel's steps (about three characters each); 0 means none. Excel indents only left or right aligned cells, so the writer aligns an indented cell with `CellHorizontalAlignment.General` to the left.
 - `string? NumberFormat { get; init; }` — An Excel number format code, such as `#,##0.00` or `m/d/yyyy`; null means General.
 
 #### CellVerticalAlignment
@@ -700,6 +700,13 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `CheckBox = 1` — A box that is checked or not.
 - `DropDown = 2` — A choice of one entry from `FormField.Options`.
 - `RadioButton = 3` — One button of a group of radio buttons; the buttons of a group share the name.
+
+#### FormulaException
+
+`sealed class FormulaException : InvalidOperationException, IRegletError` — A worksheet formula cannot be calculated (see `WorksheetCell.Evaluate`).
+
+- `new FormulaException(string message)` — Creates the exception with a message.
+- `new FormulaException(string message, Exception innerException)` — Creates the exception with a message and an inner exception.
 
 #### HeaderFooter
 
@@ -1872,7 +1879,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `string Name { get; }` — The sheet name.
 - `IEnumerable<WorksheetCell> Cells { get; }` — The cells that exist, by row and then column.
 - `IReadOnlyList<CellRange> MergedRanges { get; }` — Merged ranges, in the order they were merged.
-- `IDictionary<int, double> ColumnWidths { get; }` — Column widths in Excel's character units, by 1-based column; a column without one has the default width.
+- `IDictionary<int, double> ColumnWidths { get; }` — Column widths as Excel shows them (Format → Column Width): characters of the default font's digit width, by 1-based column; a column without one has the default width (8.43). The writer adds Excel's cell padding (5 px at Calibri 11) when it stores the width, and the reader takes it off again; Excel rounds widths to whole pixels, so 10.5 reads back as 10.43.
 - `IDictionary<int, double> RowHeights { get; }` — Row heights in points, by 1-based row; a row without one is as high as its content.
 - `IList<WorksheetImage> Images { get; }` — Images anchored at cells.
 - `SheetPageSetup PageSetup { get; set; }` — Paper, orientation, scaling, margins, print area and repeated rows.
@@ -1892,6 +1899,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `object? Value { get; set; }` — The value: null, a `String`, `RichText`, a number (stored as `Double`), a `DateTime` (a `DateOnly` becomes one) or a `Boolean`. Setting a value clears the formula. A read formula cell carries the value Excel cached, if any.
 - `string? Formula { get; set; }` — A formula without the leading `=`, such as `SUM(A1:A3)`; null means none. It is written without a cached value and the workbook asks Excel to calculate on load. Setting a formula clears the value.
 - `CellStyle Style { get; set; }` — The style; `CellStyle.Default` means none.
+- `double Evaluate()` — Calculates the cell (ADR-0046): the formula when there is one, otherwise the value as a number. The formula may use numbers, cell references (also `Sheet2!B3` and `'My sheet'!$B$3`), `SUM` and `PRODUCT` over references and ranges, `+ - * / ^`, a sign, `%` and parentheses; referenced formula cells are calculated too, an empty cell counts as 0. Meant for checking a workbook in tests: Excel and LibreOffice calculate the file themselves when they open it.
 - `string GetFormattedText(CultureInfo? culture = null)` — The value as Excel shows it with the cell's number format (Excel's TEXT of the value), in `culture` (default: the current culture). Rich text gives its plain text; a formula without a cached value gives an empty string.
 
 #### WorksheetImage

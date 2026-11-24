@@ -232,7 +232,7 @@ public sealed class XlsxWorkbookWriter
                 writer.WriteStartElement("col", XlsxConstants.Main);
                 writer.WriteAttributeString("min", Number(column));
                 writer.WriteAttributeString("max", Number(column));
-                writer.WriteAttributeString("width", Number(width));
+                writer.WriteAttributeString("width", Number(XlsxConstants.StoredWidth(width)));
                 writer.WriteAttributeString("customWidth", "1");
                 writer.WriteEndElement();
             }
@@ -760,9 +760,14 @@ public sealed class XlsxWorkbookWriter
                 {
                     writer.WriteAttributeString("applyAlignment", "1");
                     writer.WriteStartElement("alignment", main);
-                    if (style.HorizontalAlignment != CellHorizontalAlignment.General)
+                    // Excel indents only left or right aligned cells; an indented General cell is aligned left, as Excel's own
+                    // dialog does when an indent is set.
+                    var horizontal = style.HorizontalAlignment == CellHorizontalAlignment.General && style.Indent > 0
+                        ? CellHorizontalAlignment.Left
+                        : style.HorizontalAlignment;
+                    if (horizontal != CellHorizontalAlignment.General)
                     {
-                        writer.WriteAttributeString("horizontal", style.HorizontalAlignment.ToString().ToLowerInvariant());
+                        writer.WriteAttributeString("horizontal", horizontal.ToString().ToLowerInvariant());
                     }
 
                     if (style.VerticalAlignment != CellVerticalAlignment.Bottom)

@@ -52,5 +52,6 @@ implemented, the known limits, the open work and what is out of scope are kept i
 | [0043](ADR-0043-xlsx-workbooks.md) | – | Accepted: a workbook model in Core, XLSX writer and narrow reader in the new package Reglet.Xlsx |
 | [0044](ADR-0044-document-validator.md) | – | Accepted: a document validator for DOCX, XLSX, ODF and PDF in the new package Reglet.Validation (stage 1) |
 | [0045](ADR-0045-mcp-server.md) | – | Accepted: an MCP server (`reglet-mcp`, apps/Reglet.Mcp) with nine tools, files only inside roots |
+| [0046](ADR-0046-workbook-widths-indent-evaluation.md) | – | Accepted: column widths as Excel shows them, indented General cells aligned left, `WorksheetCell.Evaluate` for tests |
 
 A new ADR is added to this table; a change of a status goes into the feature matrix, not here.

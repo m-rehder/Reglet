@@ -24,7 +24,10 @@ public sealed record CellStyle
     /// <summary>Wraps text onto several lines inside the cell.</summary>
     public bool WrapText { get; init; }
 
-    /// <summary>Indent in Excel's steps (about three characters each); 0 means none.</summary>
+    /// <summary>
+    /// Indent in Excel's steps (about three characters each); 0 means none. Excel indents only left or right aligned
+    /// cells, so the writer aligns an indented cell with <see cref="CellHorizontalAlignment.General"/> to the left.
+    /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">The indent is not 0–250.</exception>
     public int Indent
     {

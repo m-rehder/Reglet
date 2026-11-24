@@ -26,6 +26,23 @@ internal static class XlsxConstants
     public const string DefaultFontName = "Calibri";
     public const double DefaultFontSize = 11;
 
+    /// <summary>The widest digit of the default font (Calibri 11) in pixels at 96 dpi, Excel's unit of column width.</summary>
+    public const int MaxDigitWidth = 7;
+
+    /// <summary>
+    /// The stored column width for a width as Excel shows it (ECMA-376 part 1, 18.3.1.13): the characters plus 5 pixels
+    /// of cell padding, in digit widths, truncated to 1/256.
+    /// </summary>
+    public static double StoredWidth(double displayed)
+        => displayed <= 0 ? 0 : Math.Min(255, Math.Truncate(((displayed * MaxDigitWidth) + 5) / MaxDigitWidth * 256) / 256);
+
+    /// <summary>The width Excel shows for a stored width: whole pixels less the padding, in characters to 1/100.</summary>
+    public static double DisplayedWidth(double stored)
+    {
+        var pixels = Math.Truncate(((256 * stored) + Math.Truncate(128.0 / MaxDigitWidth)) / 256 * MaxDigitWidth);
+        return Math.Max(0, Math.Truncate(((pixels - 5) / MaxDigitWidth * 100) + 0.5) / 100);
+    }
+
     /// <summary>EMU per pixel at 96 dpi.</summary>
     public const long EmuPerPixel = 9525;
 

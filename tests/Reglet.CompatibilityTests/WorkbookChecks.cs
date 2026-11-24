@@ -22,6 +22,8 @@ internal static class WorkbookChecks
             RejectsBrokenInput();
             ReadsExcelFeatures();
             ReadsForeignWorkbooksTolerantly();
+            WidthsAndIndentsAsExcelShowsThem();
+            EvaluatesFormulas();
             Console.WriteLine("Workbooks (XLSX): all checks passed.");
             return 0;
         }
@@ -76,7 +78,7 @@ internal static class WorkbookChecks
         sheet.SetOutsideBorder("A1:B2", new CellBorderLine(CellBorderStyle.Thick, Color.FromHex("0000FF")));
         sheet.Cell("C3").Style = sheet.Cell("C3").Style with { Border = new CellBorders { Top = new CellBorderLine(CellBorderStyle.Medium) } };
         sheet.Merge("A8:C8");
-        sheet.ColumnWidths[1] = 30.5;
+        sheet.ColumnWidths[1] = 40;
         sheet.RowHeights[8] = 40;
         sheet.RowHeights[20] = 12;
         sheet.Images.Add(new WorksheetImage(Png, 10, 2) { WidthPixels = 80, HeightPixels = 40, AlternativeText = "Logo" });
@@ -122,7 +124,8 @@ internal static class WorkbookChecks
                 && sheet.Contains("<pageSetup paperSize=\"1\" fitToWidth=\"1\" fitToHeight=\"0\" orientation=\"landscape\" />", StringComparison.Ordinal),
                 "Fit to one page wide, Letter, landscape.");
             Require(sheet.Contains("<pageMargins left=\"0.5\" right=\"0.5\" top=\"0.5\" bottom=\"0.5\"", StringComparison.Ordinal), "Margins in inches.");
-            Require(sheet.Contains("<col min=\"1\" max=\"1\" width=\"30.5\" customWidth=\"1\" />", StringComparison.Ordinal), "Column width in characters.");
+            Require(sheet.Contains("<col min=\"1\" max=\"1\" width=\"40.7109375\" customWidth=\"1\" />", StringComparison.Ordinal),
+                "A shown width of 40 is stored with Excel's 5 px padding (ECMA-376 18.3.1.13).");
             Require(sheet.Contains("<row r=\"20\" ht=\"12\" customHeight=\"1\" />", StringComparison.Ordinal), "An empty row keeps its height.");
             Require(sheet.Contains("<mergeCell ref=\"A8:C8\" />", StringComparison.Ordinal), "Merged range.");
             Require(sheet.IndexOf("mergeCells", StringComparison.Ordinal) < sheet.IndexOf("pageMargins", StringComparison.Ordinal)
@@ -161,7 +164,7 @@ internal static class WorkbookChecks
         Require(header.Border.Top == new CellBorderLine(CellBorderStyle.Thick, Color.FromHex("0000FF")) && header.Border.Left is not null && header.Border.Right is null
             && first.Cell("B2").Style.Border is { Right: not null, Bottom: not null, Top: null }, "The outside border reaches the edge cells only.");
         Require(first.Cell("C3").Style.Border.Top?.Style == CellBorderStyle.Medium, "A single side.");
-        Require(first.MergedRanges.Single().ToString() == "A8:C8" && first.ColumnWidths[1] == 30.5 && first.RowHeights[8] == 40, "Geometry is read back.");
+        Require(first.MergedRanges.Single().ToString() == "A8:C8" && first.ColumnWidths[1] == 40 && first.RowHeights[8] == 40, "Geometry is read back.");
         var setup = first.PageSetup;
         Require(setup.Orientation == PageOrientation.Landscape && setup.PaperSize == SheetPaperSize.Letter && setup.FitToPagesWide == 1
             && setup.FitToPagesTall == 0 && setup.PrintArea == "A1:C10" && setup.RepeatRows == (1, 2)
@@ -404,6 +407,122 @@ internal static class WorkbookChecks
                     $"{value} with denominators up to {limit}: {numerator}/{denominator} is the closest fraction.");
             }
         }
+    }
+
+    /// <summary>ADR-0046: widths as Excel shows them, and an indented General cell aligned left.</summary>
+    private static void WidthsAndIndentsAsExcelShowsThem()
+    {
+        foreach (var (shown, stored, back) in new[] { (8.43, 9.140625, 8.43), (40.0, 40.7109375, 40.0), (10.5, 11.2109375, 10.43), (0.0, 0.0, 0.0), (1.0, 1.7109375, 1.0) })
+        {
+            Require(XlsxConstants.StoredWidth(shown) == stored && XlsxConstants.DisplayedWidth(stored) == back,
+                $"A shown width of {shown} is stored as {stored} and shows as {back} (got {XlsxConstants.StoredWidth(shown)}, {XlsxConstants.DisplayedWidth(XlsxConstants.StoredWidth(shown))}).");
+        }
+
+        var workbook = new Workbook();
+        var sheet = workbook.AddWorksheet("S");
+        sheet.Cell("A1").Value = "indented";
+        sheet.Cell("A1").Style = new CellStyle { Indent = 2 };
+        sheet.Cell("A2").Value = "right";
+        sheet.Cell("A2").Style = new CellStyle { Indent = 1, HorizontalAlignment = CellHorizontalAlignment.Right };
+        using var zip = new ZipArchive(new MemoryStream(Write(workbook, out _)));
+        var styles = new StreamReader(zip.GetEntry("xl/styles.xml")!.Open()).ReadToEnd();
+        Require(styles.Contains("<alignment horizontal=\"left\" indent=\"2\" />", StringComparison.Ordinal)
+            && styles.Contains("<alignment horizontal=\"right\" indent=\"1\" />", StringComparison.Ordinal),
+            "An indented General cell is aligned left, as Excel needs it; a right aligned one stays right.");
+    }
+
+    /// <summary>ADR-0046: the formulas a test needs, calculated; anything else is a clear error.</summary>
+    private static void EvaluatesFormulas()
+    {
+        var workbook = new Workbook();
+        var sheet = workbook.AddWorksheet("Calc");
+        var other = workbook.AddWorksheet("Other sheet");
+        other.Cell("A1").Value = 10;
+        sheet.Cell("B2").Value = 4;
+        sheet.Cell("C2").Value = 89.9;
+        sheet.Cell("D2").Formula = "PRODUCT(B2,C2)";
+        sheet.Cell("B3").Value = 2;
+        sheet.Cell("C3").Value = "5";
+        sheet.Cell("D3").Formula = "B3*C3";
+        sheet.Cell("D4").Value = "a note";
+        sheet.Cell("D5").Formula = "SUM(D2:D4)";
+        sheet.Cell("D6").Formula = "=D5*(1-10%)+'Other sheet'!$A$1";
+        sheet.Cell("D7").Formula = "SUM(D2, D3, Calc!D4, 1.5e1) - PRODUCT(B2:B3)";
+        sheet.Cell("A1").Value = new DateTime(2026, 11, 24);
+        sheet.Cell("A2").Formula = "A1+7";
+
+        void Equal(string reference, double expected)
+        {
+            var actual = sheet.Cell(reference).Evaluate();
+            Require(Math.Abs(actual - expected) < 1e-9, $"{reference} is {expected}, got {actual}.");
+        }
+
+        Equal("D2", 4 * 89.9);
+        Equal("D3", 10);
+        Equal("D5", (4 * 89.9) + 10);
+        Equal("D6", (((4 * 89.9) + 10) * 0.9) + 10);
+        Equal("D7", (4 * 89.9) + 10 + 15 - 8);
+        Equal("C2", 89.9);
+        Equal("Z99", 0);
+        Equal("A2", new DateTime(2026, 12, 1).ToOADate());
+
+        double Calc(string formula)
+        {
+            var cell = sheet.Cell("H1");
+            cell.Formula = formula;
+            return cell.Evaluate();
+        }
+
+        foreach (var (formula, expected) in new[] { ("2+3*4", 14.0), ("(2+3)*4", 20.0), ("-2^2", 4.0), ("2^3^2", 64.0), ("10/4", 2.5), ("+5", 5.0), ("50%", 0.5), ("SUM()", 0.0), ("PRODUCT(Z1:Z9)", 0.0), ("sum(B2:B3)", 6.0), ("SUM(D4)", 0.0) })
+        {
+            Require(Math.Abs(Calc(formula) - expected) < 1e-9, $"={formula} is {expected}.");
+        }
+
+        sheet.Cell("E1").Formula = "E2+1";
+        sheet.Cell("E2").Formula = "E1+1";
+        foreach (var (formula, expected) in new[]
+        {
+            ("1/0", "#DIV/0!"), ("D4*2", "#VALUE!"), ("AVERAGE(B2:B3)", "AVERAGE is not supported"), ("A:A", "not a cell reference"),
+            ("B2:B3", "outside SUM"), ("E1", "circular"), ("\"x\"", "text in a formula"), ("(1+2", "not closed"), ("1+", "ends too early"),
+            ("Nope!A1", "no sheet 'Nope'"), ("1 2", "unexpected"), (new string('(', 300) + "1" + new string(')', 300), "nested deeper"),
+        })
+        {
+            try
+            {
+                Calc(formula);
+                throw new InvalidOperationException($"={formula} is not refused.");
+            }
+            catch (FormulaException exception)
+            {
+                Require(exception.Message.Contains(expected, StringComparison.Ordinal), $"={formula} is refused with '{expected}': {exception.Message}");
+            }
+        }
+
+        // A chain of formula cells deeper than the limit stops with a message instead of exhausting the stack.
+        var chain = workbook.AddWorksheet("Chain");
+        chain.Cell(1, 1).Value = 1;
+        for (var row = 2; row <= 600; row++)
+        {
+            chain.Cell(row, 1).Formula = $"A{row - 1}+1";
+        }
+
+        Throws<FormulaException>(() => chain.Cell(600, 1).Evaluate(), "A 600-cell chain stops at the depth limit.");
+        Require(chain.Cell(400, 1).Evaluate() == 400, "A 400-cell chain is calculated.");
+
+        // Cells that share their inputs are calculated once each: 60 doubling rows would be 2^60 steps otherwise.
+        var diamond = workbook.AddWorksheet("Diamond");
+        diamond.Cell(1, 1).Value = 1;
+        for (var row = 2; row <= 60; row++)
+        {
+            diamond.Cell(row, 1).Formula = $"A{row - 1}+A{row - 1}";
+        }
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        Require(diamond.Cell(60, 1).Evaluate() == Math.Pow(2, 59) && watch.Elapsed < TimeSpan.FromSeconds(1), $"Shared inputs are calculated once ({watch.Elapsed}).");
+
+        // A workbook read back calculates the same.
+        var read = new XlsxWorkbookReader().Read(new MemoryStream(Write(workbook, out _)));
+        Require(Math.Abs(read["Calc"].Cell("D6").Evaluate() - ((((4 * 89.9) + 10) * 0.9) + 10)) < 1e-9, "A read workbook calculates the same.");
     }
 
     private static void Throws<T>(Action action, string message)
