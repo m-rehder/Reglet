@@ -1,6 +1,6 @@
 # Reglet – Release notes
 
-## Unreleased
+## 1.6.0
 
 See ADR-0043 and ADR-0044.
 
