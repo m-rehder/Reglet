@@ -56,6 +56,10 @@ jobs:
           REGLET_VERAPDF: /tmp/verapdf/verapdf
         run: dotnet run --project tests/Reglet.CompatibilityTests --configuration Release
 
+      - name: MCP server checks
+        shell: bash
+        run: dotnet run --project tests/Reglet.Mcp.Tests --configuration Release
+
       - name: Zero-Dependency
         shell: bash
         run: build/check-zero-dependency.sh

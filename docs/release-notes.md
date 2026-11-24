@@ -1,5 +1,19 @@
 # Reglet – Release notes
 
+## 1.7.0
+
+See ADR-0045.
+
+### MCP server (new tool Reglet.Mcp)
+
+- `reglet-mcp` (`dotnet tool install -g Reglet.Mcp`) gives AI agents nine tools over the Model Context Protocol
+  (stdio): create DOCX, ODT, PDF or HTML from Markdown, convert between them, read a document as text, fill a DOCX/ODT
+  template, validate a file, create and read Excel workbooks, merge PDFs and extract pages.
+- It uses files only inside the `--root` directories (default: the working directory), also not through `..` or a
+  symbolic link, and replaces an existing file only on request and only once the new file is complete.
+- An application under `apps/`, with the MCP C# SDK and Microsoft.Extensions as dependencies; the libraries stay free
+  of dependencies.
+
 ## 1.6.1
 
 Fixes from a review of 1.6.0, most of them for files built to harm a service that validates or reads untrusted input.

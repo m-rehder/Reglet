@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>reglet-mcp</ToolCommandName>
+    <PackageId>Reglet.Mcp</PackageId>
+    <Description>MCP server for Reglet: lets AI agents create, convert, read, fill and validate DOCX, ODT, PDF, HTML and XLSX files, with no Office or LibreOffice installed.</Description>
+    <PackageTags>mcp;model-context-protocol;ai;agents;docx;xlsx;odt;pdf;validation</PackageTags>
+    <!-- A tool, not a library: package validation and the zero-dependency rule do not apply (ADR-0045). -->
+    <EnablePackageValidation>false</EnablePackageValidation>
+    <PackageReadmeFile>MCP-README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Reglet\Reglet.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Xlsx\Reglet.Xlsx.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Validation\Reglet.Validation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The licences of the assemblies the tool package carries (ADR-0045). -->
+    <None Include="THIRD-PARTY-NOTICES.md;MICROSOFT-THIRD-PARTY-NOTICES.TXT;MCP-README.md" Pack="true" PackagePath="" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="REGLET-THIRD-PARTY-NOTICES.md" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="2.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.15" />
+  </ItemGroup>
+
+</Project>

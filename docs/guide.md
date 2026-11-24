@@ -1,6 +1,6 @@
 # Reglet guide
 
-Writer options per format, document templates, Excel workbooks and file validation in detail. For a first overview see the
+Writer options per format, document templates, Excel workbooks, file validation and the MCP server in detail. For a first overview see the
 [README](../README.md) and the [example gallery](examples.md).
 
 ## Format options
@@ -268,3 +268,19 @@ if (!report.IsValid)
 - PDF: header, cross-references, trailer, stream lengths, page tree, page boxes, content operators, fonts and
   annotations. PDF/A conformance is not checked; use veraPDF for that.
 - A warning opens but may lose something; an error is what a program refuses or offers to repair.
+
+## MCP server for AI agents
+
+`reglet-mcp` (package `Reglet.Mcp`, ADR-0045) makes Reglet a tool server for agents over the Model Context Protocol:
+
+```
+dotnet tool install -g Reglet.Mcp
+claude mcp add reglet -- reglet-mcp --root ~/Documents/reports
+```
+
+- Tools: `create_document` (from Markdown: `#` headings, `**bold**`, `*italic*`, `` `code` ``, `-` and `1.` lists, pipe
+  tables, `---` page break), `convert_document`, `read_document`, `fill_template`, `validate_file`, `create_workbook`,
+  `read_workbook`, `merge_pdfs`, `extract_pdf_pages`.
+- Files are used only inside the `--root` directories (default: the working directory); paths are relative to the
+  first root, and neither `..` nor a symbolic link leads out. An existing file is replaced only with `overwrite: true`.
+- Errors about the input come back as tool errors the agent can read.

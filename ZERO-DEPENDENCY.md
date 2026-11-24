@@ -18,6 +18,12 @@ At runtime no Office programs, browsers or external processes are started.
 - `src/Reglet.Pdf`
 - `src/Reglet.Html`
 - `src/Reglet.Fonts`
+- `src/Reglet.Hyphenation`
+- `src/Reglet.Xlsx`
+- `src/Reglet.Validation`
+
+The MCP server under `apps/Reglet.Mcp` is an application, not a library: it depends on the MCP C# SDK and on
+Microsoft.Extensions hosting, and its package carries their licences (ADR-0045). Nothing under `src/` depends on it.
 
 ## Machine-readable statement
 

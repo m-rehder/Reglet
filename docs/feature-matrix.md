@@ -795,6 +795,14 @@ text boxes. Charts, barcodes and equations stay out of scope until their own ADR
 - [x] Stage 3 (PDF, not encrypted): objects parse and end with endobj; /Length lands on endstream and the data decodes; page tree (/Type, /Parent, /Count, no repeats); page /MediaBox and /Resources (inherited ones count); content operators, BT/ET and q/Q balance, fonts and XObjects named in the resources; required font entries (widths, descriptor, composite and Type 3 fonts); annotation /Subtype and /Rect. LibreOffice 26.8's and Reglet's PDFs pass. Not checked: form XObjects' content, operand counts
 - [ ] PDF/A conformance stays with veraPDF
 
+## MCP server
+
+[ADR-0045](decisions/ADR-0045-mcp-server.md): `reglet-mcp` (package `Reglet.Mcp`, `apps/Reglet.Mcp`), stdio.
+
+- [x] Tools: `create_document` (Markdown subset → DOCX/ODT/PDF/HTML), `convert_document`, `read_document` (Markdown-like text), `fill_template`, `validate_file`, `create_workbook`, `read_workbook`, `merge_pdfs`, `extract_pdf_pages`
+- [x] Files only inside `--root` directories (no `..` or link escape), overwrite only on request, input errors as tool errors, logging on stderr
+- [ ] Not offered: HTTP transport, resources, prompts, roots negotiated with the client
+
 ## Out of scope
 
 Deliberately not planned. A workstream here starts only after the product owner changes

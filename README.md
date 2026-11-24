@@ -21,7 +21,8 @@ dotnet add package Reglet
 Reglet targets .NET 10 and runs on Windows, macOS and Linux (also with Native AOT; WebAssembly is supported for
 demos). The packages `Reglet.Core`, `Reglet.Docx`, `Reglet.Odt`, `Reglet.Pdf`, `Reglet.Html`, `Reglet.Fonts` and
 the optional `Reglet.Hyphenation` can be used on their own. Excel workbooks come with `dotnet add package Reglet.Xlsx`, a validator for
-DOCX, XLSX, ODF and PDF files with `dotnet add package Reglet.Validation`.
+DOCX, XLSX, ODF and PDF files with `dotnet add package Reglet.Validation`, and an MCP server for AI agents with
+`dotnet tool install -g Reglet.Mcp`.
 
 ## Quick start
 
@@ -45,7 +46,10 @@ var read = DocumentReader.Read("report.docx");
 await DocumentWriter.WriteAsync(read.Document, "report.html");
 ```
 
-Workbooks and validation come in their own packages:
+Workbooks and validation come in their own packages, and AI agents can use all of it through the MCP server
+(`dotnet tool install -g Reglet.Mcp`, then for example `claude mcp add reglet -- reglet-mcp --root ~/Documents`).
+
+Workbooks and validation in code:
 
 ```csharp
 // dotnet add package Reglet.Xlsx
@@ -87,6 +91,7 @@ silently.
 | HTML | Simple editable HTML in and out; a page-faithful preview with the PDF's layout and embedded fonts, as a page or a fragment for a host page |
 | Security | Encrypted DOCX and ODT, signed DOCX and ODT, limits against malicious input |
 | Validation | `DocumentValidator` checks DOCX, XLSX, ODT/ODS and PDF files for what Word, Excel, LibreOffice and PDF readers reject: package structure, content types and relationships, the ECMA-376 schemas with Office's markup compatibility, ODF mimetype, manifest and the ODF 1.3/1.4 RELAX NG schemas, PDF cross-references, page tree, content streams and fonts; findings with part and line (`Reglet.Validation`) |
+| AI agents | An MCP server (`reglet-mcp`, package `Reglet.Mcp`) gives agents nine tools: create documents from Markdown, convert, read, fill templates, validate, create and read workbooks, merge and split PDFs; files only inside the directories it is given |
 | Workbooks | Excel (XLSX) workbooks written and read (`Reglet.Xlsx`): sheets, text, numbers, dates, rich text, formulas recalculated on open, number formats, fonts, fills, borders, alignment, merged cells, column widths and row heights, images, page setup with fit to page, print area and repeated rows; values formatted as Excel shows them |
 
 The exact state of every feature per format is in the [feature matrix](https://github.com/m-rehder/Reglet/blob/main/docs/feature-matrix.md).
