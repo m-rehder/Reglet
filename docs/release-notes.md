@@ -25,7 +25,8 @@ See ADR-0043 and ADR-0044.
   readers reject and reports each finding with severity, part and line. Office Open XML: package structure, content
   types, relationships, well-formed XML and the ECMA-376 Transitional schemas (embedded) after Office's markup
   compatibility; ODF: mimetype and manifest and the ODF 1.3/1.4 RELAX NG schemas (own validator, foreign markup removed
-  first); PDF: header, end marker, cross-references without repair, trailer and catalog.
+  first); PDF: header, end marker, cross-references without repair, trailer and catalog, and the structure (stream
+  lengths and data, page tree, page boxes, content operators and nesting, fonts, annotations).
 
 ### Workbooks (new package Reglet.Xlsx)
 

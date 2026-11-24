@@ -19,6 +19,8 @@ internal static class ValidationChecks
             FindsOdfFaults();
             ValidatesOdfSchema();
             FindsPdfFaults();
+            FindsPdfStructureFaults();
+            FindsPdfContentFaults();
             Console.WriteLine("Validation: all checks passed.");
             return 0;
         }
@@ -195,6 +197,83 @@ internal static class ValidationChecks
         using var encrypted = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(Sample(), encrypted, new PdfWriteOptions { Encryption = new PdfEncryptionOptions { UserPassword = "user", OwnerPassword = "owner" } }).GetAwaiter().GetResult();
         Require(Validate(encrypted.ToArray()).IsValid, "An encrypted PDF is checked without its password.");
+    }
+
+    /// <summary>Stage 3: page tree, page boxes, content, fonts and stream lengths (edits keep every byte offset).</summary>
+    private static void FindsPdfStructureFaults()
+    {
+        var text = Encoding.Latin1.GetString(Write(new PdfDocumentWriter(), Sample()));
+        ValidationReport Edit(string pattern, Func<System.Text.RegularExpressions.Match, string> replace)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(text, pattern);
+            Require(match.Success, $"The sample PDF contains {pattern}.");
+            var replaced = replace(match);
+            Require(replaced.Length == match.Value.Length, "The edit keeps the length.");
+            return Validate(Encoding.Latin1.GetBytes(text[..match.Index] + replaced + text[(match.Index + match.Length)..]));
+        }
+
+        var count = Edit(@"/Type /Pages /Kids \[\d+ 0 R \]/Count 1 ", match => match.Value.Replace("/Count 1", "/Count 2", StringComparison.Ordinal));
+        Require(count.Errors.Any(issue => issue.Message.Contains("/Count is 2", StringComparison.Ordinal)), "A wrong /Count is an error: " + string.Join("; ", count.Issues));
+
+        var parent = Edit(@"/Parent \d+ 0 R", match => "/Parent 9" + match.Value[9..]);
+        Require(parent.Errors.Any(issue => issue.Message.Contains("/Parent", StringComparison.Ordinal)), "A wrong /Parent is an error.");
+
+        var box = Edit(@"/MediaBox \[0 0 [0-9.]+", match => "/MediaBox [0 0 0" + new string(' ', match.Value.Length - 16));
+        Require(box.Errors.Any(issue => issue.Part == "page 1" && issue.Message.Contains("MediaBox", StringComparison.Ordinal)), "An empty /MediaBox is an error.");
+
+        var font = Edit(@"/Font <</F1 ", _ => "/Font <</G1 ");
+        Require(font.Errors.Any(issue => issue.Message.Contains("Tf selects the font /F1", StringComparison.Ordinal)), "A font missing from the resources is an error.");
+
+        // Three bytes short ends inside the data (one more would only reach the line break before endstream, which is allowed).
+        var length = Edit(@"/Length [1-9]\d\d+", match => "/Length " + (int.Parse(match.Value[8..], System.Globalization.CultureInfo.InvariantCulture) - 3).ToString(System.Globalization.CultureInfo.InvariantCulture).PadLeft(match.Value.Length - 8, '0'));
+        Require(length.Errors.Any(issue => issue.Message.Contains("endstream", StringComparison.Ordinal)), "A /Length that misses endstream is an error: " + string.Join("; ", length.Issues));
+
+        var subtype = Edit(@"/Subtype /(Type0|TrueType|Type1)", match => "/Subtype /" + new string('X', match.Value.Length - 10));
+        Require(subtype.Errors.Any(issue => issue.Message.Contains("unknown /Subtype", StringComparison.Ordinal)), "An unknown font subtype is an error.");
+    }
+
+    /// <summary>A hand-made PDF with correct offsets, so content and annotation faults stand alone.</summary>
+    private static byte[] HandMadePdf(string content, string annotation)
+    {
+        var objects = new[]
+        {
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R /Annots [6 0 R] >>",
+            $"<< /Length {content.Length} >>\nstream\n{content}\nendstream",
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+            annotation,
+        };
+        var builder = new StringBuilder("%PDF-1.7\n");
+        var offsets = new List<int>();
+        for (var index = 0; index < objects.Length; index++)
+        {
+            offsets.Add(builder.Length);
+            builder.Append($"{index + 1} 0 obj\n{objects[index]}\nendobj\n");
+        }
+
+        var xref = builder.Length;
+        builder.Append($"xref\n0 {objects.Length + 1}\n0000000000 65535 f \n");
+        foreach (var offset in offsets)
+        {
+            builder.Append($"{offset:D10} 00000 n \n");
+        }
+
+        builder.Append($"trailer\n<< /Size {objects.Length + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n");
+        return Encoding.Latin1.GetBytes(builder.ToString());
+    }
+
+    private static void FindsPdfContentFaults()
+    {
+        var good = Validate(HandMadePdf("q BT /F1 12 Tf 10 10 Td (x) Tj ET Q", "<< /Type /Annot /Subtype /Link /Rect [0 0 10 10] >>"));
+        Require(good.Issues.Count == 0, "The hand-made PDF is valid: " + string.Join("; ", good.Issues));
+
+        var bad = Validate(HandMadePdf("q BT /F2 12 Tf (x) Tj xyz Q Q", "<< /Type /Annot /Subtype /Link >>"));
+        foreach (var expected in new[] { "unknown operator 'xyz'", "font /F2", "not closed with ET", "q never saved", "no valid /Rect" })
+        {
+            Require(bad.Errors.Any(issue => issue.Part == "page 1" && issue.Message.Contains(expected, StringComparison.Ordinal)),
+                $"The content fault '{expected}' is found: " + string.Join("; ", bad.Issues));
+        }
     }
 
     private static byte[] WorkbookBytes()

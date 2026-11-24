@@ -5,7 +5,8 @@ namespace Reglet;
 /// <summary>
 /// PDF files: the header, the end-of-file marker, the cross-references read as the file states them (no repair), every
 /// object offset landing on its object header, and a trailer whose /Root is the catalog and whose /Size covers every
-/// object. Readers repair such faults silently or with a prompt; Acrobat asks to save the repaired file.
+/// object; then the structure (<see cref="PdfStructure"/>). Readers repair such faults silently or with a prompt;
+/// Acrobat asks to save the repaired file. An encrypted file gets the first part only (its objects need the password).
 /// </summary>
 internal static class PdfValidator
 {
@@ -91,7 +92,10 @@ internal static class PdfValidator
             if (file.Name(file.Dictionary(trailer.Get("Root"))?.Get("Type")) != "Catalog")
             {
                 issues.Error("trailer", null, "/Root is not a dictionary of /Type /Catalog.");
+                return "PDF";
             }
+
+            PdfStructure.Check(data, file, offsets, trailer, issues, cancellationToken);
         }
         catch (Exception exception) when (exception is not IssueList.FullException and not OperationCanceledException)
         {

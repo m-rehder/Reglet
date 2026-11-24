@@ -792,7 +792,8 @@ text boxes. Charts, barcodes and equations stay out of scope until their own ADR
 - [x] ODF: mimetype first, stored, without extra field, ODF media type; manifest complete in both directions with the package's media type; well-formed XML (encrypted parts skipped)
 - [x] PDF: header, `%%EOF`, cross-references without repair, object offsets, compressed objects' streams, trailer `/Size` and `/Root` catalog
 - [x] Stage 2: ODF RELAX NG schemas 1.3 and 1.4 (embedded, unmodified) with an own validator (Clark's derivative algorithm), foreign markup removed first (extended conformance); one finding per element, with line. LibreOffice 26.8's ODT is valid. Not checked: ID uniqueness, IDREF targets
-- [ ] Stage 3: deeper PDF structure. PDF/A conformance stays with veraPDF
+- [x] Stage 3 (PDF, not encrypted): objects parse and end with endobj; /Length lands on endstream and the data decodes; page tree (/Type, /Parent, /Count, no repeats); page /MediaBox and /Resources (inherited ones count); content operators, BT/ET and q/Q balance, fonts and XObjects named in the resources; required font entries (widths, descriptor, composite and Type 3 fonts); annotation /Subtype and /Rect. LibreOffice 26.8's and Reglet's PDFs pass. Not checked: form XObjects' content, operand counts
+- [ ] PDF/A conformance stays with veraPDF
 
 ## Out of scope
 

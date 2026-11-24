@@ -1,6 +1,6 @@
 # ADR-0044: A document validator for all formats
 
-Status: Accepted (2026-11-24); stages 1 and 2 implemented
+Status: Accepted (2026-11-24); stages 1 to 3 implemented
 
 ## Context
 
@@ -43,7 +43,15 @@ format Reglet handles, not only one.
   included; XSD regular expressions translated), one finding per element that does not fit and then on with its
   parent, so a fault does not cascade. Markup in namespaces the schema does not know (LibreOffice's `loext`, …) is
   removed first: ODF calls such a document an extended conforming one. ID uniqueness and IDREF targets are not checked.
-- **Stage 3**: deeper PDF structure (page tree, resources, fonts, streams). **PDF/A conformance stays with veraPDF**: its rule set is a project of its
+- **PDF structure (stage 3)**, for files that are not encrypted: every object parses and ends with `endobj` (a warning
+  otherwise), every stream's /Length lands on `endstream` and its data decodes; the page tree has the right /Type,
+  /Parent links back to its node, a /Count that matches and no object twice; every page has a /MediaBox (here or
+  inherited) enclosing an area and /Resources (a warning when missing); the page content tokenises, uses only known
+  operators (outside BX/EX), balances BT/ET and q/Q (unrestored states are a warning) and selects only fonts and
+  XObjects its resources hold; fonts have their required entries (/FirstChar, /LastChar and matching /Widths and a
+  /FontDescriptor except for the standard 14; a composite font's single descendant with descriptor and its /Encoding;
+  a Type 3 font's /CharProcs and /FontMatrix); annotations have a /Subtype and a /Rect. Form XObjects' own content and
+  operand counts are not checked. **PDF/A conformance stays with veraPDF**: its rule set is a project of its
   own. Microsoft's Office extension schemas could later be added under the Open Specifications terms to check the
   extension markup too.
 - **Licence**: the Ecma schemas are used under Ecma's default copyright notice, which allows implementing the
