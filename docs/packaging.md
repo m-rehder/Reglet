@@ -14,6 +14,7 @@ writers as a dependency. Advanced users can reference individual packages.
 | `Reglet.Odt` | ODT writer |
 | `Reglet.Pdf` | PDF writer |
 | `Reglet.Hyphenation` | Optional: TeX hyphenation patterns of 24 languages (depends on `Core` only; the facade does not pull it in) |
+| `Reglet.Validation` | Optional: document validator for DOCX, XLSX, ODF and PDF with the embedded ECMA-376 schemas (depends on `Core` and `Pdf`; the facade does not pull it in; ADR-0044) |
 | `Reglet.Xlsx` | Optional: Excel workbook writer and reader for the workbook model in `Core` (depends on `Core` only; the facade does not pull it in; ADR-0043) |
 
 ```csharp

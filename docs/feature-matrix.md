@@ -784,6 +784,15 @@ text boxes. Charts, barcodes and equations stay out of scope until their own ADR
 - [x] `WorksheetCell.GetFormattedText(culture)`: Excel's formatted text (sections and conditions, `0 # ?`, grouping and scaling commas, percent, scientific and engineering notation, fractions, literals also between digit runs (`000-00-0000`), `[$…]`, `_x`, `@`, dates and times, elapsed time `[h]:mm`, fractions of a second `ss.00`)
 - [ ] Not planned for now: a calculation engine, charts, conditional formatting, data validation, other defined names, tables, filters, hyperlinks, comments, protection, frozen panes, outlines, encryption, ODS
 
+## Validation
+
+[ADR-0044](decisions/ADR-0044-document-validator.md): `DocumentValidator` in the package `Reglet.Validation`; the format is recognised from the content.
+
+- [x] Office Open XML (DOCX, XLSX, other OOXML): part names, `[Content_Types].xml`, relationships and their targets, well-formed XML, ECMA-376 5th edition Transitional schemas (embedded, unmodified) after markup compatibility as Office 2019 reads it; Office 2010+ extension namespaces understood but not schema-checked, a warning when they are not declared ignorable. Line numbers for every XML finding. `docProps/core.xml` only for well-formedness
+- [x] ODF: mimetype first, stored, without extra field, ODF media type; manifest complete in both directions with the package's media type; well-formed XML (encrypted parts skipped)
+- [x] PDF: header, `%%EOF`, cross-references without repair, object offsets, compressed objects' streams, trailer `/Size` and `/Root` catalog
+- [ ] Stage 2: ODF schema validation (own RELAX NG validator). Stage 3: deeper PDF structure. PDF/A conformance stays with veraPDF
+
 ## Out of scope
 
 Deliberately not planned. A workstream here starts only after the product owner changes

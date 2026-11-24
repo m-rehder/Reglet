@@ -2,7 +2,15 @@
 
 ## Unreleased
 
-See ADR-0043.
+See ADR-0043 and ADR-0044.
+
+### Validation (new package Reglet.Validation)
+
+- `DocumentValidator.Validate(stream)` checks DOCX, XLSX, ODF and PDF files for what Word, Excel, LibreOffice and PDF
+  readers reject and reports each finding with severity, part and line. Office Open XML: package structure, content
+  types, relationships, well-formed XML and the ECMA-376 Transitional schemas (embedded) after Office's markup
+  compatibility; ODF: mimetype and manifest, well-formed XML; PDF: header, end marker, cross-references without repair,
+  trailer and catalog.
 
 ### Workbooks (new package Reglet.Xlsx)
 

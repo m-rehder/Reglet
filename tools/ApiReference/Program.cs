@@ -15,7 +15,7 @@ if (args.Length < 1)
     return 2;
 }
 
-string[] assemblyNames = ["Reglet", "Reglet.Core", "Reglet.Docx", "Reglet.Odt", "Reglet.Pdf", "Reglet.Html", "Reglet.Fonts", "Reglet.Hyphenation", "Reglet.Xlsx"];
+string[] assemblyNames = ["Reglet", "Reglet.Core", "Reglet.Docx", "Reglet.Odt", "Reglet.Pdf", "Reglet.Html", "Reglet.Fonts", "Reglet.Hyphenation", "Reglet.Xlsx", "Reglet.Validation"];
 var docs = new Dictionary<string, string>();
 var output = new StringBuilder();
 output.Append("""

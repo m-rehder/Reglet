@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsShippedLibrary>true</IsShippedLibrary>
+    <Description>Document validator for Reglet: checks DOCX, XLSX, ODF and PDF files for what Word, Excel, LibreOffice and PDF readers would reject (package structure, ECMA-376 schemas, cross-references).</Description>
+    <PackageTags>validation;validator;docx;xlsx;odt;pdf;ooxml;schema;office</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reglet.Core\Reglet.Core.csproj" />
+    <ProjectReference Include="..\Reglet.Pdf\Reglet.Pdf.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ECMA-376 5th edition schemas, unmodified (Copyright Ecma International, see THIRD-PARTY-NOTICES.md). -->
+    <EmbeddedResource Include="Schemas\*.xsd" LogicalName="Reglet.Validation.Schemas.%(Filename)%(Extension)" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="" Visible="false" />
+  </ItemGroup>
+
+</Project>

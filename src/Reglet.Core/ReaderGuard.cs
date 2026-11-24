@@ -362,8 +362,13 @@ internal static class ReaderGuard
         }
     }
 
-    private sealed class DepthLimitedXmlReader(XmlReader inner) : XmlReader
+    private sealed class DepthLimitedXmlReader(XmlReader inner) : XmlReader, IXmlLineInfo
     {
+        // Passed through so that a document loaded with LoadOptions.SetLineInfo knows its lines (the validator reports them).
+        public int LineNumber => (inner as IXmlLineInfo)?.LineNumber ?? 0;
+        public int LinePosition => (inner as IXmlLineInfo)?.LinePosition ?? 0;
+        public bool HasLineInfo() => (inner as IXmlLineInfo)?.HasLineInfo() ?? false;
+
         public override int AttributeCount => inner.AttributeCount;
         public override string BaseURI => inner.BaseURI;
         public override int Depth => inner.Depth;

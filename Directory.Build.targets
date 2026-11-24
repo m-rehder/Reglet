@@ -46,6 +46,7 @@
       Docx, Odt      -> Core, Fonts (embeds fonts, ADR-0021)
       Hyphenation    -> Core (optional patterns; the facade does not reference it)
       Xlsx           -> Core (workbooks, ADR-0043; the facade does not reference it)
+      Validation     -> Core, Fonts, Pdf (document validator, ADR-0044; the facade does not reference it)
       Pdf            -> Core, Fonts (embeds the fonts of Fonts)
       Html           -> Core
       Reglet   -> Core, Fonts, Docx, Odt, Pdf, Html (Facade)
@@ -64,6 +65,8 @@
         Condition="'$(MSBuildProjectName)' == 'Reglet' And '%(ProjectReference.Filename)' != 'Reglet.Core' And '%(ProjectReference.Filename)' != 'Reglet.Fonts' And '%(ProjectReference.Filename)' != 'Reglet.Docx' And '%(ProjectReference.Filename)' != 'Reglet.Odt' And '%(ProjectReference.Filename)' != 'Reglet.Pdf' And '%(ProjectReference.Filename)' != 'Reglet.Html'" />
       <_DisallowedProjectReference Include="@(ProjectReference)"
         Condition="'$(MSBuildProjectName)' == 'Reglet.Html' And '%(ProjectReference.Filename)' != 'Reglet.Core'" />
+      <_DisallowedProjectReference Include="@(ProjectReference)"
+        Condition="'$(MSBuildProjectName)' == 'Reglet.Validation' And '%(ProjectReference.Filename)' != 'Reglet.Core' And '%(ProjectReference.Filename)' != 'Reglet.Fonts' And '%(ProjectReference.Filename)' != 'Reglet.Pdf'" />
     </ItemGroup>
     <Error Condition="'@(_DisallowedProjectReference)' != ''"
            Text="Project dependency not allowed in $(MSBuildProjectName): @(_DisallowedProjectReference)" />

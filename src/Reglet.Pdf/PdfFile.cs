@@ -78,6 +78,19 @@ internal sealed class PdfFile
         return file;
     }
 
+    /// <summary>
+    /// The cross-reference data exactly as the file states it, without the repair <see cref="Load"/> falls back to
+    /// (for validation).
+    /// </summary>
+    /// <exception cref="DocumentValidationException">The cross-reference data cannot be read.</exception>
+    internal static (IReadOnlyDictionary<int, int> Offsets, IReadOnlyDictionary<int, (int Container, int Index)> Compressed, PdfDictionary Trailer) ReadCrossReferencesStrict(byte[] data)
+    {
+        var offsets = new Dictionary<int, int>();
+        var compressed = new Dictionary<int, (int, int)>();
+        var trailer = LoadCrossReferences(data, new XrefEntries(offsets, compressed));
+        return (offsets, compressed.ToDictionary(entry => entry.Key, entry => (entry.Value.Item1, entry.Value.Item2)), trailer);
+    }
+
     private static PdfDictionary LoadCrossReferences(byte[] data, XrefEntries entries)
     {
         PdfDictionary? trailer = null;

@@ -2628,3 +2628,44 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 
 - `new XlsxWriteOptions()`
 - `static XlsxWriteOptions Default { get; }` — Default options.
+
+## Reglet.Validation
+
+### Reglet
+
+#### DocumentValidator
+
+`sealed class DocumentValidator` — Checks a document file for what Word, Excel, LibreOffice or a PDF reader would reject or offer to repair (ADR-0044). The format is recognised from the content: DOCX, XLSX and other Office Open XML packages (package structure and the ECMA-376 Transitional schemas, with markup compatibility as Office 2019 understands it), ODF packages (mimetype, manifest, well-formed XML) and PDF (header, cross-references, trailer and catalog).
+
+- `new DocumentValidator()`
+- `const int MaxIssues` — The most findings one report collects.
+- `ValidationReport Validate(Stream input, CancellationToken cancellationToken = default)` — Validates the file in the stream; the stream stays open.
+
+#### ValidationIssue
+
+`sealed record ValidationIssue` — One finding of the `DocumentValidator`.
+
+- `new ValidationIssue(ValidationSeverity Severity, string Part, int? Line, string Message)` — One finding of the `DocumentValidator`.
+- `ValidationSeverity Severity { get; init; }` — Error or warning.
+- `string Part { get; init; }` — Where it is: a package part (`word/document.xml`), `[package]`, or a PDF object.
+- `int? Line { get; init; }` — The line in the part, when it is XML and known.
+- `string Message { get; init; }` — What is wrong.
+- `string ToString()` — The finding as one line, such as `Error word/document.xml:12: …`.
+
+#### ValidationReport
+
+`sealed record ValidationReport` — The result of a validation (ADR-0044).
+
+- `new ValidationReport(string format, IEnumerable<ValidationIssue> issues, bool truncated = false)` — Creates a report.
+- `string Format { get; }` — The detected format: DOCX, XLSX, PPTX, OOXML, ODT, ODS, ODP, ODG, ODF or PDF.
+- `IReadOnlyList<ValidationIssue> Issues { get; }` — The findings, in the order they were found.
+- `bool Truncated { get; }` — Whether the validator stopped collecting at its limit (more findings exist).
+- `bool IsValid { get; }` — Whether there is no error (warnings allowed).
+- `IEnumerable<ValidationIssue> Errors { get; }` — The errors only.
+
+#### ValidationSeverity
+
+`enum ValidationSeverity` — How serious a validation finding is.
+
+- `Warning = 0` — The file opens, but something may be lost or need a newer program (for example Office 2010 or later).
+- `Error = 1` — A program may refuse the file or offer to repair it.

@@ -9,7 +9,8 @@
     "src/Reglet.Html/Reglet.Html.csproj",
     "src/Reglet.Fonts/Reglet.Fonts.csproj",
     "src/Reglet.Hyphenation/Reglet.Hyphenation.csproj",
-    "src/Reglet.Xlsx/Reglet.Xlsx.csproj"
+    "src/Reglet.Xlsx/Reglet.Xlsx.csproj",
+    "src/Reglet.Validation/Reglet.Validation.csproj"
   ],
   "forbiddenReferences": ["PackageReference", "NativeReference", "COMReference"],
   "forbiddenExternalAssemblies": true,
