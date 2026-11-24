@@ -127,14 +127,20 @@ internal static class PdfLongTermSignatureChecks
         using var signer = Certificate("CN=Keep Signer");
         using var authority = Certificate("CN=Keep CA");
 
-        var signed = Sign(PadesOptions(signer));
-        var withStore = Sign(PadesOptions(signer, new PdfValidationData { Certificates = [signer, authority] }));
+        // Everything up to the last end-of-file marker of the signed revision is identical. The signature carries the
+        // clock's second (/M), so a pair signed across a second boundary differs; such a pair is signed again.
+        byte[] signed = [], withStore = [];
+        var firstEnd = 0;
+        var same = false;
+        for (var attempt = 0; attempt < 3 && !same; attempt++)
+        {
+            signed = Sign(PadesOptions(signer));
+            withStore = Sign(PadesOptions(signer, new PdfValidationData { Certificates = [signer, authority] }));
+            firstEnd = IndexOf(signed, "%%EOF") + "%%EOF".Length;
+            same = withStore.AsSpan(0, firstEnd).SequenceEqual(signed.AsSpan(0, Math.Min(firstEnd, signed.Length)));
+        }
 
-        // Everything up to the last end-of-file marker of the signed revision is identical.
-        var firstEnd = IndexOf(signed, "%%EOF") + "%%EOF".Length;
-        Require(
-            withStore.AsSpan(0, firstEnd).SequenceEqual(signed.AsSpan(0, Math.Min(firstEnd, signed.Length))),
-            "The signed revision is not changed by the update.");
+        Require(same, "The signed revision is not changed by the update.");
 
         // The file is still readable and extractable.
         using var buffer = new MemoryStream(withStore);
