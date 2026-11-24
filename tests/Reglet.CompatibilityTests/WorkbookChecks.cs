@@ -242,6 +242,17 @@ internal static class WorkbookChecks
             (1.3, "# ?/8", "1 2/8", us),
             (5.0, "# ?/?", "5    ", us),
             (-1.5, "# ?/?", "-1 1/2", us),
+            (1.0625, "[h]:mm", "25:30", us),
+            (1.0625, "[mm]:ss", "1530:00", us),
+            (1.0625, "[ss]", "91800", us),
+            (0.5 + (0.25 / 86400), "hh:mm:ss.00", "12:00:00.25", us),
+            (0.5 + (0.25 / 86400), "hh:mm:ss.0", "12:00:00,3", de),
+            (0.5 + (0.6 / 86400), "hh:mm:ss", "12:00:01", us),
+            (123456789.0, "000-00-0000", "123-45-6789", us),
+            (12.0, "000-00-0000", "000-00-0012", us),
+            (4155551234.0, "(000) 000-0000", "(415) 555-1234", us),
+            (9876543210.0, "00-0000", "987654-3210", us),
+            (12.345, "0.0 0", "12.3 5", us),
         ];
         foreach (var (value, code, expected, culture) in cases)
         {
@@ -334,6 +345,9 @@ internal static class WorkbookChecks
         var reread = new XlsxWorkbookReader().Read(new MemoryStream(Write(written, out _))).Worksheets[0].Images.Single();
         Require(reread.Row == 3 && reread.Column == 2 && reread.WidthPixels == 40 && reread.HeightPixels == 1, "A one-cell picture survives the round trip.");
         Require(XlsxFormula.Shift("'My Sheet'!A1+Sheet2!B$2+A1048576", 1, 0) == "'My Sheet'!A2+Sheet2!B$2+#REF!", "Sheet names stay; a row past the end is #REF!.");
+        var lines = XlsxFormula.Shift("SUM(A:A)+SUM($B:C)+SUM(1:3)+SUM($2:$2)+SUM(Sheet2!D:D)+LOG10(A1)", 1, 1);
+        Require(lines == "SUM(B:B)+SUM($B:D)+SUM(2:4)+SUM($2:$2)+SUM(Sheet2!E:E)+LOG10(B2)", $"Whole columns and rows move along their axis, got {lines}.");
+        Require(XlsxFormula.Shift("SUM(XFD:XFD)", 0, 1) == "SUM(#REF!)", "A column past the last is #REF!.");
     }
 
     private static void Throws<T>(Action action, string message)

@@ -8,8 +8,8 @@ namespace Reglet;
 /// (positive; negative; zero; text), digit placeholders <c>0 # ?</c>, thousands separators and scaling commas, percent,
 /// quoted and escaped literals, <c>[$…]</c> currency tokens, <c>_x</c> spacing, <c>@</c>, date and time codes,
 /// conditions (<c>[&gt;=100]</c>), scientific notation (<c>0.00E+00</c>, <c>##0.0E+0</c>) and fractions (<c># ?/?</c>,
-/// <c># ?/8</c>). shortcut: elapsed time (<c>[h]</c>) and literals between digit placeholders (<c>000-00-0000</c>, the
-/// number shows at the first run) are not evaluated; add them when a workbook needs them.
+/// <c># ?/8</c>), elapsed time (<c>[h]:mm</c>), fractions of a second (<c>ss.00</c>) and literals between digit
+/// placeholders (<c>000-00-0000</c>).
 /// </summary>
 internal static class CellFormatter
 {
@@ -118,8 +118,7 @@ internal static class CellFormatter
             return sign + Fraction(value, tokens, slash, culture);
         }
 
-        var numberText = RenderNumber(value, string.Concat(tokens.Where(token => token.Kind == TokenKind.Digits).Select(token => token.Value)), culture);
-        return sign + Place(tokens, index => index == tokens.FindIndex(token => token.Kind == TokenKind.Digits) ? numberText : null);
+        return sign + Distribute(value, tokens, culture);
     }
 
     /// <summary>
@@ -175,6 +174,55 @@ internal static class CellFormatter
             ">=" => number >= operand,
             _ => number != operand,
         };
+    }
+
+    /// <summary>
+    /// The number placed into its digit runs. One run takes the whole number; with literals between runs
+    /// (<c>000-00-0000</c>) the integer digits fill the runs from the right, the first run taking what is left, and the
+    /// decimals fill the runs after the point from the left.
+    /// </summary>
+    private static string Distribute(double value, List<Token> tokens, CultureInfo culture)
+    {
+        var runs = Enumerable.Range(0, tokens.Count).Where(index => tokens[index].Kind == TokenKind.Digits).ToList();
+        var pattern = string.Concat(runs.Select(index => tokens[index].Value));
+        var text = RenderNumber(value, pattern, culture);
+        if (runs.Count == 1)
+        {
+            return Place(tokens, index => index == runs[0] ? text : null);
+        }
+
+        var separator = culture.NumberFormat.NumberDecimalSeparator;
+        var pointRun = runs.FirstOrDefault(index => tokens[index].Value.Contains('.'), -1);
+        var split = pointRun < 0 ? -1 : text.LastIndexOf(separator, StringComparison.Ordinal);
+        var integerText = split < 0 ? text : text[..split];
+        var decimalText = split < 0 ? string.Empty : text[(split + separator.Length)..];
+
+        static int Count(string run) => run.Count(placeholder => placeholder is '0' or '#' or '?');
+        string IntegerPortion(int index) => index == pointRun ? tokens[index].Value[..tokens[index].Value.IndexOf('.')] : tokens[index].Value;
+        string DecimalPortion(int index) => index == pointRun ? tokens[index].Value[(tokens[index].Value.IndexOf('.') + 1)..] : tokens[index].Value;
+
+        var pieces = runs.ToDictionary(index => index, _ => string.Empty);
+        var integerRuns = runs.Where(index => pointRun < 0 || index <= pointRun).ToList();
+        for (var position = integerRuns.Count - 1; position >= 0; position--)
+        {
+            var take = position == 0 ? integerText.Length : Math.Min(integerText.Length, Count(IntegerPortion(integerRuns[position])));
+            pieces[integerRuns[position]] = integerText[^take..];
+            integerText = integerText[..^take];
+        }
+
+        if (pointRun >= 0)
+        {
+            var decimalRuns = runs.Where(index => index >= pointRun).ToList();
+            for (var position = 0; position < decimalRuns.Count; position++)
+            {
+                var take = position == decimalRuns.Count - 1 ? decimalText.Length : Math.Min(decimalText.Length, Count(DecimalPortion(decimalRuns[position])));
+                var piece = decimalText[..take];
+                decimalText = decimalText[take..];
+                pieces[decimalRuns[position]] = position == 0 ? pieces[pointRun] + separator + piece : piece;
+            }
+        }
+
+        return Place(tokens, index => pieces.TryGetValue(index, out var piece) ? piece : null);
     }
 
     /// <summary>Joins the tokens: <paramref name="replace"/> gives the text of a digit token (null drops it); literals stay.</summary>
@@ -414,12 +462,27 @@ internal static class CellFormatter
             return new string('#', 8);
         }
 
-        var date = DateTime.FromOADate(serial);
+        // Excel rounds the time to the shown precision: whole seconds, or the fraction digits after ss (ss.00).
+        bool IsFraction(int index) => tokens[index].Kind == TokenKind.Digits && tokens[index].Value.StartsWith('.')
+            && index > 0 && tokens[index - 1].Kind == TokenKind.Date && Letter(tokens[index - 1]) == 's';
+        var fractionDigits = Math.Min(3, Enumerable.Range(0, tokens.Count).Where(IsFraction)
+            .Select(index => tokens[index].Value.Count(placeholder => placeholder == '0')).DefaultIfEmpty(0).Max());
+        var totalSeconds = Math.Round(serial * 86400, fractionDigits, MidpointRounding.AwayFromZero);
+        var date = new DateTime(1899, 12, 30).AddSeconds(totalSeconds);
         var twelveHour = tokens.Any(token => token.Kind == TokenKind.AmPm);
         var builder = new StringBuilder();
         for (var index = 0; index < tokens.Count; index++)
         {
             var token = tokens[index];
+            if (IsFraction(index))
+            {
+                var fraction = totalSeconds - Math.Floor(totalSeconds);
+                var digits = token.Value.Count(placeholder => placeholder == '0');
+                builder.Append(culture.NumberFormat.NumberDecimalSeparator)
+                    .Append(Math.Round(fraction * Math.Pow(10, digits)).ToString(new string('0', Math.Max(1, digits)), CultureInfo.InvariantCulture)[..digits]);
+                continue;
+            }
+
             // In a date, '.' and ',' are separators (dd.mm.yyyy), not digit placeholders.
             if (token.Kind is TokenKind.Literal or TokenKind.Digits)
             {
@@ -441,6 +504,19 @@ internal static class CellFormatter
 
             var part = token.Value.ToLowerInvariant();
             var length = part.Length;
+            if (part[0] == '[')
+            {
+                // Elapsed time: [h] counts hours past 24, [m] minutes, [s] seconds.
+                var elapsed = Math.Floor(part[1] switch
+                {
+                    'h' => Math.Floor(totalSeconds) / 3600,
+                    'm' => Math.Floor(totalSeconds) / 60,
+                    _ => totalSeconds,
+                });
+                builder.Append(elapsed.ToString(new string('0', length - 2), culture));
+                continue;
+            }
+
             switch (part[0])
             {
                 case 'y':
@@ -491,9 +567,11 @@ internal static class CellFormatter
 
         var before = tokens.Take(index).LastOrDefault(token => token.Kind == TokenKind.Date);
         var after = tokens.Skip(index + 1).FirstOrDefault(token => token.Kind == TokenKind.Date);
-        return before.Value is { } previous && char.ToLowerInvariant(previous[0]) == 'h'
-            || after.Value is { } next && char.ToLowerInvariant(next[0]) == 's';
+        return before.Value is not null && Letter(before) == 'h' || after.Value is not null && Letter(after) == 's';
     }
+
+    /// <summary>The unit letter of a date token, also of an elapsed one such as <c>[h]</c>.</summary>
+    private static char Letter(Token token) => char.ToLowerInvariant(token.Value[0] == '[' ? token.Value[1] : token.Value[0]);
 
     /// <summary>Splits a code at the semicolons outside quotes, escapes and brackets.</summary>
     private static List<string> Sections(string code)
@@ -568,7 +646,11 @@ internal static class CellFormatter
                 case '[':
                     var bracket = section.IndexOf(']', index);
                     var inner = bracket < 0 ? section[(index + 1)..] : section[(index + 1)..bracket];
-                    if (inner.Length > 0 && inner[0] is '<' or '>' or '=')
+                    if (inner.Length > 0 && char.ToLowerInvariant(inner[0]) is 'h' or 'm' or 's' && inner.All(letter => char.ToLowerInvariant(letter) == char.ToLowerInvariant(inner[0])))
+                    {
+                        tokens.Add(new(TokenKind.Date, "[" + inner + "]"));
+                    }
+                    else if (inner.Length > 0 && inner[0] is '<' or '>' or '=')
                     {
                         tokens.Add(new(TokenKind.Condition, inner));
                     }

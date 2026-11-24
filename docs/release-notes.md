@@ -15,7 +15,8 @@ See ADR-0043.
   page setup with fit to page, print area and repeated rows.
 - `XlsxWorkbookReader` reads workbooks back (values, formulas, number formats, styles, geometry, images, page setup),
   resolves theme and indexed colours, and expands shared formulas into each cell. `WorksheetCell.GetFormattedText`
-  gives the text Excel shows for a value, including conditions, scientific notation and fractions.
+  gives the text Excel shows for a value, including conditions, scientific notation, fractions, elapsed time and digits split by literals
+  (`000-00-0000`).
 - The OPC package writer moved from Reglet.Docx to Reglet.Core (internal); DOCX output is unchanged.
 
 ## 1.5.2
