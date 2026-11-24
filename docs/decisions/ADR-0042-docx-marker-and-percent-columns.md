@@ -28,6 +28,7 @@ the model only took absolute widths.
 
 ## Consequences
 
-- ODT gets absolute column widths, not `style:rel-column-width`; the widths are right for the page the table is written
-  on, but a LibreOffice user who changes the margins does not see the columns follow.
+- ODT gets absolute column widths, not `style:rel-column-width`. LibreOffice 26.8 still keeps the proportions when the
+  text area changes: a table written as 30/70 on A4 with 72 pt margins stays 30.0 %/70.0 % with 5 cm margins and in
+  landscape (measured in the PDF export), because the table fills the margins and LibreOffice scales its columns.
 - HTML still writes no column widths.
