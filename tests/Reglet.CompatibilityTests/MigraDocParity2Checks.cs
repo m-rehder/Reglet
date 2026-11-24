@@ -16,6 +16,7 @@ internal static class MigraDocParity2Checks
             RowKeptOnOnePage();
             LineBreaksAfterHyphen();
             FixedColumnWidthsOverflow();
+            ColumnWidthsInPercent();
             HeaderDistanceAndBodyStart();
             InlineImageStandsOnTheBaseline();
             Console.WriteLine("MigraDoc parity 2: all checks passed.");
@@ -120,6 +121,49 @@ internal static class MigraDocParity2Checks
         var read = new DocxDocumentReader().Read(buffer).Document.Sections[0].Blocks.OfType<TableBlock>().Single();
         Require(read.FixedColumnWidths && Math.Abs(read.ColumnWidths!.Sum(width => width.Points) - widths.Sum(width => width.Points)) < 0.1,
             "DOCX: the fixed layout and its widths survive.");
+    }
+
+    /// <summary>Column widths in percent of the table follow the section's text width in every writer.</summary>
+    private static void ColumnWidthsInPercent()
+    {
+        TableBlock Table(params double[] percents) => new([new TableRow(new[] { "A", "B", "C" }.Select(text => new TableCell([new Paragraph(new TextRun(text))])))])
+        {
+            ColumnWidthPercents = percents,
+        };
+
+        // A4 with 72 pt margins: a 451.28 pt text width; 20 % listed, the other two share 80 %.
+        var page = Pages(Document(new Section(Table(20))))[0];
+        double X(string text) => page.Single(piece => piece.Text == text).X;
+        var text = 595.28 - 144;
+        Require(Math.Abs(X("B") - (72 + text * 0.2 + 5.4)) < 0.01 && Math.Abs(X("C") - (72 + text * 0.6 + 5.4)) < 0.01,
+            $"PDF: 20 % and two columns of 40 % ({X("B")}, {X("C")}).");
+
+        var landscape = new Section(Table(20, 30, 50)) { Orientation = PageOrientation.Landscape };
+        var body = new StreamReader(new System.IO.Compression.ZipArchive(Write(new DocxDocumentWriter(), Document(landscape)))
+            .GetEntry("word/document.xml")!.Open()).ReadToEnd();
+        Require(body.Contains("w:tblW w:w=\"5000\" w:type=\"pct\"", StringComparison.Ordinal)
+            && body.Contains("w:tcW w:w=\"1000\" w:type=\"pct\"", StringComparison.Ordinal)
+            && body.Contains("w:tcW w:w=\"2500\" w:type=\"pct\"", StringComparison.Ordinal),
+            "DOCX: a percent table with percent cells.");
+        var landscapeText = (841.89 - 144) * 20;
+        Require(body.Contains($"w:gridCol w:w=\"{Math.Round(landscapeText * 0.5, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture)}\"", StringComparison.Ordinal),
+            "DOCX: the grid comes from the section's text width.");
+
+        var read = new DocxDocumentReader().Read(Write(new DocxDocumentWriter(), Document(landscape))).Document.Sections[0].Blocks.OfType<TableBlock>().Single();
+        Require(read.ColumnWidthPercents is [20, 30, 50], "DOCX: the column percents are read back.");
+
+        Write(new OdtDocumentWriter(), Document(landscape));
+        var rejected = false;
+        try
+        {
+            _ = Table(60, 50);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            rejected = true;
+        }
+
+        Require(rejected, "Column percents past 100 are rejected.");
     }
 
     private static void HeaderDistanceAndBodyStart()

@@ -155,6 +155,11 @@ internal static class TableLayout
             throw new DocumentValidationException("The available table width must be positive.", nameof(availablePoints));
         }
 
+        if (table.ColumnWidthPercents is { } percents)
+        {
+            return ResolvePercentWidths(percents, columnCount, availablePoints * (table.WidthPercent ?? 100) / 100.0);
+        }
+
         if (table.WidthPercent is not { } percent)
         {
             return ResolveColumnWidths(table, columnCount, availablePoints);
@@ -209,5 +214,33 @@ internal static class TableLayout
         }
 
         return widths;
+    }
+
+    /// <summary>
+    /// <see cref="TableBlock.ColumnWidthPercents"/> as points of <paramref name="tableWidth"/>: listed columns take their
+    /// share, the others split the rest of 100 percent equally, and the result is stretched to fill the table.
+    /// </summary>
+    internal static double[] ResolvePercentWidths(IReadOnlyList<double> percents, int columnCount, double tableWidth)
+    {
+        if (percents.Count > columnCount)
+        {
+            throw new DocumentValidationException("More column percents than table columns are specified.", "table");
+        }
+
+        var shares = new double[columnCount];
+        var listed = percents.Sum();
+        var rest = columnCount > percents.Count ? (100 - listed) / (columnCount - percents.Count) : 0;
+        if (columnCount > percents.Count && rest <= 0)
+        {
+            throw new DocumentValidationException("Column percents of 100 leave no room for the remaining columns.", "table");
+        }
+
+        for (var column = 0; column < columnCount; column++)
+        {
+            shares[column] = column < percents.Count ? percents[column] : rest;
+        }
+
+        var total = shares.Sum();
+        return shares.Select(share => tableWidth * share / total).ToArray();
     }
 }

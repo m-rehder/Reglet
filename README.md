@@ -51,7 +51,7 @@ silently.
 | --- | --- |
 | Text | Character and paragraph formatting, named styles, lists, links and bookmarks, right-to-left scripts, hyphenation |
 | Layout | Page sizes and margins, sections, headers and footers, columns, footnotes and endnotes, table of contents, fields |
-| Tables | Column widths (also fixed past the margin), merged cells, shading, borders, cell padding per axis, table indent, rows kept on one page, repeating header rows, nested tables |
+| Tables | Column widths (absolute, in percent of the table, or fixed past the margin), merged cells, shading, borders, cell padding per axis, table indent, rows kept on one page, repeating header rows, nested tables |
 | Graphics | Pictures (PNG, JPEG, SVG; in the flow, floating or in a line of text), shapes and text boxes (floating, anchored to the page, margin or paragraph), editable charts, barcodes and QR codes, flow diagrams, formulas |
 | Collaboration | Comments with replies, tracked changes |
 | Automation | Find and replace, templates with placeholders and repeating rows, mail merge from CSV, JSON, XML or Excel |

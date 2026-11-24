@@ -10,6 +10,7 @@ public sealed class TableBlock : Block
     private Length? _leftIndent;
     private Length? _cornerRadius;
     private double? _widthPercent;
+    private IReadOnlyList<double>? _columnWidthPercents;
 
     /// <summary>Creates a table from rows.</summary>
     /// <exception cref="ArgumentNullException"><paramref name="rows"/> is null.</exception>
@@ -41,6 +42,35 @@ public sealed class TableBlock : Block
             else
             {
                 _columnWidths = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Column widths in percent of the table width (Word's <c>w:tcW w:type="pct"</c>), for a table whose author does not
+    /// know the text width; null means none. When set, it replaces <see cref="ColumnWidths"/>: the writers turn it into
+    /// widths from the section's text width (times <see cref="WidthPercent"/>). Columns past the list share what is left of
+    /// 100 percent equally; a full list that sums to less than 100 is stretched in proportion, as Word does.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">A value is not positive or the values sum to more than 100.</exception>
+    public IReadOnlyList<double>? ColumnWidthPercents
+    {
+        get => _columnWidthPercents;
+        init
+        {
+            if (value is not null)
+            {
+                var percents = ModelCollections.Snapshot(value, nameof(ColumnWidthPercents));
+                if (percents.Any(percent => !double.IsFinite(percent) || percent <= 0) || percents.Sum() > 100 + 1e-9)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(ColumnWidthPercents), "Column percents must be positive and sum to at most 100.");
+                }
+
+                _columnWidthPercents = percents;
+            }
+            else
+            {
+                _columnWidthPercents = null;
             }
         }
     }
@@ -150,6 +180,7 @@ public sealed class TableBlock : Block
     internal TableBlock WithRows(IEnumerable<TableRow> rows) => new(rows)
     {
         ColumnWidths = ColumnWidths,
+        ColumnWidthPercents = ColumnWidthPercents,
         Border = Border,
         CornerRadius = CornerRadius,
         CellPadding = CellPadding,

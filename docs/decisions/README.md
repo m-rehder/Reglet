@@ -48,5 +48,6 @@ implemented, the known limits, the open work and what is out of scope are kept i
 | [0039](ADR-0039-paged-html.md) | – | Accepted: paged HTML converts the PDF writer's pages to SVG with real text and embedded fonts; lives in Reglet.Pdf |
 | [0040](ADR-0040-migradoc-parity.md) | – | Accepted: fields and empty lines take their paragraph's font, floats can do without an anchor line, cell padding per axis and a table indent |
 | [0041](ADR-0041-migradoc-paging.md) | – | Accepted: rows kept on one page, inline images, breaks after hyphens, fixed column widths, header distance and placement, kerning and ligatures off |
+| [0042](ADR-0042-docx-marker-and-percent-columns.md) | – | Accepted: Word's text marker as `w:highlight`, column widths in percent of the table |
 
 A new ADR is added to this table; a change of a status goes into the feature matrix, not here.

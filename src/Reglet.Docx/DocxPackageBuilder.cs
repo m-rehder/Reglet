@@ -1982,7 +1982,8 @@ internal static class DocxPackageBuilder
         }
 
         writer.WriteStartElement("w", "tblW", DocxConstants.WordprocessingML);
-        if (table.WidthPercent is { } percent)
+        // Percent columns need a percent table, or Word measures them against an automatic width.
+        if ((table.ColumnWidthPercents is null ? table.WidthPercent : table.WidthPercent ?? 100) is { } percent)
         {
             WriteWAttribute(writer, "w", (long)Math.Round(percent * 50.0, MidpointRounding.AwayFromZero));
             WriteWAttribute(writer, "type", "pct");
@@ -2347,7 +2348,7 @@ internal static class DocxPackageBuilder
                     coveredWidth += widths[column + offset];
                 }
 
-                WriteMergedCell(writer, coveredWidth, covered);
+                WriteMergedCell(writer, coveredWidth, covered, widths.Sum(), table);
                 column += covered;
                 continue;
             }
@@ -2390,21 +2391,36 @@ internal static class DocxPackageBuilder
                 styleBackground = lastRowBackground;
             }
 
-            WriteTableCell(writer, cell, width, span, table, context, styleBackground, restart: cell.RowSpan > 1);
+            WriteTableCell(writer, cell, width, widths.Sum(), span, table, context, styleBackground, restart: cell.RowSpan > 1);
             column += span;
         }
 
         writer.WriteEndElement();
     }
 
-    private static void WriteMergedCell(XmlWriter writer, long width, int span)
+    /// <summary>A cell's <c>w:tcW</c>: twips, or fiftieths of a percent of the table for percent columns.</summary>
+    private static void WriteCellWidth(XmlWriter writer, long width, long tableWidth, TableBlock table)
+    {
+        writer.WriteStartElement("w", "tcW", DocxConstants.WordprocessingML);
+        if (table.ColumnWidthPercents is not null && tableWidth > 0)
+        {
+            WriteWAttribute(writer, "w", (long)Math.Round(width * 5000.0 / tableWidth, MidpointRounding.AwayFromZero));
+            WriteWAttribute(writer, "type", "pct");
+        }
+        else
+        {
+            WriteWAttribute(writer, "w", width);
+            WriteWAttribute(writer, "type", "dxa");
+        }
+
+        writer.WriteEndElement();
+    }
+
+    private static void WriteMergedCell(XmlWriter writer, long width, int span, long tableWidth, TableBlock table)
     {
         writer.WriteStartElement("w", "tc", DocxConstants.WordprocessingML);
         writer.WriteStartElement("w", "tcPr", DocxConstants.WordprocessingML);
-        writer.WriteStartElement("w", "tcW", DocxConstants.WordprocessingML);
-        WriteWAttribute(writer, "w", width);
-        WriteWAttribute(writer, "type", "dxa");
-        writer.WriteEndElement();
+        WriteCellWidth(writer, width, tableWidth, table);
         if (span > 1)
         {
             WriteValElement(writer, "gridSpan", span.ToString(CultureInfo.InvariantCulture));
@@ -2421,6 +2437,7 @@ internal static class DocxPackageBuilder
         XmlWriter writer,
         TableCell cell,
         long width,
+        long tableWidth,
         int span,
         TableBlock table,
         DocxWriteContext context,
@@ -2430,10 +2447,7 @@ internal static class DocxPackageBuilder
         writer.WriteStartElement("w", "tc", DocxConstants.WordprocessingML);
 
         writer.WriteStartElement("w", "tcPr", DocxConstants.WordprocessingML);
-        writer.WriteStartElement("w", "tcW", DocxConstants.WordprocessingML);
-        WriteWAttribute(writer, "w", width);
-        WriteWAttribute(writer, "type", "dxa");
-        writer.WriteEndElement();
+        WriteCellWidth(writer, width, tableWidth, table);
 
         if (span > 1)
         {

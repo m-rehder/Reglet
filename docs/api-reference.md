@@ -1408,6 +1408,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `new TableBlock(IEnumerable<TableRow> rows)` — Creates a table from rows.
 - `IReadOnlyList<TableRow> Rows { get; }` — The rows of the table (header rows are marked).
 - `IReadOnlyList<Length>? ColumnWidths { get; init; }` — Optional column widths; null means automatic widths.
+- `IReadOnlyList<double>? ColumnWidthPercents { get; init; }` — Column widths in percent of the table width (Word's `w:tcW w:type="pct"`), for a table whose author does not know the text width; null means none. When set, it replaces `TableBlock.ColumnWidths`: the writers turn it into widths from the section's text width (times `TableBlock.WidthPercent`). Columns past the list share what is left of 100 percent equally; a full list that sums to less than 100 is stretched in proportion, as Word does.
 - `ParagraphBorder? Border { get; init; }` — Borders of the table (all grid lines); null means no borders.
 - `Length? CornerRadius { get; init; }` — radius of the corners of the table outline (OF-B04); null means square corners. The PDF draws the background and the outer border of the table with rounded corners; DOCX and ODT have no rounded table corners and report the value.
 - `Length? CellPadding { get; init; }` — Uniform cell padding; null means the default spacing.

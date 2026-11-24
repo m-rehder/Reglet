@@ -126,6 +126,7 @@ Legend:
 | Tables: row height | supported | supported | supported |
 | Tables: row kept on one page (`TableRow.KeepTogether`) | supported (`w:cantSplit`) | supported (`fo:keep-together`) | supported (moves whole unless taller than a page) |
 | Tables: fixed column widths past the text area (`TableBlock.FixedColumnWidths`) | supported (`w:tblLayout w:type="fixed"`) | supported (written as the width of a left-aligned table) | supported |
+| Tables: column widths in percent of the table (`TableBlock.ColumnWidthPercents`) | supported (`w:tcW w:type="pct"`, grid from the text width; read back) | supported (as absolute widths from the text width) | supported |
 | Tables: vertical cell alignment | supported | supported | supported |
 | Tables: cell background | supported | supported | supported |
 | Tables: custom cell borders/padding | supported | supported | supported |

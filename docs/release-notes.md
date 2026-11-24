@@ -1,6 +1,20 @@
 # Reglet – Release notes
 
+## 1.5.2
+
+See ADR-0042.
+
+### Tables
+
+- `TableBlock.ColumnWidthPercents` gives the columns in percent of the table width, for code that builds a table
+  without knowing the section's text width. Columns past the list share the rest of 100 percent; a full list that sums
+  to less than 100 is stretched, as Word does. It replaces `ColumnWidths` when both are set. The PDF, ODT and DOCX
+  writers resolve it against the section's text width (times `WidthPercent`); DOCX writes `w:tcW w:type="pct"`, a
+  percent `w:tblW` and the grid from the text width, and the reader takes the percents back.
+
 ## 1.5.1
+
+See ADR-0042.
 
 ### DOCX
 

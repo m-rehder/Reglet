@@ -2988,7 +2988,36 @@ public sealed class DocxDocumentReader : IDocumentReader
             WidthPercent = widthPercent,
             ColumnWidths = columnWidths is { Count: > 0 } ? columnWidths : null,
             FixedColumnWidths = fixedLayout && columnWidths is { Count: > 0 },
+            ColumnWidthPercents = ReadColumnPercents(rowElements.FirstOrDefault(), columnWidths?.Count ?? 0),
         };
+    }
+
+    /// <summary>
+    /// The column percents of a table whose first row gives every column a <c>w:tcW w:type="pct"</c> of its own (no
+    /// spans); null otherwise, so the grid widths apply.
+    /// </summary>
+    private static IReadOnlyList<double>? ReadColumnPercents(XElement? firstRow, int columns)
+    {
+        var percents = new List<double>();
+        foreach (var tcPr in firstRow?.Elements(W + "tc").Select(tc => tc.Element(W + "tcPr")) ?? [])
+        {
+            if (tcPr?.Element(W + "gridSpan") is not null
+                || tcPr?.Element(W + "tcW") is not { } width
+                || (string?)width.Attribute(W + "type") != "pct"
+                || !double.TryParse(width.Attribute(W + "w")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var fiftieths)
+                || !double.IsFinite(fiftieths) || fiftieths <= 0)
+            {
+                return null;
+            }
+
+            percents.Add(fiftieths / 50.0);
+        }
+
+        // Rounded fiftieths can sum a little past 100; the writers stretch the shares anyway.
+        var total = percents.Sum();
+        return percents.Count == columns && columns > 0
+            ? total > 100 ? percents.Select(percent => percent * 100 / total).ToList() : percents
+            : null;
     }
 
     /// <summary>The number of rows a vertically merged cell covers.</summary>
