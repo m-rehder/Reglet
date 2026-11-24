@@ -775,6 +775,15 @@ text boxes. Charts, barcodes and equations stay out of scope until their own ADR
 - [x] ODT chart object (`draw:object` in an as-char frame, sub-document `Object N/content.xml` with `chart:chart` and a local table; LibreOffice draws all six kinds, checked by eye 2026-11-17). Limits: not scaled to a narrow table cell, a chart in a header/footer is reported, the bar chart's value axis sits on top (LibreOffice with reversed categories); reading: the chart object is read into a `Chart` through the cell ranges of its local table, also from LibreOffice files
 - [x] Swift port (2026-11-17; cross-parity `charts`); reading charts ported too (2026-11-17)
 
+## Workbooks (XLSX)
+
+[ADR-0043](decisions/ADR-0043-xlsx-workbooks.md): `Workbook`/`Worksheet`/`WorksheetCell` in Core, a mutable model beside the document model; package `Reglet.Xlsx`.
+
+- [x] Writer: named sheets in order (Excel's name rules checked when a sheet is added), text, numbers, dates (short date by default), booleans, rich text (runs with their own font), formulas without cached values and `fullCalcOnLoad`, number formats as custom codes, font (name, size, bold, italic, colour), solid fill, borders per side (thin, medium, thick, colour) and around a range, horizontal/vertical alignment, wrap, indent, merged ranges, column widths (characters), row heights (points), PNG/JPEG images anchored at a cell and sized in pixels, page setup (orientation, A4/Letter, fit to N×M pages, margins), print area and repeated rows. Shared strings and styles deduplicated; deterministic output. LibreOffice 26.8 opens it, calculates the formulas and prints it as written (2026-11-24)
+- [x] Reader (narrow): sheets, cells with value, formula and cached value, number format, style, merged ranges, column widths, row heights, page setup, print area and repeated rows. Not read: images, theme and indexed colours, conditional formats, comments, the dependent cells of a shared formula (they keep their cached value)
+- [x] `WorksheetCell.GetFormattedText(culture)`: Excel's formatted text (sections, `0 # ?`, grouping and scaling commas, percent, literals, `[$…]`, `_x`, `@`, dates and times). Not evaluated: conditions, scientific notation, fractions, elapsed time
+- [ ] Not planned for now: a calculation engine, charts, conditional formatting, data validation, other defined names, tables, filters, hyperlinks, comments, protection, frozen panes, outlines, encryption, ODS
+
 ## Out of scope
 
 Deliberately not planned. A workstream here starts only after the product owner changes

@@ -136,6 +136,89 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `Dotted = 3` — Dotted line.
 - `Dashed = 4` — Dashed line.
 
+#### CellBorderLine
+
+`sealed record CellBorderLine` — One border line of a cell.
+
+- `new CellBorderLine(CellBorderStyle Style, Color? Color = null)` — One border line of a cell.
+- `CellBorderStyle Style { get; init; }` — Thin, medium or thick.
+- `Color? Color { get; init; }` — The colour; null means automatic (black).
+
+#### CellBorderStyle
+
+`enum CellBorderStyle` — The weight of a cell border.
+
+- `Thin = 0` — Thin (Excel's default line).
+- `Medium = 1` — Medium.
+- `Thick = 2` — Thick.
+
+#### CellBorders
+
+`sealed record CellBorders` — The borders of a cell's four sides; a null side has none.
+
+- `new CellBorders()`
+- `static CellBorders None { get; }` — No borders.
+- `CellBorderLine? Top { get; init; }` — The top side.
+- `CellBorderLine? Bottom { get; init; }` — The bottom side.
+- `CellBorderLine? Left { get; init; }` — The left side.
+- `CellBorderLine? Right { get; init; }` — The right side.
+- `static CellBorders All(CellBorderLine line)` — The same line on all four sides.
+
+#### CellFont
+
+`sealed record CellFont` — The font of a cell or of a rich-text run; a null property keeps the workbook's default.
+
+- `new CellFont()`
+- `static CellFont Default { get; }` — The workbook's default font (Calibri 11 when written).
+- `string? Name { get; init; }` — The font family; null keeps the default.
+- `double? Size { get; init; }` — The size in points; null keeps the default.
+- `bool Bold { get; init; }` — Bold.
+- `bool Italic { get; init; }` — Italic.
+- `Color? Color { get; init; }` — The text colour; null keeps the default (automatic).
+
+#### CellHorizontalAlignment
+
+`enum CellHorizontalAlignment` — Horizontal alignment in a cell.
+
+- `General = 0` — Text left, numbers right.
+- `Left = 1` — Left.
+- `Center = 2` — Centred.
+- `Right = 3` — Right.
+
+#### CellRange
+
+`readonly record struct CellRange` — A rectangular range of cells, such as `A1:C3`.
+
+- `new CellRange((int, int) First, (int, int) Last)` — A rectangular range of cells, such as `A1:C3`.
+- `(int, int) First { get; init; }` — The top-left cell (1-based).
+- `(int, int) Last { get; init; }` — The bottom-right cell (1-based).
+- `bool Overlaps(CellRange other)` — Whether the two ranges share a cell.
+- `static CellRange Parse(string range)` — Parses `A1:C3` (corners in any order) or a single cell `B2`.
+- `string ToString()` — The range as `A1:C3` (a single cell as `B2`).
+
+#### CellStyle
+
+`sealed record CellStyle` — The formatting of a worksheet cell (ADR-0043); change it with `with`.
+
+- `new CellStyle()`
+- `static CellStyle Default { get; }` — No formatting: the workbook's default font, no fill, no border, General format.
+- `CellFont Font { get; init; }` — The font; `CellFont.Default` keeps the workbook's.
+- `Color? Fill { get; init; }` — A solid background; null means none.
+- `CellBorders Border { get; init; }` — The borders of the cell's four sides.
+- `CellHorizontalAlignment HorizontalAlignment { get; init; }` — Horizontal alignment; General aligns text left and numbers right.
+- `CellVerticalAlignment VerticalAlignment { get; init; }` — Vertical alignment; Excel's default is bottom.
+- `bool WrapText { get; init; }` — Wraps text onto several lines inside the cell.
+- `int Indent { get; init; }` — Indent in Excel's steps (about three characters each); 0 means none.
+- `string? NumberFormat { get; init; }` — An Excel number format code, such as `#,##0.00` or `m/d/yyyy`; null means General.
+
+#### CellVerticalAlignment
+
+`enum CellVerticalAlignment` — Vertical alignment in a cell.
+
+- `Bottom = 0` — Bottom (Excel's default).
+- `Top = 1` — Top.
+- `Center = 2` — Centred.
+
 #### CharacterStyle
 
 `sealed class CharacterStyle` — A named character style (a reusable set of character formatting). A run references a style by name (`TextRun.CharacterStyleName`); the formatting of the run itself takes precedence.
@@ -1299,6 +1382,23 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `int MaxPages { get; init; }` — Maximum number of pages a PDF may get (default: 100,000). Pages cost layout work and output that no other limit bounds: a line taller than the page or a large header repeated on every page can make very many of them.
 - `long MaxTemplateCharacters { get; init; }` — Maximum number of characters that binding a template may add in total (default: 256 MiB, the size up to which the readers accept a decompressed part).
 
+#### RichText
+
+`sealed class RichText` — Text in a cell with runs of their own font, such as a bold label followed by normal text.
+
+- `new RichText(IEnumerable<RichTextRun> runs)` — Creates rich text from runs.
+- `new RichText(params RichTextRun[] runs)` — Creates rich text from runs.
+- `IReadOnlyList<RichTextRun> Runs { get; }` — The runs.
+- `string ToString()` — The plain text of all runs.
+
+#### RichTextRun
+
+`sealed record RichTextRun` — A run of rich text.
+
+- `new RichTextRun(string Text, CellFont? Font = null)` — A run of rich text.
+- `CellFont? Font { get; init; }` — The run's font; null keeps the cell's.
+- `string Text { get; init; }` — The text.
+
 #### Section
 
 `sealed record Section` — A document section with page settings and blocks.
@@ -1373,6 +1473,27 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `Length Y1 { get; init; }` — The y coordinate of the first control point.
 - `Length X2 { get; init; }` — The x coordinate of the second control point.
 - `Length Y2 { get; init; }` — The y coordinate of the second control point.
+
+#### SheetPageSetup
+
+`sealed record SheetPageSetup` — How a worksheet prints: paper, orientation, scaling, margins, print area and repeated rows.
+
+- `new SheetPageSetup()`
+- `static PageMargins DefaultMargins { get; }` — Excel's default margins: 0.75 in top and bottom, 0.7 in left and right.
+- `PageOrientation Orientation { get; init; }` — Portrait or landscape.
+- `SheetPaperSize PaperSize { get; init; }` — The paper size.
+- `int? FitToPagesWide { get; init; }` — Fits the print to this many pages wide; null prints at 100 %. With `SheetPageSetup.FitToPagesTall` 0 the sheet is one page wide and as many pages tall as it needs ("fit all columns on one page").
+- `int? FitToPagesTall { get; init; }` — Fits the print to this many pages tall, 0 meaning as many as needed; null with a width means 1.
+- `PageMargins Margins { get; init; }` — The page margins.
+- `string? PrintArea { get; init; }` — The printed range, such as `A1:F40`; null prints the used range.
+- `(int, int)? RepeatRows { get; init; }` — The first and last 1-based row repeated at the top of every printed page; null means none.
+
+#### SheetPaperSize
+
+`enum SheetPaperSize` — The paper a worksheet prints on.
+
+- `A4 = 0` — A4 (210 × 297 mm).
+- `Letter = 1` — US Letter (8.5 × 11 in).
 
 #### TabStop
 
@@ -1733,6 +1854,58 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `double Rotation { get; init; }` — Rotation in degrees (counterclockwise), e.g. 45 for a diagonal. Default is 45.
 - `Length FontSize { get; init; }` — Font size of the watermark. Default is 48 points.
 - `Color Color { get; init; }` — Watermark color. Default is a medium gray.
+
+#### Workbook
+
+`sealed class Workbook` — A spreadsheet workbook (ADR-0043): named worksheets in a fixed order. Unlike the document model it is filled step by step; `XlsxWorkbookWriter` (package Reglet.Xlsx) writes it.
+
+- `new Workbook()`
+- `IReadOnlyList<Worksheet> Worksheets { get; }` — The worksheets in the order they were added.
+- `Worksheet this[string name] { get; }` — The worksheet with this name, ignoring case.
+- `Worksheet AddWorksheet(string name)` — Adds a worksheet at the end.
+- `static bool IsValidSheetName(string? name)` — Whether Excel accepts the name for a sheet: 1 to 31 characters, none of `[ ] : * ? / \`, not starting or ending with an apostrophe. Uniqueness within a workbook is checked by `Workbook.AddWorksheet`.
+
+#### Worksheet
+
+`sealed class Worksheet` — A worksheet: addressed cells, merged ranges, column widths, row heights, images and the page setup.
+
+- `string Name { get; }` — The sheet name.
+- `IEnumerable<WorksheetCell> Cells { get; }` — The cells that exist, by row and then column.
+- `IReadOnlyList<CellRange> MergedRanges { get; }` — Merged ranges, in the order they were merged.
+- `IDictionary<int, double> ColumnWidths { get; }` — Column widths in Excel's character units, by 1-based column; a column without one has the default width.
+- `IDictionary<int, double> RowHeights { get; }` — Row heights in points, by 1-based row; a row without one is as high as its content.
+- `IList<WorksheetImage> Images { get; }` — Images anchored at cells.
+- `SheetPageSetup PageSetup { get; set; }` — Paper, orientation, scaling, margins, print area and repeated rows.
+- `WorksheetCell Cell(int row, int column)` — The cell at a 1-based row and column; it is created when it does not exist yet.
+- `WorksheetCell Cell(string reference)` — The cell at an A1 reference such as `B3`; it is created when it does not exist yet.
+- `void Merge(string range)` — Merges a range such as `A1:C1`; the top-left cell keeps the value.
+- `void SetOutsideBorder(string range, CellBorderLine line)` — Draws a border around a range: the outer side of each edge cell gets `line`.
+- `void SetStyle(string range, Func<CellStyle, CellStyle> change)` — Changes the style of every cell in a range such as `A1:D4` (creating the cells).
+
+#### WorksheetCell
+
+`sealed class WorksheetCell` — A cell of a worksheet: a value or a formula, and a style.
+
+- `int Row { get; }` — The 1-based row.
+- `int Column { get; }` — The 1-based column.
+- `string Reference { get; }` — The A1 reference, such as `B3`.
+- `object? Value { get; set; }` — The value: null, a `String`, `RichText`, a number (stored as `Double`), a `DateTime` (a `DateOnly` becomes one) or a `Boolean`. Setting a value clears the formula. A read formula cell carries the value Excel cached, if any.
+- `string? Formula { get; set; }` — A formula without the leading `=`, such as `SUM(A1:A3)`; null means none. It is written without a cached value and the workbook asks Excel to calculate on load. Setting a formula clears the value.
+- `CellStyle Style { get; set; }` — The style; `CellStyle.Default` means none.
+- `string GetFormattedText(CultureInfo? culture = null)` — The value as Excel shows it with the cell's number format (Excel's TEXT of the value), in `culture` (default: the current culture). Rich text gives its plain text; a formula without a cached value gives an empty string.
+
+#### WorksheetImage
+
+`sealed record WorksheetImage` — A PNG or JPEG image whose top-left corner sits in a cell (Excel's one-cell anchor).
+
+- `new WorksheetImage(ReadOnlyMemory<byte> data, int row, int column)` — Creates an image anchored at a 1-based row and column.
+- `ReadOnlyMemory<byte> Data { get; }` — The image bytes.
+- `ImageInfo Info { get; }` — The format and pixel size read from the bytes; use it to keep the aspect ratio when scaling.
+- `int Row { get; }` — The 1-based row of the anchor cell.
+- `int Column { get; }` — The 1-based column of the anchor cell.
+- `int? WidthPixels { get; init; }` — The shown width in pixels; null keeps the image's own width.
+- `int? HeightPixels { get; init; }` — The shown height in pixels; null keeps the image's own height.
+- `string? AlternativeText { get; init; }` — Alternative text; null means none.
 
 #### WriteMetrics
 
@@ -2430,3 +2603,28 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `static IReadOnlyList<string> Available { get; }` — The language keys of the package, for example `de-1996` and `en-US`.
 - `static bool IsAvailable(string language)` — whether patterns exist for the language. Case does not matter; `de`, `de-DE` and `en` name the usual variant of the language.
 - `static HyphenationPatterns Load(string language)` — Loads the patterns of a language (parsed once, then shared).
+
+## Reglet.Xlsx
+
+### Reglet
+
+#### XlsxWorkbookReader
+
+`sealed class XlsxWorkbookReader` — Reads an XLSX workbook into a `Workbook` (ADR-0043), narrow on purpose: sheets, cells with value, formula (and the value Excel cached for it), number format and style, merged ranges, column widths, row heights and the page setup with print area and repeated rows. Use `WorksheetCell.GetFormattedText` for the text Excel shows. shortcut: images, theme and indexed colours, conditional formats, comments and the cells of a shared formula other than its first (they keep their cached value) are not read; extend when a workbook needs them.
+
+- `new XlsxWorkbookReader()`
+- `Workbook Read(Stream input, CancellationToken cancellationToken = default)` — Reads a workbook from the stream; the stream stays open.
+
+#### XlsxWorkbookWriter
+
+`sealed class XlsxWorkbookWriter` — Writes a `Workbook` as an XLSX package (SpreadsheetML, ADR-0043): sheets, shared strings, styles, merged ranges, column widths, row heights, images, page setup, print area and repeated rows. Formulas are written without a cached value and Excel recalculates them on load.
+
+- `new XlsxWorkbookWriter()`
+- `Task<WriteResult> WriteAsync(Workbook workbook, Stream output, XlsxWriteOptions? options = null, CancellationToken cancellationToken = default)` — Writes the workbook to the stream.
+
+#### XlsxWriteOptions
+
+`sealed record XlsxWriteOptions : WriteOptions` — Options for the XLSX writer.
+
+- `new XlsxWriteOptions()`
+- `static XlsxWriteOptions Default { get; }` — Default options.

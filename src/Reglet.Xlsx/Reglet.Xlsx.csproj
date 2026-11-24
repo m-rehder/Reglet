@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsShippedLibrary>true</IsShippedLibrary>
+    <Description>XLSX (SpreadsheetML, ECMA-376) workbook writer and reader for Reglet.</Description>
+    <PackageTags>xlsx;excel;spreadsheet;workbook;office</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reglet.Core\Reglet.Core.csproj" />
+  </ItemGroup>
+
+</Project>

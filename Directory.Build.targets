@@ -45,6 +45,7 @@
       Fonts          -> Core
       Docx, Odt      -> Core, Fonts (embeds fonts, ADR-0021)
       Hyphenation    -> Core (optional patterns; the facade does not reference it)
+      Xlsx           -> Core (workbooks, ADR-0043; the facade does not reference it)
       Pdf            -> Core, Fonts (embeds the fonts of Fonts)
       Html           -> Core
       Reglet   -> Core, Fonts, Docx, Odt, Pdf, Html (Facade)
@@ -56,7 +57,7 @@
       <_DisallowedProjectReference Include="@(ProjectReference)"
         Condition="'$(MSBuildProjectName)' == 'Reglet.Core'" />
       <_DisallowedProjectReference Include="@(ProjectReference)"
-        Condition="('$(MSBuildProjectName)' == 'Reglet.Fonts' Or '$(MSBuildProjectName)' == 'Reglet.Hyphenation') And '%(ProjectReference.Filename)' != 'Reglet.Core'" />
+        Condition="('$(MSBuildProjectName)' == 'Reglet.Fonts' Or '$(MSBuildProjectName)' == 'Reglet.Hyphenation' Or '$(MSBuildProjectName)' == 'Reglet.Xlsx') And '%(ProjectReference.Filename)' != 'Reglet.Core'" />
       <_DisallowedProjectReference Include="@(ProjectReference)"
         Condition="('$(MSBuildProjectName)' == 'Reglet.Docx' Or '$(MSBuildProjectName)' == 'Reglet.Odt' Or '$(MSBuildProjectName)' == 'Reglet.Pdf') And '%(ProjectReference.Filename)' != 'Reglet.Core' And '%(ProjectReference.Filename)' != 'Reglet.Fonts'" />
       <_DisallowedProjectReference Include="@(ProjectReference)"

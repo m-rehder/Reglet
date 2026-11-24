@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Reglet\Reglet.csproj" />
     <ProjectReference Include="..\..\src\Reglet.Hyphenation\Reglet.Hyphenation.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Xlsx\Reglet.Xlsx.csproj" />
   </ItemGroup>
 
 </Project>

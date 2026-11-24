@@ -49,5 +49,6 @@ implemented, the known limits, the open work and what is out of scope are kept i
 | [0040](ADR-0040-migradoc-parity.md) | – | Accepted: fields and empty lines take their paragraph's font, floats can do without an anchor line, cell padding per axis and a table indent |
 | [0041](ADR-0041-migradoc-paging.md) | – | Accepted: rows kept on one page, inline images, breaks after hyphens, fixed column widths, header distance and placement, kerning and ligatures off |
 | [0042](ADR-0042-docx-marker-and-percent-columns.md) | – | Accepted: Word's text marker as `w:highlight`, column widths in percent of the table |
+| [0043](ADR-0043-xlsx-workbooks.md) | – | Accepted: a workbook model in Core, XLSX writer and narrow reader in the new package Reglet.Xlsx |
 
 A new ADR is added to this table; a change of a status goes into the feature matrix, not here.

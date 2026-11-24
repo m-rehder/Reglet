@@ -8,7 +8,8 @@
     "src/Reglet.Pdf/Reglet.Pdf.csproj",
     "src/Reglet.Html/Reglet.Html.csproj",
     "src/Reglet.Fonts/Reglet.Fonts.csproj",
-    "src/Reglet.Hyphenation/Reglet.Hyphenation.csproj"
+    "src/Reglet.Hyphenation/Reglet.Hyphenation.csproj",
+    "src/Reglet.Xlsx/Reglet.Xlsx.csproj"
   ],
   "forbiddenReferences": ["PackageReference", "NativeReference", "COMReference"],
   "forbiddenExternalAssemblies": true,

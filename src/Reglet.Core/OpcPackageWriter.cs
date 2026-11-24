@@ -26,13 +26,16 @@ internal sealed class OpcPackageWriter : IDisposable
     private readonly HashSet<string> _writtenParts = new(StringComparer.Ordinal);
 
     private readonly InvalidXmlCharacterBehavior _xmlBehavior;
+    private readonly string _format;
 
     /// <param name="output">The package stream.</param>
     /// <param name="xmlBehavior">What every XML part does with a character XML 1.0 does not allow.</param>
-    public OpcPackageWriter(Stream output, InvalidXmlCharacterBehavior xmlBehavior = InvalidXmlCharacterBehavior.Replace)
+    /// <param name="format">The format name that prefixes error messages (DOCX, XLSX).</param>
+    public OpcPackageWriter(Stream output, InvalidXmlCharacterBehavior xmlBehavior = InvalidXmlCharacterBehavior.Replace, string format = "DOCX")
     {
         ArgumentNullException.ThrowIfNull(output);
         _xmlBehavior = xmlBehavior;
+        _format = format;
 
         _archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true);
         AddDefault("rels", OpcNamespaces.RelationshipsContentType);
@@ -175,7 +178,7 @@ internal sealed class OpcPackageWriter : IDisposable
         catch (ArgumentException exception) when (exception.GetType() == typeof(ArgumentException))
         {
             // XmlWriter's refusal of a character that a name or field code of the model carries.
-            throw new DocumentValidationException($"DOCX: the document cannot be written: {exception.Message}");
+            throw new DocumentValidationException($"{_format}: the document cannot be written: {exception.Message}");
         }
     }
 

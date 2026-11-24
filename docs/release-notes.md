@@ -1,5 +1,22 @@
 # Reglet – Release notes
 
+## Unreleased
+
+See ADR-0043.
+
+### Workbooks (new package Reglet.Xlsx)
+
+- A workbook model in Reglet.Core, beside the document model and filled cell by cell: `Workbook`, `Worksheet`,
+  `WorksheetCell`, `CellStyle` (font, fill, borders, alignment, wrap, indent, number format), `RichText`,
+  `WorksheetImage`, `SheetPageSetup`. `Workbook.AddWorksheet` rejects names Excel refuses (over 31 characters, one of
+  `[ ] : * ? / \`, an apostrophe at either end, a duplicate ignoring case); `Workbook.IsValidSheetName` checks one first.
+- `XlsxWorkbookWriter` writes it as XLSX: text, numbers, dates, booleans, rich text, formulas (recalculated by Excel on
+  open; no cached values), number formats, styles, merged ranges, column widths, row heights, images anchored at a cell,
+  page setup with fit to page, print area and repeated rows.
+- `XlsxWorkbookReader` reads workbooks back (values, formulas, number formats, styles, geometry, page setup), and
+  `WorksheetCell.GetFormattedText` gives the text Excel shows for a value.
+- The OPC package writer moved from Reglet.Docx to Reglet.Core (internal); DOCX output is unchanged.
+
 ## 1.5.2
 
 See ADR-0042.

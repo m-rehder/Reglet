@@ -6,4 +6,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Reglet.Odt")]
 [assembly: InternalsVisibleTo("Reglet.Html")]
 [assembly: InternalsVisibleTo("Reglet.Pdf")]
+[assembly: InternalsVisibleTo("Reglet.Xlsx")]
 [assembly: InternalsVisibleTo("Reglet.CompatibilityTests")]

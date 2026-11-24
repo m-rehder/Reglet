@@ -18,7 +18,7 @@ dotnet add package Reglet
 
 Reglet targets .NET 10 and runs on Windows, macOS and Linux (also with Native AOT; WebAssembly is supported for
 demos). The packages `Reglet.Core`, `Reglet.Docx`, `Reglet.Odt`, `Reglet.Pdf`, `Reglet.Html`, `Reglet.Fonts` and
-the optional `Reglet.Hyphenation` can be used on their own.
+the optional `Reglet.Hyphenation` can be used on their own. Excel workbooks come with `dotnet add package Reglet.Xlsx`.
 
 ## Quick start
 
@@ -58,6 +58,7 @@ silently.
 | PDF | Embedded fonts, PDF/A, encryption, digital signatures (incl. PAdES), form fields, watermarks, merge and split, text extraction, structure recovery (PDF to DOCX), pages drawn at fixed coordinates with text measurement (`PdfCanvas`), inspection of fonts and images for tests |
 | HTML | Simple editable HTML in and out; a page-faithful preview with the PDF's layout and embedded fonts, as a page or a fragment for a host page |
 | Security | Encrypted DOCX and ODT, signed DOCX and ODT, limits against malicious input |
+| Workbooks | Excel (XLSX) workbooks written and read (`Reglet.Xlsx`): sheets, text, numbers, dates, rich text, formulas recalculated on open, number formats, fonts, fills, borders, alignment, merged cells, column widths and row heights, images, page setup with fit to page, print area and repeated rows; values formatted as Excel shows them |
 
 The exact state of every feature per format is in the [feature matrix](https://github.com/m-rehder/Reglet/blob/main/docs/feature-matrix.md).
 

@@ -4,11 +4,10 @@ Status: Accepted (2026-11-24)
 
 ## Context
 
-A Word document generator moving onto the model (OpenXML replaced by Reglet.Docx) found two gaps. Its calculation
-header uses Word's text marker (`w:highlight w:val="red"`), which 1.5.0 wrote as shading, so Word's "No Color" did not
-remove it and highlight and background could not be told apart. Its tables give their columns in percent of the table
-(`w:tblW w:type="pct"` with percent cells), because the code that builds a table does not know the section's text width;
-the model only took absolute widths.
+Two gaps in the DOCX writer. Word's text marker (`w:highlight`) was written as shading (`w:shd`), so Word's "No Color"
+did not remove it and highlight and background could not be told apart after writing. And the model only took absolute
+column widths, although Word tables are often laid out in percent of the table (`w:tblW w:type="pct"` with percent
+cells), which code that builds a table without knowing the section's text width needs.
 
 ## Decision
 

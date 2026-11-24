@@ -1,0 +1,93 @@
+using System.Globalization;
+
+namespace Reglet;
+
+/// <summary>A cell of a worksheet: a value or a formula, and a style.</summary>
+public sealed class WorksheetCell
+{
+    /// <summary>Excel's limit of characters in a cell.</summary>
+    private const int MaxText = 32_767;
+
+    private object? _value;
+    private string? _formula;
+
+    internal WorksheetCell(int row, int column)
+    {
+        Row = row;
+        Column = column;
+    }
+
+    /// <summary>The 1-based row.</summary>
+    public int Row { get; }
+
+    /// <summary>The 1-based column.</summary>
+    public int Column { get; }
+
+    /// <summary>The A1 reference, such as <c>B3</c>.</summary>
+    public string Reference => CellReference.Format(Row, Column);
+
+    /// <summary>
+    /// The value: null, a <see cref="string"/>, <see cref="RichText"/>, a number (stored as <see cref="double"/>),
+    /// a <see cref="DateTime"/> (a <see cref="DateOnly"/> becomes one) or a <see cref="bool"/>. Setting a value clears
+    /// the formula. A read formula cell carries the value Excel cached, if any.
+    /// </summary>
+    /// <exception cref="ArgumentException">The value has another type, a number is not finite or a text is longer than Excel's 32,767 characters.</exception>
+    public object? Value
+    {
+        get => _value;
+        set
+        {
+            _value = Normalize(value);
+            _formula = null;
+        }
+    }
+
+    /// <summary>
+    /// A formula without the leading <c>=</c>, such as <c>SUM(A1:A3)</c>; null means none. It is written without a cached
+    /// value and the workbook asks Excel to calculate on load. Setting a formula clears the value.
+    /// </summary>
+    public string? Formula
+    {
+        get => _formula;
+        set
+        {
+            _formula = value is null ? null : value.StartsWith('=') ? value[1..] : value;
+            _value = null;
+        }
+    }
+
+    /// <summary>The style; <see cref="CellStyle.Default"/> means none.</summary>
+    public CellStyle Style
+    {
+        get;
+        set => field = value ?? throw new ArgumentNullException(nameof(value));
+    } = CellStyle.Default;
+
+    /// <summary>
+    /// The value as Excel shows it with the cell's number format (Excel's TEXT of the value), in
+    /// <paramref name="culture"/> (default: the current culture). Rich text gives its plain text; a formula without a
+    /// cached value gives an empty string.
+    /// </summary>
+    public string GetFormattedText(CultureInfo? culture = null)
+        => CellFormatter.Format(_value, Style.NumberFormat, culture ?? CultureInfo.CurrentCulture);
+
+    /// <summary>Sets the formula and the value Excel cached for it (used by the reader).</summary>
+    internal void SetFormulaResult(string formula, object? cached)
+    {
+        _formula = formula;
+        _value = Normalize(cached);
+    }
+
+    private static object? Normalize(object? value) => value switch
+    {
+        string text when text.Length > MaxText => throw new ArgumentException($"A cell holds at most {MaxText} characters.", nameof(value)),
+        RichText rich when rich.ToString().Length > MaxText => throw new ArgumentException($"A cell holds at most {MaxText} characters.", nameof(value)),
+        null or string or RichText or bool or DateTime => value,
+        DateOnly date => date.ToDateTime(TimeOnly.MinValue),
+        double number => double.IsFinite(number) ? number : throw new ArgumentException("A cell number must be finite.", nameof(value)),
+        float number => Normalize((double)number),
+        int or long or short or byte or sbyte or uint or ulong or ushort => Convert.ToDouble(value, CultureInfo.InvariantCulture),
+        decimal number => (double)number,
+        _ => throw new ArgumentException($"A cell cannot hold a {value.GetType().Name}.", nameof(value)),
+    };
+}

@@ -14,6 +14,7 @@
     <ProjectReference Include="..\..\src\Reglet.Pdf\Reglet.Pdf.csproj" />
     <ProjectReference Include="..\..\src\Reglet.Html\Reglet.Html.csproj" />
     <ProjectReference Include="..\..\src\Reglet.Hyphenation\Reglet.Hyphenation.csproj" />
+    <ProjectReference Include="..\..\src\Reglet.Xlsx\Reglet.Xlsx.csproj" />
   </ItemGroup>
 
 </Project>
