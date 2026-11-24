@@ -14,6 +14,7 @@ internal static class XlsxConstants
     public const string SharedStringsType = Relationships + "/sharedStrings";
     public const string DrawingType = Relationships + "/drawing";
     public const string ImageType = Relationships + "/image";
+    public const string ThemeType = Relationships + "/theme";
 
     public const string WorkbookContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
     public const string WorksheetContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml";

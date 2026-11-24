@@ -2610,7 +2610,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 
 #### XlsxWorkbookReader
 
-`sealed class XlsxWorkbookReader` — Reads an XLSX workbook into a `Workbook` (ADR-0043), narrow on purpose: sheets, cells with value, formula (and the value Excel cached for it), number format and style, merged ranges, column widths, row heights and the page setup with print area and repeated rows. Use `WorksheetCell.GetFormattedText` for the text Excel shows. shortcut: images, theme and indexed colours, conditional formats, comments and the cells of a shared formula other than its first (they keep their cached value) are not read; extend when a workbook needs them.
+`sealed class XlsxWorkbookReader` — Reads an XLSX workbook into a `Workbook` (ADR-0043), narrow on purpose: sheets, cells with value, formula (and the value Excel cached for it), number format and style, merged ranges, column widths, row heights and the page setup with print area and repeated rows, PNG and JPEG images, theme and indexed colours (with tint) and the cells of shared formulas. Use `WorksheetCell.GetFormattedText` for the text Excel shows. Conditional formats, comments and the other features ADR-0043 leaves out are not read.
 
 - `new XlsxWorkbookReader()`
 - `Workbook Read(Stream input, CancellationToken cancellationToken = default)` — Reads a workbook from the stream; the stream stays open.

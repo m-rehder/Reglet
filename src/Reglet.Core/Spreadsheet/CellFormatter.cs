@@ -6,10 +6,10 @@ namespace Reglet;
 /// <summary>
 /// Formats a cell value with an Excel number format code as Excel shows it (ADR-0043): up to four sections
 /// (positive; negative; zero; text), digit placeholders <c>0 # ?</c>, thousands separators and scaling commas, percent,
-/// quoted and escaped literals, <c>[$…]</c> currency tokens, <c>_x</c> spacing, <c>@</c> and date and time codes.
-/// shortcut: conditions (<c>[&gt;100]</c>), scientific notation, fractions, elapsed time (<c>[h]</c>) and literals between
-/// digit placeholders (<c>000-00-0000</c>, the number shows at the first run) are not evaluated; add them when a
-/// workbook needs them.
+/// quoted and escaped literals, <c>[$…]</c> currency tokens, <c>_x</c> spacing, <c>@</c>, date and time codes,
+/// conditions (<c>[&gt;=100]</c>), scientific notation (<c>0.00E+00</c>, <c>##0.0E+0</c>) and fractions (<c># ?/?</c>,
+/// <c># ?/8</c>). shortcut: elapsed time (<c>[h]</c>) and literals between digit placeholders (<c>000-00-0000</c>, the
+/// number shows at the first run) are not evaluated; add them when a workbook needs them.
 /// </summary>
 internal static class CellFormatter
 {
@@ -77,31 +77,19 @@ internal static class CellFormatter
             return General(number, culture);
         }
 
-        var sections = Sections(code!);
-        string section;
-        var value = number;
-        var sign = string.Empty;
-        if (number < 0 && sections.Count >= 2)
+        var sections = Sections(code!).Select(Tokens).ToList();
+        if (ChooseSection(sections, number) is not { } index)
         {
-            section = sections[1];
-            value = -number;
-        }
-        else if (number == 0 && sections.Count >= 3)
-        {
-            section = sections[2];
-        }
-        else
-        {
-            section = sections[0];
-            if (number < 0)
-            {
-                sign = "-";
-                value = -number;
-            }
+            // No section's condition matches and there is no default section.
+            return new string('#', 8);
         }
 
-        var tokens = Tokens(section);
-        if (tokens.Count == 0)
+        var tokens = sections[index];
+        // As Excel (and ExcelNumberFormat): the negative section and a conditional first section show no sign.
+        var unsigned = index == 1 || (index == 0 && tokens.Any(token => token.Kind == TokenKind.Condition));
+        var value = Math.Abs(number);
+        var sign = number < 0 && !unsigned ? "-" : string.Empty;
+        if (tokens.All(token => token.Kind == TokenKind.Condition))
         {
             return string.Empty;
         }
@@ -117,7 +105,227 @@ internal static class CellFormatter
             return sign + string.Concat(tokens.Select(token => token.Kind is TokenKind.General or TokenKind.Text ? General(value, culture) : token.Kind == TokenKind.Literal ? token.Value : string.Empty));
         }
 
-        return sign + FormatDigits(value, tokens, culture);
+        value *= Math.Pow(100, tokens.Count(token => token.Kind == TokenKind.Percent));
+        var exponent = tokens.FindIndex(token => token.Kind == TokenKind.Exponent);
+        if (exponent >= 0)
+        {
+            return sign + Scientific(value, tokens, exponent, culture);
+        }
+
+        var slash = tokens.FindIndex(token => token.Kind == TokenKind.Literal && token.Value == "/");
+        if (slash > 0 && tokens[slash - 1].Kind == TokenKind.Digits)
+        {
+            return sign + Fraction(value, tokens, slash, culture);
+        }
+
+        var numberText = RenderNumber(value, string.Concat(tokens.Where(token => token.Kind == TokenKind.Digits).Select(token => token.Value)), culture);
+        return sign + Place(tokens, index => index == tokens.FindIndex(token => token.Kind == TokenKind.Digits) ? numberText : null);
+    }
+
+    /// <summary>
+    /// The section for a number: with conditions the first matching one (or the next without a condition), otherwise
+    /// positive, negative and zero as Excel picks them; null when a condition leaves no section.
+    /// </summary>
+    private static int? ChooseSection(List<List<Token>> sections, double number)
+    {
+        Token? Condition(int index) => sections[index].FirstOrDefault(token => token.Kind == TokenKind.Condition) is { Value: not null } found ? found : null;
+        if (Condition(0) is { } first)
+        {
+            if (Matches(first.Value, number))
+            {
+                return 0;
+            }
+
+            if (sections.Count == 1)
+            {
+                return null;
+            }
+
+            if (Condition(1) is { } second)
+            {
+                return Matches(second.Value, number) ? 1 : sections.Count >= 3 ? 2 : null;
+            }
+
+            return 1;
+        }
+
+        if (number > 0 || sections.Count == 1 || (sections.Count == 2 && number == 0))
+        {
+            return 0;
+        }
+
+        return number < 0 ? 1 : sections.Count >= 3 ? 2 : 0;
+    }
+
+    /// <summary>Evaluates a condition such as <c>&gt;=100</c>.</summary>
+    private static bool Matches(string condition, double number)
+    {
+        var length = condition.StartsWith("<=", StringComparison.Ordinal) || condition.StartsWith(">=", StringComparison.Ordinal) || condition.StartsWith("<>", StringComparison.Ordinal) ? 2 : 1;
+        if (!double.TryParse(condition[length..], NumberStyles.Float, CultureInfo.InvariantCulture, out var operand))
+        {
+            return false;
+        }
+
+        return condition[..length] switch
+        {
+            "<" => number < operand,
+            ">" => number > operand,
+            "=" => number == operand,
+            "<=" => number <= operand,
+            ">=" => number >= operand,
+            _ => number != operand,
+        };
+    }
+
+    /// <summary>Joins the tokens: <paramref name="replace"/> gives the text of a digit token (null drops it); literals stay.</summary>
+    private static string Place(List<Token> tokens, Func<int, string?> replace)
+    {
+        var builder = new StringBuilder();
+        for (var index = 0; index < tokens.Count; index++)
+        {
+            var token = tokens[index];
+            if (replace(index) is { } text)
+            {
+                builder.Append(text);
+                continue;
+            }
+
+            switch (token.Kind)
+            {
+                case TokenKind.Literal:
+                    builder.Append(token.Value);
+                    break;
+                case TokenKind.Percent:
+                    builder.Append('%');
+                    break;
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>Scientific notation: <c>0.00E+00</c>, and <c>##0.0E+0</c> with the exponent a multiple of the integer digits.</summary>
+    private static string Scientific(double value, List<Token> tokens, int exponentAt, CultureInfo culture)
+    {
+        var mantissaPattern = string.Concat(tokens.Take(exponentAt).Where(token => token.Kind == TokenKind.Digits).Select(token => token.Value));
+        var exponentDigits = exponentAt + 1 < tokens.Count && tokens[exponentAt + 1].Kind == TokenKind.Digits ? tokens[exponentAt + 1].Value : "0";
+        var point = mantissaPattern.IndexOf('.');
+        var integerPattern = (point < 0 ? mantissaPattern : mantissaPattern[..point]).Replace(",", string.Empty, StringComparison.Ordinal);
+        var decimals = point < 0 ? 0 : mantissaPattern[(point + 1)..].Count(placeholder => placeholder is '0' or '#' or '?');
+        var places = Math.Max(1, integerPattern.Length);
+        var engineering = integerPattern.Contains('#');
+
+        int Exponent(double magnitude)
+        {
+            if (magnitude == 0)
+            {
+                return 0;
+            }
+
+            var power = (int)Math.Floor(Math.Log10(magnitude));
+            return engineering ? (int)Math.Floor(power / (double)places) * places : power - (places - 1);
+        }
+
+        var exponent = Exponent(value);
+        var mantissa = Math.Round(value / Math.Pow(10, exponent), decimals, MidpointRounding.AwayFromZero);
+        if (value != 0 && mantissa >= Math.Pow(10, places))
+        {
+            exponent = Exponent(mantissa * Math.Pow(10, exponent));
+            mantissa = Math.Round(value / Math.Pow(10, exponent), decimals, MidpointRounding.AwayFromZero);
+        }
+
+        var marker = tokens[exponentAt].Value;
+        var exponentText = (exponent < 0 ? "-" : marker[1] == '+' ? "+" : string.Empty)
+            + Math.Abs(exponent).ToString(CultureInfo.InvariantCulture).PadLeft(exponentDigits.Count(placeholder => placeholder == '0'), '0');
+        var firstDigits = tokens.FindIndex(token => token.Kind == TokenKind.Digits);
+        return Place(tokens, index => index == firstDigits && index < exponentAt
+            ? RenderNumber(mantissa, mantissaPattern, culture)
+            : index == exponentAt
+                ? marker[0] + exponentText
+                : tokens[index].Kind == TokenKind.Digits && (index < exponentAt || index == exponentAt + 1) ? string.Empty : null);
+    }
+
+    /// <summary>
+    /// Fractions: <c># ?/?</c>, <c># ??/??</c>, <c>?/?</c> (an improper fraction without an integer part) and fixed
+    /// denominators such as <c># ?/8</c>. The closest fraction whose denominator fits the placeholders is shown.
+    /// </summary>
+    private static string Fraction(double value, List<Token> tokens, int slash, CultureInfo culture)
+    {
+        var numeratorAt = slash - 1;
+        var integerAt = tokens.FindIndex(token => token.Kind == TokenKind.Digits);
+        var hasInteger = integerAt >= 0 && integerAt < numeratorAt;
+        var denominatorEnd = slash + 1;
+        var fixedDenominator = new StringBuilder();
+        string denominatorPattern;
+        if (denominatorEnd < tokens.Count && tokens[denominatorEnd].Kind == TokenKind.Digits)
+        {
+            denominatorPattern = tokens[denominatorEnd].Value;
+            denominatorEnd++;
+        }
+        else
+        {
+            while (denominatorEnd < tokens.Count && tokens[denominatorEnd].Kind == TokenKind.Literal && tokens[denominatorEnd].Value is [>= '0' and <= '9'])
+            {
+                fixedDenominator.Append(tokens[denominatorEnd].Value);
+                denominatorEnd++;
+            }
+
+            denominatorPattern = fixedDenominator.ToString();
+        }
+
+        var whole = hasInteger ? Math.Floor(value) : 0;
+        var fraction = value - whole;
+        long numerator;
+        long denominator;
+        if (fixedDenominator.Length > 0 && long.TryParse(denominatorPattern, NumberStyles.None, CultureInfo.InvariantCulture, out var fixedValue) && fixedValue > 0)
+        {
+            denominator = fixedValue;
+            numerator = (long)Math.Round(fraction * denominator, MidpointRounding.AwayFromZero);
+        }
+        else
+        {
+            var limit = (long)Math.Pow(10, Math.Clamp(denominatorPattern.Length, 1, 4)) - 1;
+            (numerator, denominator) = (0, 1);
+            var best = double.MaxValue;
+            for (long candidate = 1; candidate <= limit; candidate++)
+            {
+                var top = Math.Round(fraction * candidate, MidpointRounding.AwayFromZero);
+                var error = Math.Abs(fraction - (top / candidate));
+                if (error < best - 1e-12)
+                {
+                    best = error;
+                    (numerator, denominator) = ((long)top, candidate);
+                }
+            }
+        }
+
+        if (hasInteger && numerator == denominator && fixedDenominator.Length == 0)
+        {
+            (whole, numerator) = (whole + 1, 0);
+        }
+
+        var numeratorWidth = tokens[numeratorAt].Value.Length;
+        var integerPattern = hasInteger ? tokens[integerAt].Value : string.Empty;
+        string integerText;
+        string fractionText;
+        if (numerator == 0)
+        {
+            integerText = hasInteger ? RenderNumber(whole, integerPattern.Contains('0') || whole != 0 ? integerPattern : "0", culture) : "0";
+            fractionText = hasInteger ? new string(' ', numeratorWidth + 1 + denominatorPattern.Length) : string.Empty;
+        }
+        else
+        {
+            integerText = hasInteger ? (whole == 0 && !integerPattern.Contains('0') ? string.Empty : RenderNumber(whole, integerPattern, culture)) : string.Empty;
+            fractionText = numerator.ToString(CultureInfo.InvariantCulture).PadLeft(numeratorWidth)
+                + "/" + denominator.ToString(CultureInfo.InvariantCulture).PadRight(denominatorPattern.Length);
+        }
+
+        return Place(tokens, index =>
+            index == integerAt && hasInteger ? integerText
+            : index == numeratorAt ? (hasInteger || numerator != 0 ? fractionText : integerText)
+            : index >= slash && index < denominatorEnd ? string.Empty
+            : integerText.Length == 0 && hasInteger && index > integerAt && index < numeratorAt && tokens[index].Kind == TokenKind.Literal ? new string(' ', tokens[index].Value.Length)
+            : null);
     }
 
     private static bool IsGeneral(string? code) => string.IsNullOrEmpty(code) || code.Equals("General", StringComparison.OrdinalIgnoreCase);
@@ -126,10 +334,9 @@ internal static class CellFormatter
     private static string General(double number, CultureInfo culture)
         => Math.Round(number, 10).ToString(Math.Abs(number) is >= 1e11 or (> 0 and < 1e-9) ? "0.#####E+00" : "G10", culture);
 
-    private static string FormatDigits(double value, List<Token> tokens, CultureInfo culture)
+    /// <summary>A non-negative number with a digit pattern such as <c>#,##0.00</c> (grouping, scaling commas, 0 # ?).</summary>
+    private static string RenderNumber(double value, string pattern, CultureInfo culture)
     {
-        var digits = tokens.Where(token => token.Kind == TokenKind.Digits).Select(token => token.Value).ToList();
-        var pattern = string.Concat(digits);
         var point = pattern.IndexOf('.');
         var integerPart = point < 0 ? pattern : pattern[..point];
         var decimalPart = point < 0 ? string.Empty : pattern[(point + 1)..];
@@ -141,7 +348,6 @@ internal static class CellFormatter
         integerPart = trimmed.Replace(",", string.Empty, StringComparison.Ordinal);
         decimalPart = decimalPart.Replace(",", string.Empty, StringComparison.Ordinal);
 
-        value *= Math.Pow(100, tokens.Count(token => token.Kind == TokenKind.Percent));
         value /= Math.Pow(1000, scale);
         var rounded = Math.Round(value, decimalPart.Length, MidpointRounding.AwayFromZero);
 
@@ -180,28 +386,7 @@ internal static class CellFormatter
         }
 
         var decimalText = decimals.ToString().Replace("\0", string.Empty, StringComparison.Ordinal);
-        var numberText = integerDigits + (point < 0 ? string.Empty : culture.NumberFormat.NumberDecimalSeparator + decimalText);
-
-        var builder = new StringBuilder();
-        var placed = false;
-        foreach (var token in tokens)
-        {
-            switch (token.Kind)
-            {
-                case TokenKind.Digits when !placed:
-                    builder.Append(numberText);
-                    placed = true;
-                    break;
-                case TokenKind.Literal:
-                    builder.Append(token.Value);
-                    break;
-                case TokenKind.Percent:
-                    builder.Append('%');
-                    break;
-            }
-        }
-
-        return builder.ToString();
+        return integerDigits + (point < 0 ? string.Empty : culture.NumberFormat.NumberDecimalSeparator + decimalText);
     }
 
     private static string Group(string digits, string separator)
@@ -348,6 +533,8 @@ internal static class CellFormatter
         Date,
         AmPm,
         General,
+        Condition,
+        Exponent,
     }
 
     private readonly record struct Token(TokenKind Kind, string Value);
@@ -381,7 +568,11 @@ internal static class CellFormatter
                 case '[':
                     var bracket = section.IndexOf(']', index);
                     var inner = bracket < 0 ? section[(index + 1)..] : section[(index + 1)..bracket];
-                    if (inner.StartsWith('$'))
+                    if (inner.Length > 0 && inner[0] is '<' or '>' or '=')
+                    {
+                        tokens.Add(new(TokenKind.Condition, inner));
+                    }
+                    else if (inner.StartsWith('$'))
                     {
                         // [$€-407]: the symbol before the locale id.
                         var dash = inner.IndexOf('-');
@@ -398,6 +589,10 @@ internal static class CellFormatter
                     }
 
                     tokens.Add(new(TokenKind.Digits, section[digitStart..(index + 1)]));
+                    break;
+                case 'E' or 'e' when index + 1 < section.Length && section[index + 1] is '+' or '-':
+                    tokens.Add(new(TokenKind.Exponent, section.Substring(index, 2)));
+                    index++;
                     break;
                 case '%':
                     tokens.Add(new(TokenKind.Percent, "%"));

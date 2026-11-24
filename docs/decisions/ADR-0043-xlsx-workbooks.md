@@ -39,10 +39,16 @@ not a document: it is sheets of addressed cells with formulas, number formats an
   Reglet.Docx to Reglet.Core (internal) and serves both. The facade does not reference Reglet.Xlsx: a document user
   does not pay for workbooks.
 - **Reader, narrow on purpose**: sheets, cells with value, formula, number format and style, merged ranges, column
-  widths, row heights and the page setup; enough to read back what the writer writes and to check a workbook in tests.
-  `WorksheetCell.GetFormattedText` formats a value with its number format as Excel shows it (sections, digit
-  placeholders, thousands separators, percent, literals, `[$…]` currency tokens, `_` spacing, dates and times), for the
-  given culture.
+  widths, row heights, PNG/JPEG images (one- and two-cell anchors) and the page setup; enough to read back what the
+  writer writes and to check a workbook in tests. Colours given by theme (the workbook's colour scheme; indices 0 and 1
+  are Background 1 and Text 1) or by the legacy index palette are resolved to RGB, with Excel's tint applied in HSL.
+  The dependent cells of a shared formula get the first cell's formula with its relative references moved by their
+  offset, as Excel does (whole-column and whole-row references are not moved).
+- **`WorksheetCell.GetFormattedText`** formats a value with its number format as Excel shows it, for the given culture:
+  sections, conditions (`[>=100]`), digit placeholders, thousands separators and scaling, percent, scientific notation
+  (also engineering, `##0.0E+0`), fractions (`# ?/?`, fixed denominators), literals, `[$…]` currency tokens, `_`
+  spacing, dates and times. Which section applies and when it shows a sign follows ExcelNumberFormat, the formatter common .NET
+  spreadsheet libraries use, so tests that compared their formatted strings keep their expectations.
 - Out of scope for now: a calculation engine, charts, conditional formatting, data validation, defined names other
   than the print ones, tables, filters, hyperlinks, comments, protection, frozen panes, outlines and encryption.
 

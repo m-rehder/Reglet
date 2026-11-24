@@ -20,6 +20,7 @@ internal static class WorkbookChecks
             WritesDeterministically();
             FormatsNumbers();
             RejectsBrokenInput();
+            ReadsExcelFeatures();
             Console.WriteLine("Workbooks (XLSX): all checks passed.");
             return 0;
         }
@@ -220,6 +221,27 @@ internal static class WorkbookChecks
             (new DateTime(2026, 3, 7, 14, 5, 9), "dddd, mmmm d", "Saturday, March 7", us),
             (new DateTime(2026, 3, 7), "dd.mm.yyyy", "07.03.2026", de),
             (true, null, "TRUE", us),
+            (150.0, "[>=100]\"high\";[<0]\"neg\";\"low\"", "high", us),
+            (-5.0, "[>=100]\"high\";[<0]\"neg\";\"low\"", "neg", us),
+            (5.0, "[>=100]\"high\";[<0]\"neg\";\"low\"", "low", us),
+            (-5.0, "[Red][<=0]0.00;0.00", "5.00", us),
+            (1234.5, "[>1000]#,##0,\"K\";0", "1K", us),
+            (999.0, "[>1000]#,##0,\"K\";0", "999", us),
+            (5.0, "[>100]0", "########", us),
+            (12345.678, "0.00E+00", "1.23E+04", us),
+            (0.000123, "0.00E+00", "1.23E-04", us),
+            (0.0, "0.00E+00", "0.00E+00", us),
+            (-12345.0, "0.0E+0", "-1.2E+4", us),
+            (99999.0, "0.0E+0", "1.0E+5", us),
+            (12345.0, "##0.0E+0", "12.3E+3", us),
+            (12345.0, "0.0e-0", "1,2e4", de),
+            (1.5, "# ?/?", "1 1/2", us),
+            (0.75, "# ?/?", " 3/4", us),
+            (3.14159, "# ??/??", "3 14/99", us),
+            (2.5, "?/?", "5/2", us),
+            (1.3, "# ?/8", "1 2/8", us),
+            (5.0, "# ?/?", "5    ", us),
+            (-1.5, "# ?/?", "-1 1/2", us),
         ];
         foreach (var (value, code, expected, culture) in cases)
         {
@@ -237,6 +259,81 @@ internal static class WorkbookChecks
         Throws<ArgumentException>(() => new Workbook().AddWorksheet("S").Cell("A0"), "Row 0 is not a cell.");
         Throws<ArgumentException>(() => new Workbook().AddWorksheet("S").Cell("A1").Value = new object(), "An unsupported value type is rejected.");
         Throws<ArgumentException>(() => new Workbook().AddWorksheet("S").Cell("A1").Value = double.NaN, "NaN is rejected.");
+    }
+
+    /// <summary>A package as Excel saves it: theme and indexed colours with tint, a shared formula and a two-cell picture.</summary>
+    private static void ReadsExcelFeatures()
+    {
+        const string main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        const string rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+        const string pkg = "http://schemas.openxmlformats.org/package/2006/relationships";
+        const string a = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        const string xdr = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing";
+        var parts = new Dictionary<string, string>
+        {
+            ["xl/workbook.xml"] = $"<workbook xmlns=\"{main}\" xmlns:r=\"{rel}\"><sheets><sheet name=\"S\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>",
+            ["xl/_rels/workbook.xml.rels"] = $"<Relationships xmlns=\"{pkg}\">"
+                + $"<Relationship Id=\"rId1\" Type=\"{rel}/worksheet\" Target=\"worksheets/sheet1.xml\"/>"
+                + $"<Relationship Id=\"rId2\" Type=\"{rel}/styles\" Target=\"styles.xml\"/>"
+                + $"<Relationship Id=\"rId3\" Type=\"{rel}/theme\" Target=\"theme/theme1.xml\"/></Relationships>",
+            ["xl/theme/theme1.xml"] = $"<a:theme xmlns:a=\"{a}\"><a:themeElements><a:clrScheme name=\"Office\">"
+                + "<a:dk1><a:sysClr val=\"windowText\" lastClr=\"000000\"/></a:dk1><a:lt1><a:sysClr val=\"window\" lastClr=\"FFFFFF\"/></a:lt1>"
+                + "<a:dk2><a:srgbClr val=\"44546A\"/></a:dk2><a:lt2><a:srgbClr val=\"E7E6E6\"/></a:lt2><a:accent1><a:srgbClr val=\"4472C4\"/></a:accent1>"
+                + "</a:clrScheme></a:themeElements></a:theme>",
+            ["xl/styles.xml"] = $"<styleSheet xmlns=\"{main}\">"
+                + "<fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><color theme=\"4\"/><name val=\"Calibri\"/></font></fonts>"
+                + "<fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"
+                + "<fill><patternFill patternType=\"solid\"><fgColor theme=\"0\" tint=\"-0.249977111117893\"/></patternFill></fill></fills>"
+                + "<borders count=\"2\"><border/><border><bottom style=\"thin\"><color indexed=\"10\"/></bottom></border></borders>"
+                + "<cellXfs count=\"2\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"2\" borderId=\"1\"/></cellXfs></styleSheet>",
+            ["xl/worksheets/sheet1.xml"] = $"<worksheet xmlns=\"{main}\" xmlns:r=\"{rel}\"><sheetData>"
+                + "<row r=\"1\"><c r=\"A1\" s=\"1\"><v>1</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><f t=\"shared\" ref=\"C1:C3\" si=\"0\">A1*B1+$A$1+SUM(A1:B1)&amp;\"A1\"</f><v>5</v></c></row>"
+                + "<row r=\"2\"><c r=\"C2\"><f t=\"shared\" si=\"0\"/><v>7</v></c></row>"
+                + "<row r=\"3\"><c r=\"C3\"><f t=\"shared\" si=\"0\"/></c><c r=\"D3\"><f t=\"shared\" si=\"0\"/></c></row>"
+                + "</sheetData><drawing r:id=\"rId1\"/></worksheet>",
+            ["xl/worksheets/_rels/sheet1.xml.rels"] = $"<Relationships xmlns=\"{pkg}\"><Relationship Id=\"rId1\" Type=\"{rel}/drawing\" Target=\"../drawings/drawing1.xml\"/></Relationships>",
+            ["xl/drawings/drawing1.xml"] = $"<xdr:wsDr xmlns:xdr=\"{xdr}\" xmlns:a=\"{a}\" xmlns:r=\"{rel}\"><xdr:twoCellAnchor>"
+                + "<xdr:from><xdr:col>3</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>4</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>"
+                + "<xdr:to><xdr:col>5</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>8</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>"
+                + "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"2\" name=\"Picture 1\" descr=\"Chart\"/><xdr:cNvPicPr/></xdr:nvPicPr>"
+                + "<xdr:blipFill><a:blip r:embed=\"rId1\"/></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"952500\" cy=\"476250\"/></a:xfrm></xdr:spPr></xdr:pic>"
+                + "<xdr:clientData/></xdr:twoCellAnchor></xdr:wsDr>",
+            ["xl/drawings/_rels/drawing1.xml.rels"] = $"<Relationships xmlns=\"{pkg}\"><Relationship Id=\"rId1\" Type=\"{rel}/image\" Target=\"../media/image1.png\"/></Relationships>",
+        };
+
+        using var buffer = new MemoryStream();
+        using (var zip = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, xml) in parts)
+            {
+                using var writer = new StreamWriter(zip.CreateEntry(name).Open());
+                writer.Write(xml);
+            }
+
+            using var image = zip.CreateEntry("xl/media/image1.png").Open();
+            image.Write(Png);
+        }
+
+        buffer.Position = 0;
+        var sheet = new XlsxWorkbookReader().Read(buffer).Worksheets[0];
+        var style = sheet.Cell("A1").Style;
+        Require(style.Font.Color == Color.FromHex("4472C4") && style.Font.Bold, "A theme font colour (accent 1) is resolved.");
+        Require(style.Fill == Color.FromHex("BFBFBF"), $"Background 1 darker 25 % is BFBFBF, got {style.Fill}.");
+        Require(style.Border.Bottom?.Color == Color.FromHex("FF0000"), "An indexed colour (10 = red) is resolved.");
+        Require(sheet.Cell("C1").Formula == "A1*B1+$A$1+SUM(A1:B1)&\"A1\"", "The shared formula's first cell keeps its text.");
+        Require(sheet.Cell("C2").Formula == "A2*B2+$A$1+SUM(A2:B2)&\"A1\"" && sheet.Cell("C2").Value is 7.0,
+            "A dependent cell gets the formula moved one row, absolute references and text stay; its cached value is kept.");
+        Require(sheet.Cell("D3").Formula == "B3*C3+$A$1+SUM(B3:C3)&\"A1\"", "A dependent cell to the right moves the columns too.");
+        var picture = sheet.Images.Single();
+        Require(picture.Row == 5 && picture.Column == 4 && picture.WidthPixels == 100 && picture.HeightPixels == 50 && picture.AlternativeText == "Chart"
+            && picture.Data.Span.SequenceEqual(Png), "A two-cell picture is read with its anchor, size and bytes.");
+
+        var written = new Workbook();
+        var imageSheet = written.AddWorksheet("I");
+        imageSheet.Images.Add(new WorksheetImage(Png, 3, 2) { WidthPixels = 40 });
+        var reread = new XlsxWorkbookReader().Read(new MemoryStream(Write(written, out _))).Worksheets[0].Images.Single();
+        Require(reread.Row == 3 && reread.Column == 2 && reread.WidthPixels == 40 && reread.HeightPixels == 1, "A one-cell picture survives the round trip.");
+        Require(XlsxFormula.Shift("'My Sheet'!A1+Sheet2!B$2+A1048576", 1, 0) == "'My Sheet'!A2+Sheet2!B$2+#REF!", "Sheet names stay; a row past the end is #REF!.");
     }
 
     private static void Throws<T>(Action action, string message)

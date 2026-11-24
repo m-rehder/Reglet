@@ -7,9 +7,9 @@ namespace Reglet;
 /// <summary>
 /// Reads an XLSX workbook into a <see cref="Workbook"/> (ADR-0043), narrow on purpose: sheets, cells with value,
 /// formula (and the value Excel cached for it), number format and style, merged ranges, column widths, row heights and
-/// the page setup with print area and repeated rows. Use <see cref="WorksheetCell.GetFormattedText"/> for the text Excel
-/// shows. shortcut: images, theme and indexed colours, conditional formats, comments and the cells of a shared formula
-/// other than its first (they keep their cached value) are not read; extend when a workbook needs them.
+/// the page setup with print area and repeated rows, PNG and JPEG images, theme and indexed colours (with tint) and the
+/// cells of shared formulas. Use <see cref="WorksheetCell.GetFormattedText"/> for the text Excel shows. Conditional
+/// formats, comments and the other features ADR-0043 leaves out are not read.
 /// </summary>
 public sealed class XlsxWorkbookReader
 {
@@ -30,11 +30,13 @@ public sealed class XlsxWorkbookReader
             var workbookXml = Load(zip, workbookPart) ?? throw new DocumentValidationException("XLSX: the package has no workbook.");
             var relationships = Relationships(zip, workbookPart);
 
-            var strings = relationships.Values.Where(relationship => relationship.Type == XlsxConstants.SharedStringsType)
+            XElement? Part(string type) => relationships.Values.Where(relationship => relationship.Type == type)
                 .Select(relationship => Load(zip, relationship.Target)).FirstOrDefault();
-            var styles = new Styles(relationships.Values.Where(relationship => relationship.Type == XlsxConstants.StylesType)
-                .Select(relationship => Load(zip, relationship.Target)).FirstOrDefault());
-            var sharedStrings = strings?.Elements(S + "si").Select(ReadString).ToList() ?? [];
+            var stylesXml = Part(XlsxConstants.StylesType);
+            var palette = new Palette(Part(XlsxConstants.ThemeType), stylesXml);
+            var styles = new Styles(stylesXml, palette);
+            var sharedStrings = Part(XlsxConstants.SharedStringsType)?.Elements(S + "si").Select(item => ReadString(item, palette)).ToList() ?? [];
+            var mediaBudget = ReaderGuard.MaxMediaBytesPerDocument;
 
             var workbook = new Workbook();
             var sheets = workbookXml.Element(S + "sheets")?.Elements(S + "sheet").ToList() ?? [];
@@ -46,6 +48,7 @@ public sealed class XlsxWorkbookReader
                 if (id is not null && relationships.TryGetValue(id, out var target) && Load(zip, target.Target) is { } sheetXml)
                 {
                     ReadSheet(sheet, sheetXml, styles, sharedStrings);
+                    ReadImages(zip, target.Target, sheetXml, sheet, ref mediaBudget);
                 }
             }
 
@@ -71,6 +74,7 @@ public sealed class XlsxWorkbookReader
             }
         }
 
+        var sharedFormulas = new Dictionary<string, (string Formula, int Row, int Column)>(StringComparer.Ordinal);
         var rowNumber = 0;
         foreach (var row in xml.Element(S + "sheetData")?.Elements(S + "row") ?? [])
         {
@@ -87,7 +91,7 @@ public sealed class XlsxWorkbookReader
                     ? (parsedRow, parsedColumn)
                     : (rowNumber, columnNumber + 1);
                 columnNumber = cellColumn;
-                ReadCell(sheet.Cell(cellRow, cellColumn), element, styles, sharedStrings);
+                ReadCell(sheet.Cell(cellRow, cellColumn), element, styles, sharedStrings, sharedFormulas);
             }
         }
 
@@ -129,7 +133,12 @@ public sealed class XlsxWorkbookReader
         sheet.PageSetup = setup;
     }
 
-    private static void ReadCell(WorksheetCell cell, XElement element, Styles styles, List<object> sharedStrings)
+    private static void ReadCell(
+        WorksheetCell cell,
+        XElement element,
+        Styles styles,
+        List<object> sharedStrings,
+        Dictionary<string, (string Formula, int Row, int Column)> sharedFormulas)
     {
         cell.Style = styles.Cell(Int(element, "s") ?? 0);
         var type = (string?)element.Attribute("t");
@@ -139,7 +148,7 @@ public sealed class XlsxWorkbookReader
             "s" => int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index) && index >= 0 && index < sharedStrings.Count
                 ? sharedStrings[index]
                 : null,
-            "inlineStr" => element.Element(S + "is") is { } inline ? ReadString(inline) : null,
+            "inlineStr" => element.Element(S + "is") is { } inline ? ReadString(inline, styles.Palette) : null,
             "str" or "e" => raw,
             "b" => raw is "1" or "true",
             _ => double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number)
@@ -147,9 +156,24 @@ public sealed class XlsxWorkbookReader
                 : null,
         };
 
-        if (element.Element(S + "f") is { } formula && formula.Value.Length > 0)
+        var formula = element.Element(S + "f");
+        var text = formula?.Value;
+        if (formula is not null && (string?)formula.Attribute("t") == "shared" && (string?)formula.Attribute("si") is { } group)
         {
-            cell.SetFormulaResult(formula.Value, value);
+            if (!string.IsNullOrEmpty(text))
+            {
+                // The first cell of a shared formula carries its text; the others take it shifted by their offset.
+                sharedFormulas[group] = (text, cell.Row, cell.Column);
+            }
+            else if (sharedFormulas.TryGetValue(group, out var master))
+            {
+                text = XlsxFormula.Shift(master.Formula, cell.Row - master.Row, cell.Column - master.Column);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(text))
+        {
+            cell.SetFormulaResult(text, value);
         }
         else if (value is not null)
         {
@@ -208,7 +232,7 @@ public sealed class XlsxWorkbookReader
     }
 
     /// <summary>A shared or inline string: plain text, or rich text when it has runs.</summary>
-    private static object ReadString(XElement item)
+    private static object ReadString(XElement item, Palette palette)
     {
         var runs = item.Elements(S + "r").ToList();
         if (runs.Count == 0)
@@ -218,21 +242,17 @@ public sealed class XlsxWorkbookReader
 
         return new RichText(runs.Select(run => new RichTextRun(
             string.Concat(run.Elements(S + "t").Select(text => text.Value)),
-            run.Element(S + "rPr") is { } properties ? ReadFont(properties, "rFont") : null)));
+            run.Element(S + "rPr") is { } properties ? ReadFont(properties, "rFont", palette) : null)));
     }
 
-    private static CellFont ReadFont(XElement font, string nameElement) => new()
+    private static CellFont ReadFont(XElement font, string nameElement, Palette palette) => new()
     {
         Name = (string?)font.Element(S + nameElement)?.Attribute("val"),
         Size = Double(font.Element(S + "sz"), "val") is { } size and >= 1 and <= 409 ? size : null,
         Bold = font.Element(S + "b") is { } bold && (string?)bold.Attribute("val") is null or "1" or "true",
         Italic = font.Element(S + "i") is { } italic && (string?)italic.Attribute("val") is null or "1" or "true",
-        Color = ReadColor(font.Element(S + "color")),
+        Color = palette.Resolve(font.Element(S + "color")),
     };
-
-    /// <summary>An ARGB colour; theme and indexed colours are not resolved.</summary>
-    private static Color? ReadColor(XElement? color)
-        => (string?)color?.Attribute("rgb") is { Length: 8 } argb && Color.TryParseHex(argb[2..], out var parsed) ? parsed : null;
 
     private static int? Int(XElement? element, string attribute)
         => int.TryParse((string?)element?.Attribute(attribute), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
@@ -266,29 +286,93 @@ public sealed class XlsxWorkbookReader
         return result;
     }
 
+    /// <summary>
+    /// The pictures of a sheet's drawing: PNG or JPEG anchored at one cell (size from the anchor) or two cells (size from
+    /// the picture's own extent). Other media, shapes and charts are skipped.
+    /// </summary>
+    private static void ReadImages(ZipArchive zip, string sheetPart, XElement sheetXml, Worksheet sheet, ref long budget)
+    {
+        XNamespace xdr = XlsxConstants.Drawing;
+        XNamespace a = XlsxConstants.DrawingMain;
+        var sheetRelationships = Relationships(zip, sheetPart);
+        foreach (var drawingElement in sheetXml.Elements(S + "drawing"))
+        {
+            if ((string?)drawingElement.Attribute(R + "id") is not { } id || !sheetRelationships.TryGetValue(id, out var drawing)
+                || Load(zip, drawing.Target) is not { } drawingXml)
+            {
+                continue;
+            }
+
+            var drawingRelationships = Relationships(zip, drawing.Target);
+            foreach (var anchor in drawingXml.Elements().Where(element => element.Name == xdr + "oneCellAnchor" || element.Name == xdr + "twoCellAnchor"))
+            {
+                var picture = anchor.Element(xdr + "pic");
+                var from = anchor.Element(xdr + "from");
+                if (picture?.Element(xdr + "blipFill")?.Element(a + "blip")?.Attribute(R + "embed")?.Value is not { } embed
+                    || !drawingRelationships.TryGetValue(embed, out var media) || zip.GetEntry(media.Target) is not { } entry
+                    || !int.TryParse(from?.Element(xdr + "col")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var column)
+                    || !int.TryParse(from?.Element(xdr + "row")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var row)
+                    || column is < 0 or >= CellReference.MaxColumn || row is < 0 or >= CellReference.MaxRow)
+                {
+                    continue;
+                }
+
+                var extent = anchor.Name == xdr + "oneCellAnchor"
+                    ? anchor.Element(xdr + "ext")
+                    : picture.Element(xdr + "spPr")?.Element(a + "xfrm")?.Element(a + "ext");
+                var bytes = ReaderGuard.ReadBoundedBytes(entry, budget);
+                budget -= bytes.Length;
+                if (budget < 0)
+                {
+                    throw new DocumentValidationException("XLSX: the images exceed the media limit of a workbook.");
+                }
+
+                try
+                {
+                    sheet.Images.Add(new WorksheetImage(bytes, row + 1, column + 1)
+                    {
+                        WidthPixels = Pixels(extent, "cx"),
+                        HeightPixels = Pixels(extent, "cy"),
+                        AlternativeText = (string?)picture.Element(xdr + "nvPicPr")?.Element(xdr + "cNvPr")?.Attribute("descr"),
+                    });
+                }
+                catch (ImageException)
+                {
+                    // Neither PNG nor JPEG (EMF, GIF, ...): the model has no place for it.
+                }
+            }
+        }
+
+        static int? Pixels(XElement? extent, string name)
+            => long.TryParse((string?)extent?.Attribute(name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var emu) && emu > 0
+                ? (int)Math.Clamp(Math.Round(emu / (double)XlsxConstants.EmuPerPixel), 1, int.MaxValue)
+                : null;
+    }
+
     /// <summary>The cell formats of styles.xml as <see cref="CellStyle"/>s, by index.</summary>
     private sealed class Styles
     {
         private readonly List<CellStyle> _cells = [];
 
-        public Styles(XElement? xml)
+        public Styles(XElement? xml, Palette palette)
         {
+            Palette = palette;
             var formats = xml?.Element(S + "numFmts")?.Elements(S + "numFmt")
                 .Where(format => Int(format, "numFmtId") is not null && format.Attribute("formatCode") is not null)
                 .GroupBy(format => Int(format, "numFmtId")!.Value)
                 .ToDictionary(group => group.Key, group => (string)group.First().Attribute("formatCode")!) ?? [];
-            var fonts = xml?.Element(S + "fonts")?.Elements(S + "font").Select((font, index) => index == 0 ? CellFont.Default : ReadFont(font, "name")).ToList() ?? [];
+            var fonts = xml?.Element(S + "fonts")?.Elements(S + "font").Select((font, index) => index == 0 ? CellFont.Default : ReadFont(font, "name", palette)).ToList() ?? [];
             var fills = xml?.Element(S + "fills")?.Elements(S + "fill")
                 .Select(fill => fill.Element(S + "patternFill") is { } pattern && (string?)pattern.Attribute("patternType") == "solid"
-                    ? ReadColor(pattern.Element(S + "fgColor"))
+                    ? palette.Resolve(pattern.Element(S + "fgColor"))
                     : null)
                 .ToList() ?? [];
             var borders = xml?.Element(S + "borders")?.Elements(S + "border").Select(border => new CellBorders
             {
-                Left = Side(border.Element(S + "left")),
-                Right = Side(border.Element(S + "right")),
-                Top = Side(border.Element(S + "top")),
-                Bottom = Side(border.Element(S + "bottom")),
+                Left = Side(border.Element(S + "left"), palette),
+                Right = Side(border.Element(S + "right"), palette),
+                Top = Side(border.Element(S + "top"), palette),
+                Bottom = Side(border.Element(S + "bottom"), palette),
             }).ToList() ?? [];
 
             foreach (var xf in xml?.Element(S + "cellXfs")?.Elements(S + "xf") ?? [])
@@ -320,16 +404,18 @@ public sealed class XlsxWorkbookReader
             }
         }
 
+        public Palette Palette { get; }
+
         public CellStyle Cell(int index) => index >= 0 && index < _cells.Count ? _cells[index] : CellStyle.Default;
 
         private static T? At<T>(List<T> list, int? index) => index is { } at && at >= 0 && at < list.Count ? list[at] : default;
 
-        private static CellBorderLine? Side(XElement? side) => (string?)side?.Attribute("style") switch
+        private static CellBorderLine? Side(XElement? side, Palette palette) => (string?)side?.Attribute("style") switch
         {
             null or "none" => null,
-            "medium" or "mediumDashed" or "mediumDashDot" or "mediumDashDotDot" or "slantDashDot" => new CellBorderLine(CellBorderStyle.Medium, ReadColor(side!.Element(S + "color"))),
-            "thick" or "double" => new CellBorderLine(CellBorderStyle.Thick, ReadColor(side!.Element(S + "color"))),
-            _ => new CellBorderLine(CellBorderStyle.Thin, ReadColor(side!.Element(S + "color"))),
+            "medium" or "mediumDashed" or "mediumDashDot" or "mediumDashDotDot" or "slantDashDot" => new CellBorderLine(CellBorderStyle.Medium, palette.Resolve(side!.Element(S + "color"))),
+            "thick" or "double" => new CellBorderLine(CellBorderStyle.Thick, palette.Resolve(side!.Element(S + "color"))),
+            _ => new CellBorderLine(CellBorderStyle.Thin, palette.Resolve(side!.Element(S + "color"))),
         };
     }
 }
