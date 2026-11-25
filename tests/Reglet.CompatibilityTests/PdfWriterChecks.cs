@@ -728,10 +728,11 @@ internal static class PdfWriterChecks
             ("cmap", SyntheticTrueTypeFont.Cmap4()));
 
         // hheaAsc 800 / upm 1000 -> ascender 0.8 em; line height (800 + 200) / 1000 = 1.0 em.
-        var document = PortableDocument.Create()
-            .Paragraph(p => p.Span("erst", fontFamily: "Test", fontSize: Length.FromPoints(10)))
-            .Paragraph(p => p.Span("two", fontFamily: "Test", fontSize: Length.FromPoints(10)))
-            .Build();
+        // The paragraph mark is in the same font, or its 11 pt default would raise the line.
+        var metricStyle = ParagraphStyle.Default with { FontFamily = "Test", FontSize = Length.FromPoints(10) };
+        var document = new PortableDocument(new DocumentMetadata(), new Section([
+            new Paragraph(new TextRun("erst")) { Style = metricStyle },
+            new Paragraph(new TextRun("two")) { Style = metricStyle }]));
 
         using var buffer = new MemoryStream();
         new PdfDocumentWriter().WriteAsync(

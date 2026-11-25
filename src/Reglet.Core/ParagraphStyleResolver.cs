@@ -419,7 +419,9 @@ internal static class ParagraphStyleResolver
             && Equals(left.Kerning, right.Kerning)
             && Equals(left.CharacterSpacing, right.CharacterSpacing)
             && Equals(left.HorizontalScaling, right.HorizontalScaling)
-            && Equals(left.Position, right.Position);
+            && Equals(left.Position, right.Position)
+            && string.Equals(left.MarkFontFamily, right.MarkFontFamily, StringComparison.Ordinal)
+            && Equals(left.MarkFontSize, right.MarkFontSize);
 
     /// <summary>Whether two tab-stop lists are equal in content.</summary>
     public static bool SameTabStops(IReadOnlyList<TabStop>? left, IReadOnlyList<TabStop>? right)

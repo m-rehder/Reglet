@@ -92,8 +92,11 @@ internal static class MigraDocParityChecks
         }
 
         var reference = Gap([new TextRun("\u00A0") { FontSize = Length.FromPoints(20) }]);
-        Require(Math.Abs(Gap([new TextRun("") { FontSize = Length.FromPoints(20) }]) - reference) < 0.01,
-            "An empty 20 pt run gives its paragraph a 20 pt line, as a no-break space does.");
+        // As in Word, an empty run has no height: the paragraph mark sizes the line (1.7.3).
+        Require(Math.Abs(Gap([new TextRun("") { FontSize = Length.FromPoints(20) }]) - Gap([])) < 0.01,
+            "An empty 20 pt run leaves the paragraph at its mark's size.");
+        Require(Math.Abs(Gap([], styleSize: 20) - reference) < 0.01,
+            "A 20 pt paragraph mark gives a 20 pt line, as a no-break space does.");
         Require(Math.Abs(Gap([], styleSize: 20, documentSize: 1) - Gap([new TextRun("\u00A0") { FontSize = Length.FromPoints(20) }], documentSize: 1)) < 0.01,
             "An empty paragraph takes its style's size, not the document's.");
     }

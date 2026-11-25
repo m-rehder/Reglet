@@ -1867,7 +1867,7 @@ internal static class DocxPackageBuilder
         ParagraphStyle? inheritedBase = null)
     {
         writer.WriteStartElement("w", "p", DocxConstants.WordprocessingML);
-        WriteParagraphProperties(writer, style, numbering, compact, inheritedBase);
+        WriteParagraphProperties(writer, style, numbering, compact, inheritedBase, markContext: context);
 
         var previousParagraph = context.Paragraph;
         context.Paragraph = style;
@@ -2598,7 +2598,8 @@ internal static class DocxPackageBuilder
         ParagraphStyle style,
         (int Ilvl, int NumId)? numbering = null,
         bool compact = false,
-        ParagraphStyle? inheritedBase = null)
+        ParagraphStyle? inheritedBase = null,
+        DocxWriteContext? markContext = null)
     {
         writer.WriteStartElement("w", "pPr", DocxConstants.WordprocessingML);
 
@@ -2748,6 +2749,22 @@ internal static class DocxPackageBuilder
             && (inheritedBase is null ? true : alignment != inheritedBase.Alignment))
         {
             WriteValElement(writer, "jc", AlignmentValue(alignment));
+        }
+
+        // The paragraph mark (only in a paragraph: a style's w:pPr has no w:rPr): its own font, else the paragraph's.
+        if (markContext is not null)
+        {
+            var mark = new RunFormat
+            {
+                FontFamily = style.MarkFontFamily ?? (Overrides(style.FontFamily, inheritedBase?.FontFamily) ? style.FontFamily : null),
+                FontSize = style.MarkFontSize ?? (Overrides(style.FontSize, inheritedBase?.FontSize) ? style.FontSize : null),
+            };
+            if (!mark.IsEmpty)
+            {
+                writer.WriteStartElement("w", "rPr", DocxConstants.WordprocessingML);
+                WriteRunFormat(writer, mark, markContext.XmlBehavior, markContext.Handler);
+                writer.WriteEndElement();
+            }
         }
 
         writer.WriteEndElement();

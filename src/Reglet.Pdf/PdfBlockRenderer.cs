@@ -1170,9 +1170,11 @@ internal sealed class PdfBlockRenderer
 
         var atoms = BuildAtoms(inlines, headingSize, style);
 
-        // An empty paragraph occupies a blank line as in DOCX/ODT, in the font of its (empty) run or its style.
-        var (defaultFont, emptySize) = EmptyLineFormat(inlines, headingSize, style);
-        var fontSize = Measured(atoms).Count == 0 ? emptySize : atoms.Max(atom => atom.FontSize);
+        // An empty paragraph occupies a blank line as in Word, in the font of its paragraph mark.
+        var (defaultFont, emptySize) = MarkFormat(headingSize, style);
+        var markHeight = defaultFont.Metrics.LineHeightEm * emptySize;
+        var markAscent = defaultFont.Metrics.AscentEm * emptySize;
+        var fontSize = Measured(atoms) is { Count: > 0 } visible ? visible.Max(atom => atom.FontSize) : emptySize;
 
         // left, right and first-line indent limit the wrap width and shift
         // the start position (N06). The list indent is added from the nesting level.
@@ -1518,10 +1520,13 @@ internal sealed class PdfBlockRenderer
 
         // height of the line according to the metrics of its fonts; empty lines use the
         // default font with the paragraph's font size.
+        // The paragraph mark stands at the end of the last line and raises it as a character would (Word).
         double LineHeightOf(IReadOnlyList<TextAtom> line)
             => Measured(line) is { Count: > 0 } measured
-                ? measured.Max(AtomLineHeight)
+                ? IsLastLine(line) ? Math.Max(markHeight, measured.Max(AtomLineHeight)) : measured.Max(AtomLineHeight)
                 : defaultFont.Metrics.LineHeightEm * fontSize;
+
+        bool IsLastLine(IReadOnlyList<TextAtom> line) => lines.Count > 0 && ReferenceEquals(line, lines[^1]);
 
         double ScaledLineHeight(IReadOnlyList<TextAtom> line)
         {
@@ -1538,13 +1543,17 @@ internal sealed class PdfBlockRenderer
         // how Word sets the baseline within the line box.
         double LineAscentOf(IReadOnlyList<TextAtom> line)
             => Measured(line) is { Count: > 0 } measured
-                ? measured.Max(AtomAscent)
+                ? IsLastLine(line) ? Math.Max(markAscent, measured.Max(AtomAscent)) : measured.Max(AtomAscent)
                 : defaultFont.Metrics.AscentEm * fontSize;
     }
 
-    /// <summary>The atoms that take up room in a line; a bookmark marks a position and has no size.</summary>
+    /// <summary>
+    /// The atoms that take up room in a line; a bookmark marks a position and has no size, and an empty run has none
+    /// either (Word sizes such a line by its paragraph mark).
+    /// </summary>
     private static List<TextAtom> Measured(IReadOnlyList<TextAtom> line)
-        => line.Where(atom => atom.Bookmark is null && atom.Comment is null).ToList();
+        => line.Where(atom => atom.Bookmark is null && atom.Comment is null
+            && (atom.Text.Length > 0 || atom.Image is not null || atom.IsHardBreak || atom.IsTab)).ToList();
 
     private static double AlignmentOffset(TextAlignment alignment, double available, double lineWidth) => alignment switch
     {
@@ -1912,7 +1921,7 @@ internal sealed class PdfBlockRenderer
             foreach (var line in cells.SelectMany(cell => cell.Lines).Where(line => line.Atoms is not null))
             {
                 var measured = Measured(line.Atoms!);
-                if (measured.Count == 0)
+                if (measured.Count == 0 || line.EndsParagraph)
                 {
                     lineHeight = Math.Max(lineHeight, line.Empty.Height);
                     ascent = Math.Max(ascent, line.Empty.Ascent);
@@ -2058,7 +2067,7 @@ internal sealed class PdfBlockRenderer
                 var spaceBefore = style.SpaceBefore?.Points ?? 0;
                 var spaceAfter = ParagraphSpacing.SpaceAfter(style, compact: true);
                 var atoms = ExtractAtoms([block], cell, area);
-                var (emptyFont, emptySize) = EmptyLineFormat(block is Heading emptyHeading ? emptyHeading.Inlines : ((Paragraph)block).Inlines,
+                var (emptyFont, emptySize) = MarkFormat(
                     block is Heading sizedHeading ? Typography.HeadingSize(sizedHeading.Level).Points : null,
                     TableLayout.CellParagraphStyle(style, cell));
                 var segmentStart = 0;
@@ -2087,6 +2096,7 @@ internal sealed class PdfBlockRenderer
                             After = index == atoms.Count && line == wrapped.Count - 1 ? spaceAfter : 0,
                             Spacing = style.LineSpacing,
                             Empty = (emptyFont.Metrics.LineHeightEm * emptySize, emptyFont.Metrics.AscentEm * emptySize),
+                            EndsParagraph = index == atoms.Count && line == wrapped.Count - 1,
                         });
                     }
 
@@ -2247,7 +2257,7 @@ internal sealed class PdfBlockRenderer
         if (lines.Count == 0)
         {
             // A cell without blocks holds an empty paragraph in the document's font, as in Word.
-            var (emptyFont, emptySize) = EmptyLineFormat([], null, null);
+            var (emptyFont, emptySize) = MarkFormat(null, null);
             lines.Add(CellLine.Text([], lastOfParagraph: true) with { Empty = (emptyFont.Metrics.LineHeightEm * emptySize, emptyFont.Metrics.AscentEm * emptySize) });
         }
 
@@ -2801,8 +2811,11 @@ internal sealed class PdfBlockRenderer
 
         public LineSpacing? Spacing { get; init; }
 
-        /// <summary>The line height and ascent of the line when it holds no visible text (its paragraph's font).</summary>
+        /// <summary>The line height and ascent of the paragraph mark: the line's height without visible text, and at least that of the last line.</summary>
         public (double Height, double Ascent) Empty { get; init; }
+
+        /// <summary>Whether the paragraph mark ends this line.</summary>
+        public bool EndsParagraph { get; init; }
 
         /// <summary>An image, tagged as a figure with its alternative text.</summary>
         public bool Figure { get; init; }
@@ -3176,10 +3189,11 @@ internal sealed class PdfBlockRenderer
             run.Color ?? _defaults.TextColor);
     }
 
-    /// <summary>The font and size of the line of a paragraph without visible text: its first run, else its style.</summary>
-    private (PdfFontHandle Font, double Size) EmptyLineFormat(IReadOnlyList<Inline> inlines, double? headingSize, ParagraphStyle? paragraphStyle)
+    /// <summary>The font and size of the paragraph mark: its own, else the paragraph's, else the document's.</summary>
+    private (PdfFontHandle Font, double Size) MarkFormat(double? headingSize, ParagraphStyle? paragraphStyle)
     {
-        var (font, size, _) = PlainRunFormat(inlines.OfType<TextRun>().FirstOrDefault(), headingSize, paragraphStyle);
+        var mark = new TextRun(string.Empty) { FontFamily = paragraphStyle?.MarkFontFamily, FontSize = paragraphStyle?.MarkFontSize };
+        var (font, size, _) = PlainRunFormat(mark, headingSize, paragraphStyle);
         return (font, size);
     }
 

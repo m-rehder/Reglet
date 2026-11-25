@@ -7,6 +7,7 @@ public sealed record ParagraphStyle
     private Length? _spaceBefore;
     private Length? _spaceAfter;
     private IReadOnlyList<TabStop>? _tabStops;
+    private Length? _markFontSize;
 
     /// <summary>Default style without special attributes.</summary>
     public static ParagraphStyle Default { get; } = new();
@@ -153,6 +154,22 @@ public sealed record ParagraphStyle
 
     /// <summary>Font size of the runs; null means the document default.</summary>
     public Length? FontSize { get; init; }
+
+    /// <summary>
+    /// Font family of the paragraph mark (Word's <c>w:pPr/w:rPr</c>); null means <see cref="FontFamily"/>, else the document
+    /// default. The mark sets the height of a paragraph without visible text and counts towards its last line. DOCX and PDF
+    /// honour it; ODT has no paragraph mark.
+    /// </summary>
+    public string? MarkFontFamily { get; init; }
+
+    /// <summary>Font size of the paragraph mark; null means <see cref="FontSize"/>, else the document default. See <see cref="MarkFontFamily"/>.</summary>
+    public Length? MarkFontSize
+    {
+        get => _markFontSize;
+        init => _markFontSize = value is { Points: <= 0 } || (value is { } size && !double.IsFinite(size.Points))
+            ? throw new ArgumentOutOfRangeException(nameof(MarkFontSize), "The mark font size must be positive.")
+            : value;
+    }
 
     /// <summary>Border around the text (<see cref="Borders"/> is the box of the paragraph).</summary>
     public ParagraphBorder? TextBorder { get; init; }

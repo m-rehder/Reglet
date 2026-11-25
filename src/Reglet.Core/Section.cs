@@ -64,8 +64,9 @@ public sealed record Section
     public HeaderFooter? Footer { get; init; }
 
     /// <summary>
-    /// Distance of the header from the top edge of the sheet (Word's <c>w:pgMar w:header</c>); null means 0.5 in. It is at
-    /// most the top margin.
+    /// Distance of the header from the top edge of the sheet (Word's <c>w:pgMar w:header</c>); null means 0.5 in. Larger than
+    /// the top margin, the PDF starts the header there and the body below max(top margin, distance + header height), as Word
+    /// does.
     /// </summary>
     public Length? HeaderDistance
     {

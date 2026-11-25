@@ -1,10 +1,13 @@
+using System.Globalization;
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Reglet;
 
 /// <summary>
 /// Fields take the run formatting of their paragraph in DOCX; a table without borders, a full set of widths that reaches
-/// into the left margin, a width above 100 percent, and the empty paragraph after a table at the end of a footer.
+/// into the left margin, a width above 100 percent, the empty paragraph after a table at the end of a footer, a header
+/// distance larger than the top margin in the PDF, and the formatting of the paragraph mark.
 /// </summary>
 internal static class FieldAndTableFixChecks
 {
@@ -19,6 +22,8 @@ internal static class FieldAndTableFixChecks
             WidthsReachIntoTheLeftMargin();
             WidthPercentAboveHundred();
             FooterEndingWithTableGetsAParagraphWithoutHeight();
+            HeaderStartsAtItsDistance();
+            ParagraphMarkSetsTheHeight();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -133,6 +138,67 @@ internal static class FieldAndTableFixChecks
                 && (string?)spacing?.Attribute(W + "before") == "0" && (string?)spacing?.Attribute(W + "after") == "0"
                 && (string?)spacing?.Attribute(W + "line") == "1" && (string?)spacing?.Attribute(W + "lineRule") == "exact",
             "The closing paragraph after the table has no height.");
+    }
+
+    /// <summary>The baseline of every text piece on the first page.</summary>
+    private static Dictionary<string, double> Baselines(PortableDocument document)
+    {
+        using var buffer = new MemoryStream();
+        new PdfDocumentWriter().WriteAsync(document, buffer).GetAwaiter().GetResult();
+        return Regex.Matches(PdfStreams.DecompressPages(buffer.ToArray())[0], @"Tf\s*(-?[\d.]+) (-?[\d.]+) Td\s*\(([^)]*)\) Tj")
+            .GroupBy(match => match.Groups[3].Value)
+            .ToDictionary(group => group.Key, group => double.Parse(group.First().Groups[2].Value, CultureInfo.InvariantCulture));
+    }
+
+    private static void HeaderStartsAtItsDistance()
+    {
+        Dictionary<string, double> Page(double distance) => Baselines(Document(new Section(new Paragraph(new TextRun("BODY")))
+        {
+            Margins = new PageMargins(Length.FromPoints(72)),
+            HeaderDistance = Length.FromPoints(distance),
+            Header = new HeaderFooter(new Paragraph(new TextRun("HDR"))),
+        }));
+
+        var near = Page(36);
+        var far = Page(100);
+        Require(Math.Abs(near["HDR"] - far["HDR"] - 64) < 0.01, $"The header moves down by the extra distance ({near["HDR"]} / {far["HDR"]}).");
+        Require(far["BODY"] < far["HDR"] - 10 && far["BODY"] < 841.89 - 100, $"The body starts below the header ({far["BODY"]}).");
+        Require(near["BODY"] > far["BODY"], "A header within the margin leaves the body at the margin.");
+    }
+
+    private static void ParagraphMarkSetsTheHeight()
+    {
+        double Gap(Paragraph middle)
+        {
+            var lines = Baselines(Document(new Section([new Paragraph(new TextRun("TOP")), middle, new Paragraph(new TextRun("END"))])));
+            return lines["TOP"] - lines["END"];
+        }
+
+        var plain = Gap(new Paragraph([]));
+        Require(Math.Abs(Gap(new Paragraph(new TextRun(string.Empty) { FontSize = Length.FromPoints(40) })) - plain) < 0.01,
+            "An empty run does not size an empty paragraph; its mark does.");
+        var bigMark = Gap(new Paragraph([]) { Style = ParagraphStyle.Default with { MarkFontSize = Length.FromPoints(30) } });
+        Require(bigMark > plain + 15, $"A 30 pt mark makes the empty paragraph taller ({bigMark} / {plain}).");
+
+        var smallText = new TextRun("small") { FontSize = Length.FromPoints(6) };
+        var lastLine = Gap(new Paragraph(smallText) { Style = ParagraphStyle.Default with { MarkFontSize = Length.FromPoints(30) } });
+        Require(lastLine > Gap(new Paragraph(smallText)) + 15, "The mark raises the last line of a paragraph with text.");
+
+        var marked = new Paragraph([]) { Style = ParagraphStyle.Default with { MarkFontSize = Length.FromPoints(30), MarkFontFamily = "Arial" } };
+        var body = Body(Document(new Section(marked)));
+        var markProperties = body.Descendants(W + "pPr").Single().Element(W + "rPr");
+        Require((string?)markProperties?.Element(W + "sz")?.Attribute(W + "val") == "60"
+                && (string?)markProperties?.Element(W + "rFonts")?.Attribute(W + "ascii") == "Arial",
+            "DOCX: the mark is written as w:pPr/w:rPr.");
+        using var buffer = new MemoryStream();
+        new DocxDocumentWriter().WriteAsync(Document(new Section(new Paragraph(new TextRun("M")) { Style = marked.Style })), buffer).GetAwaiter().GetResult();
+        buffer.Position = 0;
+        var read = (Paragraph)new DocxDocumentReader().Read(buffer).Document.Sections[0].Blocks[0];
+        Require(read.Style.MarkFontSize == Length.FromPoints(30) && read.Style.MarkFontFamily == "Arial", "DOCX: the mark is read back.");
+
+        var sized = Body(Document(new Section(new Paragraph([]) { Style = ParagraphStyle.Default with { FontSize = Length.FromPoints(8) } })));
+        Require((string?)sized.Descendants(W + "pPr").Single().Element(W + "rPr")?.Element(W + "sz")?.Attribute(W + "val") == "16",
+            "DOCX: without its own font the mark takes the paragraph's, as the PDF does.");
     }
 
     private static void Throws<T>(Action action) where T : Exception

@@ -2699,6 +2699,14 @@ public sealed class DocxDocumentReader : IDocumentReader
             } };
         }
 
+        // The paragraph mark: only its font and size are modelled (they set the height of an empty paragraph).
+        if (pPr.Element(W + "rPr") is { } markProperties
+            && ReadTextRun(string.Empty, markProperties) is { } mark
+            && (mark.FontFamily is not null || mark.FontSize is not null))
+        {
+            style = style with { MarkFontFamily = mark.FontFamily, MarkFontSize = mark.FontSize };
+        }
+
         if (pPr.Element(W + "spacing") is { } spacing)
         {
             // Word accepts negative spacing; the model does not, so it is clamped to 0.

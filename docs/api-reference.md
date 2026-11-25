@@ -1296,6 +1296,8 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `Color? Highlight { get; init; }` — Highlighting of the text; null means none.
 - `string? FontFamily { get; init; }` — Font family of the runs; null means the document default.
 - `Length? FontSize { get; init; }` — Font size of the runs; null means the document default.
+- `string? MarkFontFamily { get; init; }` — Font family of the paragraph mark (Word's `w:pPr/w:rPr`); null means `ParagraphStyle.FontFamily`, else the document default. The mark sets the height of a paragraph without visible text and counts towards its last line. DOCX and PDF honour it; ODT has no paragraph mark.
+- `Length? MarkFontSize { get; init; }` — Font size of the paragraph mark; null means `ParagraphStyle.FontSize`, else the document default. See `ParagraphStyle.MarkFontFamily`.
 - `ParagraphBorder? TextBorder { get; init; }` — Border around the text (`ParagraphStyle.Borders` is the box of the paragraph).
 - `Length? Kerning { get; init; }` — Minimum font size for the kerning; null means no specification.
 - `Length? CharacterSpacing { get; init; }` — Additional character spacing; null means the default.
@@ -1418,7 +1420,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `PageMargins Margins { get; init; }` — Page margins.
 - `HeaderFooter? Header { get; init; }` — Optional header.
 - `HeaderFooter? Footer { get; init; }` — Optional footer.
-- `Length? HeaderDistance { get; init; }` — Distance of the header from the top edge of the sheet (Word's `w:pgMar w:header`); null means 0.5 in. It is at most the top margin.
+- `Length? HeaderDistance { get; init; }` — Distance of the header from the top edge of the sheet (Word's `w:pgMar w:header`); null means 0.5 in. Larger than the top margin, the PDF starts the header there and the body below max(top margin, distance + header height), as Word does.
 - `Length? FooterDistance { get; init; }` — Distance of the footer from the bottom edge of the sheet (`w:pgMar w:footer`); null means 0.5 in.
 - `bool HeaderPushesBody { get; init; }` — Whether a header taller than the top margin pushes the body down (true, the default, as in Word). False keeps the body at the top margin, and the header may overlap it (MigraDoc's behaviour). The PDF honours it; DOCX and ODT report it.
 - `HeaderFooter? FirstHeader { get; init; }` — Optional header of the first page.

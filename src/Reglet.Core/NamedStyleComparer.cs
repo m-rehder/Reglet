@@ -92,7 +92,9 @@ internal static class NamedStyleComparer
         style.Kerning?.Points.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty,
         style.CharacterSpacing?.Points.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty,
         style.HorizontalScaling?.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty,
-        style.Position?.Points.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty);
+        style.Position?.Points.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty,
+        style.MarkFontFamily ?? string.Empty,
+        style.MarkFontSize?.Points.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty);
 
     /// <summary>Comparable content of the tab stops, keeping "unset" and an empty list apart.</summary>
     private static string TabStopsKey(IReadOnlyList<TabStop>? tabStops)

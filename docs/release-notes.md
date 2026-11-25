@@ -1,5 +1,22 @@
 # Reglet – Release notes
 
+## 1.7.3
+
+### Paragraph mark
+
+- New `ParagraphStyle.MarkFontFamily` and `MarkFontSize` format the paragraph mark. Without them the mark takes the
+  paragraph's `FontFamily`/`FontSize`, else the document default. DOCX writes the mark as `w:pPr/w:rPr` and reads it
+  back; ODT has no paragraph mark.
+- PDF, as in Word: the mark sets the height of a paragraph without visible text; an empty run no longer gives its
+  paragraph a line of its size. The mark also counts towards the last line of a paragraph, so a paragraph whose text is
+  smaller than the mark gets a taller last line. This changes the layout of such paragraphs; give the paragraph style
+  the text's size (or `MarkFontSize`) to keep the old one.
+
+### Header distance
+
+- PDF: a `Section.HeaderDistance` (or `FooterDistance`) larger than the page margin is no longer cut to the margin.
+  The header starts at its distance, the body below max(top margin, distance + header height), as in Word.
+
 ## 1.7.2
 
 ### Fields
