@@ -1,6 +1,6 @@
 # Reglet – Release notes
 
-## Unreleased
+## 1.7.4
 
 ### Tables
 
