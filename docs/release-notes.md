@@ -1,5 +1,26 @@
 # Reglet – Release notes
 
+## 1.7.2
+
+### Fields
+
+- DOCX: fields (page number, page count, date, document property, …) write the run formatting of their paragraph style
+  (font, size, bold, italic, color, …) on every run of the field, as text runs without their own do. The field result
+  no longer appears in the document's default font. The PDF already drew it so.
+
+### Tables
+
+- `TableBlock.Border = null` keeps the thin default grid (0.5 pt), as all writers have done; the documentation said
+  "no borders" and is corrected. The new `ParagraphBorder.None` gives a table without borders: DOCX writes every side
+  of `w:tblBorders` as `nil`, ODT clears the cell borders. Before, `BorderStyle.None` fell back to the default grid in
+  DOCX and ODT.
+- A negative `LeftIndent` gives a full set of `ColumnWidths` the room it opens in the left margin: such a table is
+  shrunk only where it is wider than the text width plus that room.
+- `WidthPercent` accepts up to 600 percent, Word's limit; above 100 the table runs into the right margin. The DOCX and
+  ODT readers keep such widths.
+- DOCX: a header or footer that ends with a table gets the closing paragraph the format requires without height
+  (`w:spacing` before and after 0, exactly 1 twip line), so it no longer adds a line under the table.
+
 ## 1.7.1
 
 See ADR-0046.
