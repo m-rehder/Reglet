@@ -313,7 +313,7 @@ internal static class TableImportChecks
         read = (TableBlock)TestPackages.Read(package, DocumentFormat.Odt).Sections[0].Blocks[0];
         Require(read.WidthPercent == 62.5, "ODT: relative table width is inherited from a named style.");
 
-        child.Element(style + "table-properties")!.SetAttributeValue(style + "rel-width", "125%");
+        child.Element(style + "table-properties")!.SetAttributeValue(style + "rel-width", "700%");
         package = TestPackages.ReplacePart(package, "content.xml", Encoding.UTF8.GetBytes(content.ToString()));
         var unsupported = DocumentReader.Read(new MemoryStream(package), DocumentFormat.Odt);
         Require(((TableBlock)unsupported.Document.Sections[0].Blocks[0]).WidthPercent is null

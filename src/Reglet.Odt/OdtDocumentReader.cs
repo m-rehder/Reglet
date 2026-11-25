@@ -2862,7 +2862,7 @@ public sealed class OdtDocumentReader : IDocumentReader
             {
                 var text = rawWidth.Trim();
                 if (text.EndsWith('%') && double.TryParse(text.AsSpan(0, text.Length - 1), NumberStyles.Float,
-                    CultureInfo.InvariantCulture, out var percent) && double.IsFinite(percent) && percent > 0 && percent <= 100)
+                    CultureInfo.InvariantCulture, out var percent) && double.IsFinite(percent) && percent > 0 && percent <= TableBlock.MaxWidthPercent)
                     widthPercent = percent;
                 else
                     Warn(context.Warnings, $"ODT: the table width '{rawWidth}' cannot be represented and is ignored.");

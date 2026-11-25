@@ -12,6 +12,9 @@ public sealed class TableBlock : Block
     private double? _widthPercent;
     private IReadOnlyList<double>? _columnWidthPercents;
 
+    /// <summary>The largest <see cref="WidthPercent"/>, Word's limit.</summary>
+    internal const double MaxWidthPercent = 600;
+
     /// <summary>Creates a table from rows.</summary>
     /// <exception cref="ArgumentNullException"><paramref name="rows"/> is null.</exception>
     public TableBlock(IEnumerable<TableRow> rows)
@@ -75,7 +78,10 @@ public sealed class TableBlock : Block
         }
     }
 
-    /// <summary>Borders of the table (all grid lines); null means no borders.</summary>
+    /// <summary>
+    /// Borders of the table (all grid lines); null means the default thin black grid (0.5 pt), <see cref="ParagraphBorder.None"/>
+    /// means no borders.
+    /// </summary>
     public ParagraphBorder? Border { get; init; }
 
     /// <summary>
@@ -148,22 +154,25 @@ public sealed class TableBlock : Block
     /// <summary>
     /// Keeps a full set of <see cref="ColumnWidths"/> even when it is wider than the text area, so the table runs into the
     /// right margin (Word's fixed table layout, <c>w:tblLayout w:type="fixed"</c>). False, the default, shrinks such a
-    /// table in proportion to the text width.
+    /// table in proportion to the text width plus the room a negative <see cref="LeftIndent"/> opens in the left margin.
     /// </summary>
     public bool FixedColumnWidths { get; init; }
 
     private static Length? NonNegative(Length? value, string name)
         => value is { Points: < 0 } ? throw new ArgumentOutOfRangeException(name, "Cell padding must not be negative.") : value;
 
-    /// <summary>Table width in percent of the available width; null means full width.</summary>
+    /// <summary>
+    /// Table width in percent of the available width, up to 600 as in Word (above 100 the table runs into the right
+    /// margin); null means full width.
+    /// </summary>
     public double? WidthPercent
     {
         get => _widthPercent;
         init
         {
-            if (value is { } percent && (!double.IsFinite(percent) || percent <= 0 || percent > 100))
+            if (value is { } percent && (!double.IsFinite(percent) || percent <= 0 || percent > MaxWidthPercent))
             {
-                throw new ArgumentOutOfRangeException(nameof(WidthPercent), "Table width must be between 0 and 100 percent.");
+                throw new ArgumentOutOfRangeException(nameof(WidthPercent), "Table width must be between 0 and 600 percent.");
             }
 
             _widthPercent = value;

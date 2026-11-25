@@ -113,7 +113,9 @@ internal sealed class OdtTableCellStyles
                 : null,
         BordersKey(cell.Borders),
         cell.VerticalAlignment,
-        BorderKey(area?.Border),
+        // A table without borders clears the default grid on every side of its cells.
+        area?.Border is { } areaBorder ? BorderKey(areaBorder)
+            : (table.Border ?? table.Style?.Border) is { Style: BorderStyle.None } ? "none" : string.Empty,
         AreaTextKey(area));
 
     /// <summary>The key of the conditional text formatting of an area.</summary>

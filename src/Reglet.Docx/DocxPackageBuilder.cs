@@ -2256,7 +2256,11 @@ internal static class DocxPackageBuilder
         foreach (var side in new[] { "top", "left", "bottom", "right", "insideH", "insideV" })
         {
             writer.WriteStartElement("w", side, DocxConstants.WordprocessingML);
-            if (border is null)
+            if (border is { Style: BorderStyle.None })
+            {
+                WriteWAttribute(writer, "val", "nil");
+            }
+            else if (border is null)
             {
                 WriteWAttribute(writer, "val", "single");
                 WriteWAttribute(writer, "sz", (long)Math.Round(Typography.TableBorderWidth.Points * 8, MidpointRounding.AwayFromZero));
@@ -2902,21 +2906,21 @@ internal static class DocxPackageBuilder
                 WriteImageBlock(writer, inlineImage.Image, context, inLine: true);
                 break;
             case PageNumberField:
-                WriteField(writer, " PAGE ", result: null, context.XmlBehavior);
+                WriteField(writer, " PAGE ", result: null, context);
                 break;
             case PageCountField:
-                WriteField(writer, " NUMPAGES ", result: null, context.XmlBehavior);
+                WriteField(writer, " NUMPAGES ", result: null, context);
                 break;
             case DateField dateField:
                 WriteField(
                     writer, " DATE ",
-                    dateField.Value?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), context.XmlBehavior);
+                    dateField.Value?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), context);
                 break;
             case DocPropertyField docProperty:
-                WriteField(writer, $" DOCPROPERTY {FieldArgument(docProperty.Name)} ", context.Fields?.Properties.GetValueOrDefault(docProperty.Name), context.XmlBehavior);
+                WriteField(writer, $" DOCPROPERTY {FieldArgument(docProperty.Name)} ", context.Fields?.Properties.GetValueOrDefault(docProperty.Name), context);
                 break;
             case DocVariableField docVariable:
-                WriteField(writer, $" DOCVARIABLE {FieldArgument(docVariable.Name)} ", context.Fields?.Variables.GetValueOrDefault(docVariable.Name), context.XmlBehavior);
+                WriteField(writer, $" DOCVARIABLE {FieldArgument(docVariable.Name)} ", context.Fields?.Variables.GetValueOrDefault(docVariable.Name), context);
                 break;
             case IndexEntry entry:
                 WriteIndexEntry(writer, entry);
@@ -2943,7 +2947,7 @@ internal static class DocxPackageBuilder
                 writer.WriteEndElement();
                 break;
             case PageRefField pageRef:
-                WriteField(writer, $" PAGEREF {context.BookmarkName(pageRef.BookmarkName)} \\h ", result: null, context.XmlBehavior);
+                WriteField(writer, $" PAGEREF {context.BookmarkName(pageRef.BookmarkName)} \\h ", result: null, context);
                 break;
             case Field field:
             {
@@ -2956,7 +2960,7 @@ internal static class DocxPackageBuilder
                     result = FieldEvaluator.Evaluate(field, fields);
                 }
 
-                WriteField(writer, $" {field.Instruction} ", result, context.XmlBehavior);
+                WriteField(writer, $" {field.Instruction} ", result, context);
                 break;
             }
         }
@@ -3492,6 +3496,19 @@ internal static class DocxPackageBuilder
         if (!EndsWithParagraph(content.Blocks, inBand: true))
         {
             writer.WriteStartElement("w", "p", DocxConstants.WordprocessingML);
+            if (content.Blocks.Count > 0)
+            {
+                // The paragraph exists only for the schema: without height it adds nothing under a table, as in the PDF.
+                writer.WriteStartElement("w", "pPr", DocxConstants.WordprocessingML);
+                writer.WriteStartElement("w", "spacing", DocxConstants.WordprocessingML);
+                WriteWAttribute(writer, "before", 0L);
+                WriteWAttribute(writer, "after", 0L);
+                WriteWAttribute(writer, "line", 1L);
+                WriteWAttribute(writer, "lineRule", "exact");
+                writer.WriteEndElement();
+                writer.WriteEndElement();
+            }
+
             writer.WriteEndElement();
         }
 
@@ -3521,13 +3538,19 @@ internal static class DocxPackageBuilder
         };
     }
 
-    private static void WriteField(XmlWriter writer, string instruction, string? result, InvalidXmlCharacterBehavior xmlBehavior)
+    /// <summary>An empty run: a field takes the run formatting of its paragraph, as a text run without its own does (and as the PDF draws it).</summary>
+    private static readonly TextRun FieldRun = new(string.Empty);
+
+    private static void WriteField(XmlWriter writer, string instruction, string? result, DocxWriteContext context)
     {
+        var xmlBehavior = context.XmlBehavior;
         writer.WriteStartElement("w", "r", DocxConstants.WordprocessingML);
+        WriteRunProperties(writer, FieldRun, context);
         WriteFieldChar(writer, "begin");
         writer.WriteEndElement();
 
         writer.WriteStartElement("w", "r", DocxConstants.WordprocessingML);
+        WriteRunProperties(writer, FieldRun, context);
         writer.WriteStartElement("w", "instrText", DocxConstants.WordprocessingML);
         writer.WriteAttributeString("xml", "space", null, "preserve");
         writer.WriteString(instruction);
@@ -3537,15 +3560,18 @@ internal static class DocxPackageBuilder
         if (result is not null)
         {
             writer.WriteStartElement("w", "r", DocxConstants.WordprocessingML);
+            WriteRunProperties(writer, FieldRun, context);
             WriteFieldChar(writer, "separate");
             writer.WriteEndElement();
 
             writer.WriteStartElement("w", "r", DocxConstants.WordprocessingML);
+            WriteRunProperties(writer, FieldRun, context);
             WriteText(writer, result, xmlBehavior);
             writer.WriteEndElement();
         }
 
         writer.WriteStartElement("w", "r", DocxConstants.WordprocessingML);
+        WriteRunProperties(writer, FieldRun, context);
         WriteFieldChar(writer, "end");
         writer.WriteEndElement();
     }

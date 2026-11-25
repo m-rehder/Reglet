@@ -2930,7 +2930,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             && width.Attribute(W + "w")?.Value is { } percentValue
             && double.TryParse(percentValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var percent))
         {
-            widthPercent = Math.Clamp(percent / 50.0, 0.01, 100);
+            widthPercent = Math.Clamp(percent / 50.0, 0.01, TableBlock.MaxWidthPercent);
         }
 
         var columnWidths = tbl.Element(W + "tblGrid")?.Elements(W + "gridCol")

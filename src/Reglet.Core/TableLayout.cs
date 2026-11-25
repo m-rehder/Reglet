@@ -110,9 +110,11 @@ internal static class TableLayout
             return widths;
         }
 
+        // A negative indent moves the table into the left margin; that room is free for a full set of widths.
+        var room = availablePoints - Math.Min(0, table.LeftIndent?.Points ?? 0);
         if (explicitCount == columnCount && explicitTotal > availablePoints)
         {
-            var factor = availablePoints / explicitTotal;
+            var factor = Math.Min(1, room / explicitTotal);
             for (var column = 0; column < columnCount; column++)
             {
                 widths[column] *= factor;

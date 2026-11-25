@@ -1223,6 +1223,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 `sealed record ParagraphBorder` — A border (line style, width, color).
 
 - `new ParagraphBorder(BorderStyle style = BorderStyle.Single, Length? width = null, Color? color = null)` — Creates a border with style, width and color.
+- `static ParagraphBorder None { get; }` — No border; on a `TableBlock` it removes the default grid.
 - `BorderStyle Style { get; }` — Line style.
 - `Length Width { get; }` — Line width.
 - `Color Color { get; }` — Line color.
@@ -1537,14 +1538,14 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `IReadOnlyList<TableRow> Rows { get; }` — The rows of the table (header rows are marked).
 - `IReadOnlyList<Length>? ColumnWidths { get; init; }` — Optional column widths; null means automatic widths.
 - `IReadOnlyList<double>? ColumnWidthPercents { get; init; }` — Column widths in percent of the table width (Word's `w:tcW w:type="pct"`), for a table whose author does not know the text width; null means none. When set, it replaces `TableBlock.ColumnWidths`: the writers turn it into widths from the section's text width (times `TableBlock.WidthPercent`). Columns past the list share what is left of 100 percent equally; a full list that sums to less than 100 is stretched in proportion, as Word does.
-- `ParagraphBorder? Border { get; init; }` — Borders of the table (all grid lines); null means no borders.
+- `ParagraphBorder? Border { get; init; }` — Borders of the table (all grid lines); null means the default thin black grid (0.5 pt), `ParagraphBorder.None` means no borders.
 - `Length? CornerRadius { get; init; }` — radius of the corners of the table outline (OF-B04); null means square corners. The PDF draws the background and the outer border of the table with rounded corners; DOCX and ODT have no rounded table corners and report the value.
 - `Length? CellPadding { get; init; }` — Uniform cell padding; null means the default spacing.
 - `Length? CellPaddingHorizontal { get; init; }` — Left and right padding of the cells; overrides `TableBlock.CellPadding` on those sides.
 - `Length? CellPaddingVertical { get; init; }` — Top and bottom padding of the cells; overrides `TableBlock.CellPadding` on those sides.
 - `Length? LeftIndent { get; init; }` — Moves the table and its borders from the left margin (Word's table indent); negative moves it into the margin, for example by the left cell padding so the text of the first column stands at the margin. Null means 0.
-- `bool FixedColumnWidths { get; init; }` — Keeps a full set of `TableBlock.ColumnWidths` even when it is wider than the text area, so the table runs into the right margin (Word's fixed table layout, `w:tblLayout w:type="fixed"`). False, the default, shrinks such a table in proportion to the text width.
-- `double? WidthPercent { get; init; }` — Table width in percent of the available width; null means full width.
+- `bool FixedColumnWidths { get; init; }` — Keeps a full set of `TableBlock.ColumnWidths` even when it is wider than the text area, so the table runs into the right margin (Word's fixed table layout, `w:tblLayout w:type="fixed"`). False, the default, shrinks such a table in proportion to the text width plus the room a negative `TableBlock.LeftIndent` opens in the left margin.
+- `double? WidthPercent { get; init; }` — Table width in percent of the available width, up to 600 as in Word (above 100 the table runs into the right margin); null means full width.
 - `TableStyle? Style { get; init; }` — reusable table style (phase Y, Y05). Its borders and cell padding apply where the table has no direct value; header and banded-row backgrounds are conditional formats.
 
 #### TableBuilder

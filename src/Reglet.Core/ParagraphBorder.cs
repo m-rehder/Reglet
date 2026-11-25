@@ -41,6 +41,9 @@ public sealed record ParagraphBorder
         Color = color ?? Color.Black;
     }
 
+    /// <summary>No border; on a <see cref="TableBlock"/> it removes the default grid.</summary>
+    public static ParagraphBorder None { get; } = new(BorderStyle.None);
+
     /// <summary>Line style.</summary>
     public BorderStyle Style { get; }
 

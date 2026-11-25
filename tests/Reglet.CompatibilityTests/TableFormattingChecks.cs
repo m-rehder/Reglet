@@ -199,7 +199,7 @@ internal static class TableFormattingChecks
         Throws<ArgumentOutOfRangeException>(() => new TableCell("x") { Padding = Length.FromPoints(-1) });
         Throws<ArgumentOutOfRangeException>(() => new TableRow(new[] { new TableCell("x") }) { Height = Length.Zero });
         Throws<ArgumentOutOfRangeException>(() => new TableBlock([]) { WidthPercent = 0 });
-        Throws<ArgumentOutOfRangeException>(() => new TableBlock([]) { WidthPercent = 101 });
+        Throws<ArgumentOutOfRangeException>(() => new TableBlock([]) { WidthPercent = 601 });
         Throws<ArgumentOutOfRangeException>(() => new TableBlock([]) { CellPadding = Length.FromPoints(-1) });
     }
 

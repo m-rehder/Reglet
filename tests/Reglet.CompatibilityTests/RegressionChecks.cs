@@ -293,7 +293,8 @@ internal static class RegressionChecks
         Require(header.Contains("Point", StringComparison.Ordinal) && header.Contains("<w:numPr>", StringComparison.Ordinal),
             "List in the header.");
         Require(header.Contains("<w:tbl>", StringComparison.Ordinal), "Table in the header.");
-        Require(header.EndsWith("</w:tbl><w:p /></w:hdr>", StringComparison.Ordinal), "Header ends with a paragraph.");
+        Require(header.EndsWith("</w:tbl><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"1\" w:lineRule=\"exact\" /></w:pPr></w:p></w:hdr>", StringComparison.Ordinal),
+            "Header ends with a paragraph without height.");
         Require(!result.HasWarnings, "Renderable blocks produce no warning.");
     }
 
