@@ -142,6 +142,42 @@ internal static class TableLayout
         return widths;
     }
 
+    /// <summary>Whether the columns of <paramref name="table"/> are distributed by their content.</summary>
+    public static bool UsesAutoFit(TableBlock table)
+        => table.AutoFit && table.ColumnWidths is null && table.ColumnWidthPercents is null;
+
+    /// <summary>
+    /// Content-based column widths (the automatic table layout of CSS, close to Word's AutoFit): every column gets its
+    /// minimum (longest word plus padding); room beyond that goes to the columns in proportion to what they still want up
+    /// to their maximum (text without line breaks). With <paramref name="fill"/> the table always takes
+    /// <paramref name="available"/>, else it is only as wide as its maximums. Minimums wider than the room are scaled down.
+    /// </summary>
+    public static double[] AutoFitWidths(double[] minimum, double[] maximum, double available, bool fill)
+    {
+        ArgumentNullException.ThrowIfNull(minimum);
+        ArgumentNullException.ThrowIfNull(maximum);
+        var columns = minimum.Length;
+        var low = minimum.Sum();
+        var high = maximum.Sum();
+        if (columns == 0 || high <= 0)
+        {
+            return Enumerable.Repeat(columns == 0 ? 0 : available / columns, columns).ToArray();
+        }
+
+        if (low >= available)
+        {
+            return minimum.Select(width => width * available / low).ToArray();
+        }
+
+        if (high <= available)
+        {
+            return fill ? maximum.Select(width => width * available / high).ToArray() : maximum.ToArray();
+        }
+
+        var share = (available - low) / (high - low);
+        return minimum.Select((width, column) => width + ((maximum[column] - width) * share)).ToArray();
+    }
+
     /// <summary>
     /// The column widths with <see cref="TableBlock.WidthPercent"/> applied: explicit widths keep
     /// their absolute size, the remaining columns share the rest of the percent target. Without an

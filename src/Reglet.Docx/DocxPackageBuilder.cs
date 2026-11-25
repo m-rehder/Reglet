@@ -2005,10 +2005,10 @@ internal static class DocxPackageBuilder
         }
 
         WriteTableBorders(writer, table.Border ?? table.Style?.Border);
-        if (table.FixedColumnWidths)
+        if (table.FixedColumnWidths || TableLayout.UsesAutoFit(table))
         {
             writer.WriteStartElement("w", "tblLayout", DocxConstants.WordprocessingML);
-            WriteWAttribute(writer, "type", "fixed");
+            WriteWAttribute(writer, "type", table.FixedColumnWidths ? "fixed" : "autofit");
             writer.WriteEndElement();
         }
 
@@ -2407,7 +2407,13 @@ internal static class DocxPackageBuilder
     private static void WriteCellWidth(XmlWriter writer, long width, long tableWidth, TableBlock table)
     {
         writer.WriteStartElement("w", "tcW", DocxConstants.WordprocessingML);
-        if (table.ColumnWidthPercents is not null && tableWidth > 0)
+        if (TableLayout.UsesAutoFit(table))
+        {
+            // Word sizes the columns by their content; the grid holds only a first estimate.
+            WriteWAttribute(writer, "w", 0L);
+            WriteWAttribute(writer, "type", "auto");
+        }
+        else if (table.ColumnWidthPercents is not null && tableWidth > 0)
         {
             WriteWAttribute(writer, "w", (long)Math.Round(width * 5000.0 / tableWidth, MidpointRounding.AwayFromZero));
             WriteWAttribute(writer, "type", "pct");

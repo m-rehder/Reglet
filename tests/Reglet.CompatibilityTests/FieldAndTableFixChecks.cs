@@ -7,7 +7,7 @@ using Reglet;
 /// <summary>
 /// Fields take the run formatting of their paragraph in DOCX; a table without borders, a full set of widths that reaches
 /// into the left margin, a width above 100 percent, the empty paragraph after a table at the end of a footer, a header
-/// distance larger than the top margin in the PDF, and the formatting of the paragraph mark.
+/// distance larger than the top margin in the PDF, the formatting of the paragraph mark, and columns sized by content.
 /// </summary>
 internal static class FieldAndTableFixChecks
 {
@@ -24,6 +24,8 @@ internal static class FieldAndTableFixChecks
             FooterEndingWithTableGetsAParagraphWithoutHeight();
             HeaderStartsAtItsDistance();
             ParagraphMarkSetsTheHeight();
+            AutoFitDistribution();
+            AutoFitTable();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -199,6 +201,58 @@ internal static class FieldAndTableFixChecks
         var sized = Body(Document(new Section(new Paragraph([]) { Style = ParagraphStyle.Default with { FontSize = Length.FromPoints(8) } })));
         Require((string?)sized.Descendants(W + "pPr").Single().Element(W + "rPr")?.Element(W + "sz")?.Attribute(W + "val") == "16",
             "DOCX: without its own font the mark takes the paragraph's, as the PDF does.");
+    }
+
+    private static void AutoFitDistribution()
+    {
+        static bool Same(double[] actual, params double[] expected) => actual.Zip(expected).All(pair => Math.Abs(pair.First - pair.Second) < 1e-9);
+        Require(Same(TableLayout.AutoFitWidths([10, 20], [30, 40], 100, fill: false), 30, 40), "Room for all: each column takes its maximum.");
+        Require(Same(TableLayout.AutoFitWidths([10, 20], [30, 40], 140, fill: true), 60, 80), "A filled table stretches the maximums.");
+        Require(Same(TableLayout.AutoFitWidths([10, 20], [30, 120], 70, fill: false), 10 + (20 / 3.0), 20 + (100 / 3.0)), "Between: the rest goes by what each still wants.");
+        Require(Same(TableLayout.AutoFitWidths([60, 40], [80, 90], 50, fill: false), 30, 20), "Too narrow: the minimums shrink in proportion.");
+        Require(Same(TableLayout.AutoFitWidths([0, 0], [0, 0], 50, fill: false), 25, 25), "Without content: equal columns.");
+    }
+
+    private static void AutoFitTable()
+    {
+        TableBlock Sheet(bool autoFit, double? percent = null) => new(
+            [new TableRow([new TableCell([new Paragraph(new TextRun("ID"))]), new TableCell([new Paragraph(new TextRun("A long description of the article"))]), new TableCell([new Paragraph(new TextRun("END"))])])])
+        {
+            AutoFit = autoFit,
+            WidthPercent = percent,
+        };
+
+        double X(TableBlock table, string text) => Baselines2(Document(new Section(table)))[text];
+        var equal = X(Sheet(false), "END");
+        var fitted = X(Sheet(true), "END");
+        Require(X(Sheet(true), "A") < X(Sheet(false), "A") - 50, "The short first column gets narrow.");
+        Require(fitted < equal, $"The table is only as wide as its content ({fitted} / {equal}).");
+        Require(X(Sheet(true, percent: 100), "END") > fitted, "With a width percent the table fills it.");
+
+        var body = Body(Document(new Section(Sheet(true))));
+        Require((string?)body.Descendants(W + "tblLayout").Single().Attribute(W + "type") == "autofit"
+                && body.Descendants(W + "tcW").All(width => (string?)width.Attribute(W + "type") == "auto"),
+            "DOCX: automatic layout and cell widths.");
+
+        using var buffer = new MemoryStream();
+        new DocxDocumentWriter().WriteAsync(Document(new Section(Sheet(true))), buffer).GetAwaiter().GetResult();
+        buffer.Position = 0;
+        var read = new DocxDocumentReader().Read(buffer).Document.Sections[0].Blocks.OfType<TableBlock>().Single();
+        Require(read.AutoFit && read.ColumnWidths is null, "DOCX: AutoFit is read back.");
+
+        using var odt = new MemoryStream();
+        var result = new OdtDocumentWriter().WriteAsync(Document(new Section(Sheet(true))), odt).GetAwaiter().GetResult();
+        Require(result.Warnings.Any(warning => warning.Message.Contains("AutoFit", StringComparison.Ordinal)), "ODT reports AutoFit.");
+    }
+
+    /// <summary>The x position of every text piece on the first page.</summary>
+    private static Dictionary<string, double> Baselines2(PortableDocument document)
+    {
+        using var buffer = new MemoryStream();
+        new PdfDocumentWriter().WriteAsync(document, buffer).GetAwaiter().GetResult();
+        return Regex.Matches(PdfStreams.DecompressPages(buffer.ToArray())[0], @"Tf\s*(-?[\d.]+) (-?[\d.]+) Td\s*\(([^)]*)\) Tj")
+            .GroupBy(match => match.Groups[3].Value)
+            .ToDictionary(group => group.Key, group => double.Parse(group.First().Groups[1].Value, CultureInfo.InvariantCulture));
     }
 
     private static void Throws<T>(Action action) where T : Exception

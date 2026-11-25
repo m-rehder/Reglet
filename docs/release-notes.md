@@ -1,5 +1,17 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### Tables
+
+- `TableBlock.AutoFit` sizes the columns by their content (Word's AutoFit to contents) when the table has neither
+  `ColumnWidths` nor `ColumnWidthPercents`. Every column gets at least its longest word and at most its text without
+  line breaks; the rest of the room goes to the columns in proportion to what they still want. Without `WidthPercent`
+  the table is only as wide as its content needs, with it the table fills that width.
+- DOCX writes `w:tblLayout w:type="autofit"` and `w:tcW w:type="auto"`, so Word sizes the columns itself; the reader
+  recognises such a table. The PDF measures the cells; cells that span several columns, images and nested tables do
+  not count yet. ODT has no automatic layout: it reports the table and writes equal columns.
+
 ## 1.7.3
 
 ### Paragraph mark

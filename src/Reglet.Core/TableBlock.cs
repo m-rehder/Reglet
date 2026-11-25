@@ -158,6 +158,15 @@ public sealed class TableBlock : Block
     /// </summary>
     public bool FixedColumnWidths { get; init; }
 
+    /// <summary>
+    /// Distributes the columns by their content (Word's AutoFit to contents) when the table has neither
+    /// <see cref="ColumnWidths"/> nor <see cref="ColumnWidthPercents"/>; ignored otherwise. A column gets at least its
+    /// longest word and at most its text without line breaks; without <see cref="WidthPercent"/> the table is only as
+    /// wide as its content needs. DOCX writes Word's automatic layout, the PDF measures the cells, ODT reports it and
+    /// writes equal columns. False, the default, gives equal columns.
+    /// </summary>
+    public bool AutoFit { get; init; }
+
     private static Length? NonNegative(Length? value, string name)
         => value is { Points: < 0 } ? throw new ArgumentOutOfRangeException(name, "Cell padding must not be negative.") : value;
 
@@ -197,6 +206,7 @@ public sealed class TableBlock : Block
         CellPaddingVertical = CellPaddingVertical,
         LeftIndent = LeftIndent,
         FixedColumnWidths = FixedColumnWidths,
+        AutoFit = AutoFit,
         WidthPercent = WidthPercent,
         Style = Style,
     };

@@ -1815,7 +1815,9 @@ internal sealed class PdfBlockRenderer
             return result;
         }
 
-        var widths = TableLayout.ResolveColumnWidthsWithPercent(table, logicalColumns, availableWidth);
+        var widths = TableLayout.UsesAutoFit(table)
+            ? AutoFitColumns(table, logicalColumns, availableWidth)
+            : TableLayout.ResolveColumnWidthsWithPercent(table, logicalColumns, availableWidth);
 
         var style = table.Style;
         var styleBorder = table.Border ?? style?.Border;
@@ -3998,6 +4000,65 @@ internal sealed class PdfBlockRenderer
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// The column widths of an AutoFit table from its cells' text: the longest word and the unbroken text of every cell
+    /// that spans one column, plus the cell padding (<see cref="TableLayout.AutoFitWidths"/>).
+    /// </summary>
+    private double[] AutoFitColumns(TableBlock table, int columns, double availableWidth)
+    {
+        var minimum = new double[columns];
+        var maximum = new double[columns];
+        var covered = new int[columns];
+        foreach (var row in table.Rows)
+        {
+            var column = 0;
+            foreach (var cell in row.Cells)
+            {
+                while (column < columns && covered[column] > 0)
+                {
+                    covered[column++]--;
+                }
+
+                if (column >= columns)
+                {
+                    break;
+                }
+
+                var span = Math.Clamp(cell.ColumnSpan, 1, columns - column);
+                for (var offset = 0; offset < span && cell.RowSpan > 1; offset++)
+                {
+                    covered[column + offset] = cell.RowSpan - 1;
+                }
+
+                // shortcut: cells spanning several columns, images and nested tables do not size the columns; measure them when a table needs it.
+                if (span == 1)
+                {
+                    var padding = 2 * TableLayout.CellPadding(table, cell).Horizontal.Points;
+                    var atoms = ExtractAtoms([.. cell.Blocks.Where(block => block is Paragraph or Heading)], cell)
+                        .Where(atom => atom.Bookmark is null && atom.Comment is null).ToList();
+                    var longestWord = atoms.Where(atom => !atom.IsTab && !atom.IsHardBreak)
+                        .SelectMany(SplitAtSpaces).Select(MeasureAtom).DefaultIfEmpty(0).Max();
+                    var longestLine = WrapAtoms(atoms, double.MaxValue).Select(LineWidth).DefaultIfEmpty(0).Max();
+                    minimum[column] = Math.Max(minimum[column], longestWord + padding);
+                    maximum[column] = Math.Max(maximum[column], Math.Max(longestWord, longestLine) + padding);
+                }
+
+                column += span;
+            }
+
+            for (; column < columns; column++)
+            {
+                if (covered[column] > 0)
+                {
+                    covered[column]--;
+                }
+            }
+        }
+
+        var target = availableWidth * (table.WidthPercent ?? 100) / 100;
+        return TableLayout.AutoFitWidths(minimum, maximum, target, fill: table.WidthPercent is not null);
     }
 
     private List<TextAtom> ExtractAtoms(IReadOnlyList<Block> blocks, TableCell cell, TableStyleArea? area = null)

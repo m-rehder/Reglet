@@ -855,6 +855,11 @@ internal static class OdtPackageBuilder
             handler.Report(message);
         }
 
+        if (TableScan.Enumerate(document).Any(TableLayout.UsesAutoFit))
+        {
+            handler.Report("ODT: column widths by content (AutoFit) are not supported; the columns are written equally wide.");
+        }
+
         // OF-B04: a table cell has no rounded corners in ODF.
         if (TableScan.Enumerate(document).Any(table => table.CornerRadius is { Points: > 0 }))
         {

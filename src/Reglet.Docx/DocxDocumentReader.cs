@@ -2951,6 +2951,15 @@ public sealed class DocxDocumentReader : IDocumentReader
             .ToList();
 
         var rowElements = tbl.Elements(W + "tr").ToList();
+        // Every cell width "auto" outside a fixed layout: Word sizes the columns by their content, the grid is an estimate.
+        var cellWidths = rowElements.SelectMany(tr => tr.Elements(W + "tc")).Select(tc => tc.Element(W + "tcPr")?.Element(W + "tcW")).ToList();
+        var autoFit = !fixedLayout && widthPercent is null && cellWidths.Count > 0
+            && cellWidths.All(width => (string?)width?.Attribute(W + "type") == "auto");
+        if (autoFit)
+        {
+            columnWidths = null;
+        }
+
         var parsedRows = new List<List<ParsedCell>>();
         foreach (var tr in rowElements)
         {
@@ -2996,6 +3005,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             WidthPercent = widthPercent,
             ColumnWidths = columnWidths is { Count: > 0 } ? columnWidths : null,
             FixedColumnWidths = fixedLayout && columnWidths is { Count: > 0 },
+            AutoFit = autoFit,
             ColumnWidthPercents = ReadColumnPercents(rowElements.FirstOrDefault(), columnWidths?.Count ?? 0),
         };
     }
