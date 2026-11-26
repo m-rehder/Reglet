@@ -24,7 +24,10 @@ public sealed record TableRow
     /// <summary>Marks the row as a header row.</summary>
     public bool IsHeader { get; init; }
 
-    /// <summary>Line height; null means automatic.</summary>
+    /// <summary>
+    /// Row height; null means automatic. As in Word, a minimum height is for the content (the cells' top and bottom
+    /// padding comes on top of it), an exact height (<see cref="TableRowHeightRule.Exactly"/>) includes the padding.
+    /// </summary>
     public Length? Height
     {
         get => _height;

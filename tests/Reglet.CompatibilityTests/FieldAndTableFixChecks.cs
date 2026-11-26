@@ -28,6 +28,7 @@ internal static class FieldAndTableFixChecks
             AutoFitTable();
             LastLineBelowAPictureStartsAtTheMargin();
             EmptyTableIsReported();
+            MinimumRowHeightLeavesThePaddingOnTop();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -152,6 +153,23 @@ internal static class FieldAndTableFixChecks
         return Regex.Matches(PdfStreams.DecompressPages(buffer.ToArray())[0], @"Tf\s*(-?[\d.]+) (-?[\d.]+) Td\s*\(([^)]*)\) Tj")
             .GroupBy(match => match.Groups[3].Value)
             .ToDictionary(group => group.Key, group => double.Parse(group.First().Groups[2].Value, CultureInfo.InvariantCulture));
+    }
+
+    private static void MinimumRowHeightLeavesThePaddingOnTop()
+    {
+        double Pitch(TableRowHeightRule rule)
+        {
+            var bold = ParagraphStyle.Default with { FontFamily = "Arial", FontSize = Length.FromPoints(10) };
+            var rows = new[] { "ROWA", "ROWB" }.Select(text => new TableRow([
+                new TableCell([new Paragraph(new TextRun(text) { Bold = true }) { Style = bold }]) { PaddingHorizontal = Length.FromPoints(5.4), PaddingVertical = Length.FromPoints(1.2) },
+            ]) { Height = Length.FromPoints(15), HeightRule = rule });
+            var lines = Baselines(Document(new Section(new TableBlock(rows) { Border = ParagraphBorder.None })));
+            return lines["ROWA"] - lines["ROWB"];
+        }
+
+        // Word: an at-least height of 15 pt for a 10 pt line, plus 1.2 pt of cell padding above and below.
+        Require(Math.Abs(Pitch(TableRowHeightRule.AtLeast) - 17.4) < 0.01, $"A minimum row height is for the content ({Pitch(TableRowHeightRule.AtLeast)}).");
+        Require(Math.Abs(Pitch(TableRowHeightRule.Exactly) - 15) < 0.01, $"An exact row height includes the padding ({Pitch(TableRowHeightRule.Exactly)}).");
     }
 
     private static void HeaderStartsAtItsDistance()

@@ -1948,14 +1948,16 @@ internal sealed class PdfBlockRenderer
                 throw new UnsupportedFeatureException("PDF: a table row is taller than the available page content.");
             }
 
-            // Row height (Y02): at least the minimum or exactly the fixed height.
+            // Row height (Y02): at least the minimum or exactly the fixed height. As in Word, a minimum is for the
+            // content: the cells' top and bottom padding comes on top of it; an exact height includes the padding.
             var requestedHeight = row.Height?.Points ?? 0;
+            var minimumPadding = requestedHeight > 0 ? 2 * cells.Select(cell => cell.PadY).DefaultIfEmpty(tablePadY).Max() : 0;
             result.Add(new RowLayout(
                 row.IsHeader,
                 cells,
                 lineHeight,
                 ascent,
-                row.HeightRule != TableRowHeightRule.Exactly ? requestedHeight : 0,
+                row.HeightRule != TableRowHeightRule.Exactly ? requestedHeight + minimumPadding : 0,
                 row.HeightRule == TableRowHeightRule.Exactly ? requestedHeight : 0,
                 tablePadY,
                 styleBorder));

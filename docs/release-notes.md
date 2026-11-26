@@ -7,6 +7,12 @@
 - A table whose `w:tblBorders` are `none` or `nil` on every side is read as `ParagraphBorder.None`, so a table the
   writer stored without a border no longer comes back with the default grid.
 
+### PDF
+
+- A minimum row height is for the content, as in Word: the cells' top and bottom padding comes on top of it. A 15 pt
+  row with 1.2 pt of padding above and below is now 17.4 pt high, as in Word, instead of 15 pt. An exact height still
+  includes the padding.
+
 ## 1.7.6
 
 ### DOCX reader

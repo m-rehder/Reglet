@@ -1611,7 +1611,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `new TableRow(params TableCell[] cells)` — Creates a row from individual cells.
 - `IReadOnlyList<TableCell> Cells { get; }` — The cells of the row.
 - `bool IsHeader { get; init; }` — Marks the row as a header row.
-- `Length? Height { get; init; }` — Line height; null means automatic.
+- `Length? Height { get; init; }` — Row height; null means automatic. As in Word, a minimum height is for the content (the cells' top and bottom padding comes on top of it), an exact height (`TableRowHeightRule.Exactly`) includes the padding.
 - `TableRowHeightRule HeightRule { get; init; }` — Rule for the row height.
 - `bool KeepTogether { get; init; }` — Keeps the row on one page (Word's `w:cantSplit`, ODT's `fo:keep-together`): a row that does not fit at the bottom of a page moves whole to the next one. A row taller than a page is still split.
 
