@@ -1815,9 +1815,14 @@ internal sealed class PdfBlockRenderer
             return result;
         }
 
+        // Outside a fixed layout Word widens a column to its longest word rather than breaking inside it.
         var widths = TableLayout.UsesAutoFit(table)
             ? AutoFitColumns(table, logicalColumns, availableWidth)
-            : TableLayout.ResolveColumnWidthsWithPercent(table, logicalColumns, availableWidth);
+            : table.FixedColumnWidths
+                ? TableLayout.ResolveColumnWidthsWithPercent(table, logicalColumns, availableWidth)
+                : TableLayout.WidenToMinimums(
+                    TableLayout.ResolveColumnWidthsWithPercent(table, logicalColumns, availableWidth),
+                    ColumnContentWidths(table, logicalColumns).Minimum);
 
         var style = table.Style;
         var styleBorder = table.Border ?? style?.Border;
@@ -4013,6 +4018,14 @@ internal sealed class PdfBlockRenderer
     /// </summary>
     private double[] AutoFitColumns(TableBlock table, int columns, double availableWidth)
     {
+        var (minimum, maximum) = ColumnContentWidths(table, columns);
+        var target = availableWidth * (table.WidthPercent ?? 100) / 100;
+        return TableLayout.AutoFitWidths(minimum, maximum, target, fill: table.WidthPercent is not null);
+    }
+
+    /// <summary>Per column, the longest word and the unbroken text of its single-column cells, each plus the padding.</summary>
+    private (double[] Minimum, double[] Maximum) ColumnContentWidths(TableBlock table, int columns)
+    {
         var minimum = new double[columns];
         var maximum = new double[columns];
         var covered = new int[columns];
@@ -4062,8 +4075,7 @@ internal sealed class PdfBlockRenderer
             }
         }
 
-        var target = availableWidth * (table.WidthPercent ?? 100) / 100;
-        return TableLayout.AutoFitWidths(minimum, maximum, target, fill: table.WidthPercent is not null);
+        return (minimum, maximum);
     }
 
     private List<TextAtom> ExtractAtoms(IReadOnlyList<Block> blocks, TableCell cell, TableStyleArea? area = null)

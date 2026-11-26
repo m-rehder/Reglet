@@ -29,6 +29,7 @@ internal static class FieldAndTableFixChecks
             LastLineBelowAPictureStartsAtTheMargin();
             EmptyTableIsReported();
             MinimumRowHeightLeavesThePaddingOnTop();
+            ColumnWidensToItsLongestWord();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -170,6 +171,29 @@ internal static class FieldAndTableFixChecks
         // Word: an at-least height of 15 pt for a 10 pt line, plus 1.2 pt of cell padding above and below.
         Require(Math.Abs(Pitch(TableRowHeightRule.AtLeast) - 17.4) < 0.01, $"A minimum row height is for the content ({Pitch(TableRowHeightRule.AtLeast)}).");
         Require(Math.Abs(Pitch(TableRowHeightRule.Exactly) - 15) < 0.01, $"An exact row height includes the padding ({Pitch(TableRowHeightRule.Exactly)}).");
+    }
+
+    private static void ColumnWidensToItsLongestWord()
+    {
+        Dictionary<string, double> Lines(bool fixedLayout)
+        {
+            var bold = ParagraphStyle.Default with { FontFamily = "Arial", FontSize = Length.FromPoints(9) };
+            TableCell Cell(string text) => new([new Paragraph(new TextRun(text) { Bold = true }) { Style = bold }]) { PaddingHorizontal = Length.FromPoints(1.2) };
+            var table = new TableBlock([new TableRow([Cell("Material Group"), Cell("Description"), Cell("Amount")])])
+            {
+                WidthPercent = 100,
+                ColumnWidths = [Length.FromPoints(33.35), Length.FromPoints(300), Length.FromPoints(118.25)],
+                FixedColumnWidths = fixedLayout,
+            };
+            return Baselines(Document(new Section(table)));
+        }
+
+        // "Material" in Arial 9 pt bold is 34 pt wide, the column leaves 30.95 pt.
+        var auto = Lines(fixedLayout: false);
+        Require(auto.ContainsKey("Material") && auto.ContainsKey("Group") && auto["Material"] > auto["Group"],
+            $"Automatic layout: the column widens and breaks between the words ({string.Join(", ", auto.Keys)}).");
+        var fixedLines = Lines(fixedLayout: true);
+        Require(!fixedLines.ContainsKey("Material"), $"Fixed layout: the word breaks inside ({string.Join(", ", fixedLines.Keys)}).");
     }
 
     private static void HeaderStartsAtItsDistance()

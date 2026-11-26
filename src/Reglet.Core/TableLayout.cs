@@ -179,6 +179,28 @@ internal static class TableLayout
     }
 
     /// <summary>
+    /// Word's automatic layout for set column widths: a column narrower than its longest word (<paramref name="minimum"/>)
+    /// widens to it, and the other columns give up the room in proportion to what they have beyond their own minimum.
+    /// The table keeps its width; when the other columns cannot give enough, the widths stay as they are.
+    /// </summary>
+    public static double[] WidenToMinimums(double[] widths, double[] minimum)
+    {
+        ArgumentNullException.ThrowIfNull(widths);
+        ArgumentNullException.ThrowIfNull(minimum);
+        var deficit = widths.Select((width, column) => Math.Max(0, minimum[column] - width)).Sum();
+        var slack = widths.Select((width, column) => Math.Max(0, width - minimum[column])).Sum();
+        // shortcut: when the minimums do not fit, words still break inside; Word would widen the table instead.
+        if (deficit <= 1e-6 || slack < deficit)
+        {
+            return widths;
+        }
+
+        return widths.Select((width, column) => width < minimum[column]
+            ? minimum[column]
+            : width - ((width - minimum[column]) * deficit / slack)).ToArray();
+    }
+
+    /// <summary>
     /// The column widths with <see cref="TableBlock.WidthPercent"/> applied: explicit widths keep
     /// their absolute size, the remaining columns share the rest of the percent target. Without an
     /// explicit width the whole target is divided. Explicit widths that exceed the target are

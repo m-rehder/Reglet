@@ -153,8 +153,10 @@ public sealed class TableBlock : Block
 
     /// <summary>
     /// Keeps a full set of <see cref="ColumnWidths"/> even when it is wider than the text area, so the table runs into the
-    /// right margin (Word's fixed table layout, <c>w:tblLayout w:type="fixed"</c>). False, the default, shrinks such a
-    /// table in proportion to the text width plus the room a negative <see cref="LeftIndent"/> opens in the left margin.
+    /// right margin (Word's fixed table layout, <c>w:tblLayout w:type="fixed"</c>); a word wider than its column breaks
+    /// inside. False, the default, shrinks such a table in proportion to the text width plus the room a negative
+    /// <see cref="LeftIndent"/> opens in the left margin, and, as Word's automatic layout, widens a column to its longest
+    /// word, taking the room from the other columns in proportion.
     /// </summary>
     public bool FixedColumnWidths { get; init; }
 

@@ -12,6 +12,9 @@
 - A minimum row height is for the content, as in Word: the cells' top and bottom padding comes on top of it. A 15 pt
   row with 1.2 pt of padding above and below is now 17.4 pt high, as in Word, instead of 15 pt. An exact height still
   includes the padding.
+- Outside a fixed layout (`FixedColumnWidths` false, the default) a column narrower than its longest word widens to it,
+  as in Word's automatic layout; the other columns give up the room in proportion. Before, the word broke inside
+  ("Materi" / "al"). A fixed layout still breaks inside the word.
 
 ## 1.7.6
 
