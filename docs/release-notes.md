@@ -1,5 +1,12 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### DOCX reader
+
+- A table whose `w:tblBorders` are `none` or `nil` on every side is read as `ParagraphBorder.None`, so a table the
+  writer stored without a border no longer comes back with the default grid.
+
 ## 1.7.6
 
 ### DOCX reader

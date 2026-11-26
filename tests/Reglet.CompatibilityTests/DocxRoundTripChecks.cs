@@ -18,6 +18,7 @@ internal static class DocxRoundTripChecks
             EmptyParagraphsSurvive();
             EmptyFirstFooterSurvives();
             ParagraphFontComesBack();
+            TableWithoutBorderSurvives();
             Console.WriteLine("DOCX round trip: all checks passed.");
             return 0;
         }
@@ -140,6 +141,16 @@ internal static class DocxRoundTripChecks
         Require(readMixed.Style.MarkFontSize == Length.FromPoints(30) && readMixed.Style.FontSize is null
                 && readMixed.Inlines.OfType<TextRun>().Single().FontSize == Length.FromPoints(20),
             "A mark that differs from the runs stays the mark.");
+    }
+
+    private static void TableWithoutBorderSurvives()
+    {
+        var plain = new TableBlock([new TableRow([Cell("none")])]) { Border = ParagraphBorder.None };
+        var thick = new TableBlock([new TableRow([Cell("thick")])]) { Border = new ParagraphBorder(BorderStyle.Single, Length.FromPoints(2)) };
+        var read = RoundTrip(new Section([plain, thick, new TableBlock([new TableRow([Cell("default")])])])).Sections[0].Blocks.OfType<TableBlock>().ToList();
+        Require(read[0].Border == ParagraphBorder.None, $"A table without a border is read back without one ({read[0].Border}).");
+        Require(read[1].Border is { Style: BorderStyle.Single } thickRead && thickRead.Width == Length.FromPoints(2), "A table's own border is read back.");
+        Require(read[2].Border != ParagraphBorder.None, "A table with the default grid keeps a visible border.");
     }
 
     private static void Require(bool condition, string message)

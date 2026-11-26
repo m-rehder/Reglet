@@ -2619,6 +2619,28 @@ public sealed class DocxDocumentReader : IDocumentReader
         };
     }
 
+    /// <summary>
+    /// Reads a table's border from the first outer side; <c>none</c> or <c>nil</c> on every side is
+    /// <see cref="ParagraphBorder.None"/> (no grid), not a missing border (which falls back to the default grid).
+    /// </summary>
+    private static ParagraphBorder? ReadTableBorder(XElement? borders)
+    {
+        if (borders is null)
+        {
+            return null;
+        }
+
+        var sides = borders.Elements()
+            .Where(element => element.Name.LocalName is "top" or "left" or "bottom" or "right" or "insideH" or "insideV" or "start" or "end")
+            .ToList();
+        if (sides.Count > 0 && sides.All(side => side.Attribute(W + "val")?.Value is "none" or "nil"))
+        {
+            return ParagraphBorder.None;
+        }
+
+        return ReadBorder(sides.FirstOrDefault(element => element.Name.LocalName is "top" or "left" or "bottom" or "right"));
+    }
+
     /// <summary>Reads a single border side (the width is in eighths of a point).</summary>
     private static ParagraphBorder? ReadBorder(XElement? element)
     {
@@ -2901,10 +2923,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             var name = style.Element(W + "name")?.Attribute(W + "val")?.Value;
             var tblPr = style.Element(W + "tblPr");
 
-            var border = tblPr?.Element(W + "tblBorders") is { } borders
-                ? ReadBorder(borders.Elements().FirstOrDefault(element =>
-                    element.Name.LocalName is "top" or "left" or "bottom" or "right"))
-                : null;
+            var border = ReadTableBorder(tblPr?.Element(W + "tblBorders"));
 
             var padding = ReadCellMargin(tblPr?.Element(W + "tblCellMar"));
 
@@ -3013,10 +3032,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             ? tableStyle
             : null;
 
-        var border = tblPr?.Element(W + "tblBorders") is { } borders
-            ? ReadBorder(borders.Elements().FirstOrDefault(element =>
-                element.Name.LocalName is "top" or "left" or "bottom" or "right"))
-            : null;
+        var border = ReadTableBorder(tblPr?.Element(W + "tblBorders"));
 
         var (horizontalPadding, verticalPadding) = ReadCellMargins(tblPr?.Element(W + "tblCellMar"));
         var uniformPadding = horizontalPadding == verticalPadding;
