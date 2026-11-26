@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### DOCX reader
+
+- A cell's own margins (`w:tcMar`) are read as `TableCell.Padding` (or per axis); a side equal to the table's padding
+  stays with the table, so a table whose padding the writer repeats on every cell reads back unchanged.
+- A paragraph that holds only a picture and is centred or right-aligned stays a paragraph with an `InlineImage`, so the
+  alignment is kept (a logo set right in a header). Other picture-only paragraphs still become `ImageBlock`s.
+- Empty paragraphs are kept, in the text and in cells, with their style: since 1.7.3 the paragraph mark gives them their
+  height. The paragraph that only closes a cell or a header/footer after a table, the bare paragraph of an empty cell
+  and the paragraph that carries a section boundary are still left out.
+- An empty first-page header or footer is kept as a `HeaderFooter` without blocks ("nothing on page 1") instead of
+  falling back to the default one. The first-page bands are read only with `w:titlePg`, as Word uses them.
+- A paragraph font that Word stores on the paragraph mark and on every run comes back as `ParagraphStyle.FontFamily` and
+  `FontSize` instead of as the mark's font plus a font on each run; a mark equal to the paragraph's font is dropped.
+  Paragraphs with hyperlinks keep the mark as it is.
+
+### Templates
+
+- A stray `{{EndIf}}` and an `{{If:…}}` without an end are removed with their paragraph like paired markers, instead of
+  leaving an empty paragraph (the unclosed one is still reported).
+
 ### PDF
 
 - The last line of a paragraph beside a square-wrapped picture starts at the margin once the picture has ended. A last

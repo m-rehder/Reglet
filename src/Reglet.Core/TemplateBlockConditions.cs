@@ -41,6 +41,17 @@ internal static class TemplateBlockConditions
                 continue;
             }
 
+            // A stray {{EndIf}} goes away like a paired one instead of leaving an empty paragraph.
+            if (isMarker(element) && texts[index] == "{{EndIf}}")
+            {
+                if (consumeMarker?.Invoke(element) != false)
+                {
+                    removed.Add(element);
+                }
+
+                continue;
+            }
+
             if (!isMarker(element) || !TemplatePlaceholders.TryIfMarker(texts[index], out var condition))
             {
                 if (visit(element, texts[index]))
@@ -54,7 +65,13 @@ internal static class TemplateBlockConditions
             var end = ends[index];
             if (end < 0)
             {
+                // Reported, and the marker goes away like a closed one; the elements after it stay.
                 unclosed(condition);
+                if (consumeMarker?.Invoke(element) != false)
+                {
+                    removed.Add(element);
+                }
+
                 continue;
             }
 

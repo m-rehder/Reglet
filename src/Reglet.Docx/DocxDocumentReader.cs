@@ -947,8 +947,8 @@ public sealed class DocxDocumentReader : IDocumentReader
                 Orientation = p.Orientation,
                 Header = ReadBand(p.HeaderReference, numbering, resources, warnings),
                 Footer = ReadBand(p.FooterReference, numbering, resources, warnings),
-                FirstHeader = ReadBand(p.FirstHeaderReference, numbering, resources, warnings),
-                FirstFooter = ReadBand(p.FirstFooterReference, numbering, resources, warnings),
+                FirstHeader = ReadBand(p.FirstHeaderReference, numbering, resources, warnings, keepEmpty: true),
+                FirstFooter = ReadBand(p.FirstFooterReference, numbering, resources, warnings, keepEmpty: true),
                 EvenHeader = ReadBand(p.EvenHeaderReference, numbering, resources, warnings),
                 EvenFooter = ReadBand(p.EvenFooterReference, numbering, resources, warnings),
                 TextColumns = p.TextColumns,
@@ -967,7 +967,8 @@ public sealed class DocxDocumentReader : IDocumentReader
         string? relationshipId,
         IReadOnlyDictionary<string, NumberingDefinition> numbering,
         DocxResources resources,
-        List<ReadWarning> warnings)
+        List<ReadWarning> warnings,
+        bool keepEmpty = false)
     {
         if (relationshipId is null || !resources.Relationships.TryGetValue(relationshipId, out var path))
         {
@@ -988,11 +989,41 @@ public sealed class DocxDocumentReader : IDocumentReader
         };
         foreach (var child in xml.Elements())
         {
-            ParseBodyElement(child, blocks, numbering, bandResources, warnings);
+            if (!IsClosingParagraph(child))
+            {
+                ParseBodyElement(child, blocks, numbering, bandResources, warnings);
+            }
         }
 
         var result = blocks.ToList();
-        return result.Count > 0 ? new HeaderFooter(result) : null;
+        // An empty first-page band is kept: with w:titlePg it means "no band on page 1", while null would fall back to
+        // the default band.
+        return result.Count > 0 || keepEmpty ? new HeaderFooter(result) : null;
+    }
+
+    /// <summary>Whether a paragraph holds nothing but its properties, empty runs and marks without content.</summary>
+    private static bool IsEmptyParagraph(XElement p)
+        => p.Elements().All(child => child.Name.LocalName switch
+        {
+            "pPr" or "bookmarkStart" or "bookmarkEnd" or "proofErr" or "permStart" or "permEnd" => true,
+            "r" => child.Elements().All(part => part.Name == W + "rPr" || part.Name == W + "lastRenderedPageBreak"
+                || (part.Name == W + "t" && part.Value.Length == 0)),
+            _ => false,
+        });
+
+    /// <summary>
+    /// Whether a paragraph only closes a cell or a header/footer as the schema demands: the last element, empty, and
+    /// either right after a table (also Reglet's paragraph without height) or the bare <c>w:p</c> of an empty cell or band.
+    /// </summary>
+    private static bool IsClosingParagraph(XElement element)
+    {
+        if (element.Name != W + "p" || element.ElementsAfterSelf().Any() || element.Elements().Any(child => child.Name != W + "pPr"))
+        {
+            return false;
+        }
+
+        var previous = element.ElementsBeforeSelf().LastOrDefault(sibling => sibling.Name != W + "tcPr");
+        return previous?.Name == W + "tbl" || (previous is null && element.Element(W + "pPr") is null);
     }
 
     /// <summary>Reads an element of the body (or a cell): paragraph, table or content control.</summary>
@@ -1046,8 +1077,10 @@ public sealed class DocxDocumentReader : IDocumentReader
         var reader = new InlineReader(resources, warnings, inlineImages: true);
         var segments = reader.Read(p);
 
-        // A picture in the line of text stays there (InlineImage); a paragraph of pictures alone becomes image blocks.
-        var hasText = segments.SelectMany(segment => segment).Any(inline => inline is TextRun run
+        // A picture in the line of text stays there (InlineImage); a paragraph of pictures alone becomes image blocks,
+        // unless the paragraph centres them or sets them right: an image block has no alignment of its own.
+        var aligned = (string?)effective?.Element(W + "jc")?.Attribute(W + "val") is "center" or "right";
+        var hasText = aligned || segments.SelectMany(segment => segment).Any(inline => inline is TextRun run
             ? !string.IsNullOrWhiteSpace(run.Text)
             : inline is not (InlineImage or Bookmark or BookmarkEnd or Comment or CommentEnd or TrackedChange or TrackedChangeEnd));
         if (!hasText && reader.InLine.Count > 0)
@@ -1119,10 +1152,15 @@ public sealed class DocxDocumentReader : IDocumentReader
             }
         }
 
+        paragraphStyle = LiftMarkFont(paragraphStyle, segments);
+
+        // An empty paragraph is a line of its own (its mark gives it height), unless it only carries a section boundary.
+        // Only a paragraph empty in the file counts: one whose drawing, picture or object was not mapped stays away.
+        var keepsEmpty = segments is [{ Count: 0 }] && pPr?.Element(W + "sectPr") is null && IsEmptyParagraph(p);
         for (var index = 0; index < segments.Count; index++)
         {
             // Empty pieces (e.g. a pure section boundary) are not adopted.
-            if (segments[index].Count > 0)
+            if (segments[index].Count > 0 || keepsEmpty)
             {
                 blocks.Add(new Paragraph(segments[index])
                 {
@@ -1136,6 +1174,53 @@ public sealed class DocxDocumentReader : IDocumentReader
                 blocks.Add(new PageBreak());
             }
         }
+    }
+
+    /// <summary>
+    /// A paragraph font Word stores on the mark and on every run (as Reglet writes <see cref="ParagraphStyle.FontFamily"/>
+    /// and <see cref="ParagraphStyle.FontSize"/>): when the mark and all text runs share a font or size, it becomes the
+    /// paragraph's again and leaves the runs; a mark equal to the paragraph's font is dropped.
+    /// </summary>
+    private static ParagraphStyle LiftMarkFont(ParagraphStyle style, List<List<Inline>> segments)
+    {
+        // shortcut: runs inside hyperlinks, fields with results or content controls keep the mark as it is; lift them too when such paragraphs need it.
+        var inlines = segments.SelectMany(segment => segment).ToList();
+        if (inlines.Any(inline => inline is Hyperlink) || (style.MarkFontFamily is null && style.MarkFontSize is null))
+        {
+            return style;
+        }
+
+        var runs = inlines.OfType<TextRun>().ToList();
+        var family = style.MarkFontFamily;
+        var size = style.MarkFontSize;
+        var liftFamily = family is not null && runs.All(run => run.FontFamily == family);
+        var liftSize = size is not null && runs.All(run => run.FontSize == size);
+        if (liftFamily || liftSize)
+        {
+            foreach (var segment in segments)
+            {
+                for (var index = 0; index < segment.Count; index++)
+                {
+                    if (segment[index] is TextRun run)
+                    {
+                        var format = RunFormat.Of(run);
+                        segment[index] = (format with
+                        {
+                            FontFamily = liftFamily ? null : format.FontFamily,
+                            FontSize = liftSize ? null : format.FontSize,
+                        }).ToRun(run.Text, run.CharacterStyleName);
+                    }
+                }
+            }
+        }
+
+        return style with
+        {
+            FontFamily = liftFamily ? family : style.FontFamily,
+            FontSize = liftSize ? size : style.FontSize,
+            MarkFontFamily = liftFamily || family == style.FontFamily ? null : family,
+            MarkFontSize = liftSize || size == style.FontSize ? null : size,
+        };
     }
 
     /// <summary>
@@ -2960,6 +3045,10 @@ public sealed class DocxDocumentReader : IDocumentReader
             columnWidths = null;
         }
 
+        // What a cell gets from the table when it has no margins of its own.
+        var tablePadding = (
+            Horizontal: horizontalPadding ?? style?.CellPadding ?? Typography.TableCellPaddingHorizontal,
+            Vertical: verticalPadding ?? style?.CellPadding ?? Typography.TableCellPaddingVertical);
         var parsedRows = new List<List<ParsedCell>>();
         foreach (var tr in rowElements)
         {
@@ -2981,7 +3070,7 @@ public sealed class DocxDocumentReader : IDocumentReader
                     ? CountRowSpan(parsedRows, rowIndex, parsed.GridStart)
                     : 1;
 
-                cells.Add(parsed.Cell with { RowSpan = Math.Min(rowSpan, TableCell.MaxSpan) });
+                cells.Add(WithOwnPadding(parsed.Cell, parsed.Margins, tablePadding) with { RowSpan = Math.Min(rowSpan, TableCell.MaxSpan) });
             }
 
             var height = ReadRowHeight(rowElements[rowIndex]);
@@ -3094,7 +3183,7 @@ public sealed class DocxDocumentReader : IDocumentReader
     }
 
     /// <summary>A cell of a table with its position in the grid.</summary>
-    private sealed record ParsedCell(TableCell Cell, int GridStart, VerticalMerge VerticalMerge);
+    private sealed record ParsedCell(TableCell Cell, int GridStart, VerticalMerge VerticalMerge, (Length? Horizontal, Length? Vertical) Margins = default);
 
     private static List<ParsedCell> ReadTableCells(XElement tr, IReadOnlyDictionary<string, NumberingDefinition> numbering, DocxResources resources, List<ReadWarning> warnings)
     {
@@ -3105,6 +3194,11 @@ public sealed class DocxDocumentReader : IDocumentReader
             var cellBlocks = new BlockCollector();
             foreach (var cellChild in tc.Elements())
             {
+                if (IsClosingParagraph(cellChild))
+                {
+                    continue;
+                }
+
                 ParseBodyElement(cellChild, cellBlocks, numbering, resources, warnings);
             }
 
@@ -3138,11 +3232,44 @@ public sealed class DocxDocumentReader : IDocumentReader
                 Borders = borders,
             };
 
-            cells.Add(new ParsedCell(cell, column, verticalMerge));
+            cells.Add(new ParsedCell(cell, column, verticalMerge, ReadCellOwnMargins(tcPr?.Element(W + "tcMar"))));
             column += columnSpan;
         }
 
         return cells;
+    }
+
+    /// <summary>The left (horizontal) and top (vertical) margin of one cell (<c>w:tcMar</c>); 0 is a valid margin here.</summary>
+    private static (Length? Horizontal, Length? Vertical) ReadCellOwnMargins(XElement? margins)
+    {
+        static Length? Side(XElement? side)
+            => side?.Attribute(W + "w")?.Value is { } value
+                && long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var twips)
+                && twips >= 0 && twips <= 31680
+                && (string?)side.Attribute(W + "type") is null or "dxa"
+                    ? Length.FromPoints(twips / 20.0)
+                    : null;
+
+        return margins is null ? (null, null) : (Side(margins.Element(W + "left") ?? margins.Element(W + "start")), Side(margins.Element(W + "top")));
+    }
+
+    /// <summary>
+    /// The padding of a cell from its own margins: a side equal to what the table gives (its own margins, its style's or
+    /// Word's default) is left to the table, so a table whose writer repeats its padding on every cell reads back as it
+    /// was; equal axes become <see cref="TableCell.Padding"/>.
+    /// </summary>
+    private static TableCell WithOwnPadding(TableCell cell, (Length? Horizontal, Length? Vertical) margins, (Length Horizontal, Length Vertical) table)
+    {
+        var horizontal = margins.Horizontal == table.Horizontal ? null : margins.Horizontal;
+        var vertical = margins.Vertical == table.Vertical ? null : margins.Vertical;
+        if (horizontal is null && vertical is null)
+        {
+            return cell;
+        }
+
+        return horizontal == vertical
+            ? cell with { Padding = horizontal }
+            : cell with { PaddingHorizontal = horizontal, PaddingVertical = vertical };
     }
 
     /// <summary>Reads the borders of a table cell (per side).</summary>
@@ -3389,14 +3516,16 @@ public sealed class DocxDocumentReader : IDocumentReader
             (width, height) = (PageSize.A4.Width.Points, PageSize.A4.Height.Points);
         }
 
+        var titlePage = sectPr.Element(W + "titlePg") is { } titlePg && IsOn(titlePg);
         return new SectionProps(
             new PageSize(Length.FromPoints(width), Length.FromPoints(height)),
             margin,
             orient == "landscape" ? PageOrientation.Landscape : PageOrientation.Portrait,
             BandReference(sectPr, "headerReference", "default"),
             BandReference(sectPr, "footerReference", "default"),
-            BandReference(sectPr, "headerReference", "first"),
-            BandReference(sectPr, "footerReference", "first"),
+            // Word uses the first-page bands only with w:titlePg.
+            titlePage ? BandReference(sectPr, "headerReference", "first") : null,
+            titlePage ? BandReference(sectPr, "footerReference", "first") : null,
             BandReference(sectPr, "headerReference", "even"),
             BandReference(sectPr, "footerReference", "even"),
             ReadColumns(sectPr),
