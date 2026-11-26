@@ -27,6 +27,7 @@ internal static class FieldAndTableFixChecks
             AutoFitDistribution();
             AutoFitTable();
             LastLineBelowAPictureStartsAtTheMargin();
+            EmptyTableIsReported();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -280,6 +281,23 @@ internal static class FieldAndTableFixChecks
                 Require(Math.Abs(x - 72) < 0.01, $"{words} words: the line at {y} below the picture (bottom {bottom}) starts at {x}, not at the margin.");
             }
         }
+    }
+
+    /// <summary>A table without rows shows in no format; every writer says so once.</summary>
+    private static void EmptyTableIsReported()
+    {
+        var document = Document(new Section([new Paragraph(new TextRun("Annex")), new TableBlock([]), new TableBlock([])]));
+        foreach (var format in new[] { DocumentFormat.Docx, DocumentFormat.Odt, DocumentFormat.Pdf, DocumentFormat.Html })
+        {
+            using var buffer = new MemoryStream();
+            var warnings = DocumentWriter.WriteAsync(document, buffer, format).GetAwaiter().GetResult().Warnings
+                .Count(warning => warning.Message.Contains("table without rows", StringComparison.Ordinal));
+            Require(warnings == 1, $"{format} reports an empty table once ({warnings}).");
+        }
+
+        using var clean = new MemoryStream();
+        Require(!DocumentWriter.WriteAsync(Document(new Section(Table("A"))), clean, DocumentFormat.Docx).GetAwaiter().GetResult().Warnings
+            .Any(warning => warning.Message.Contains("table without rows", StringComparison.Ordinal)), "A table with rows is not reported.");
     }
 
     private static void Throws<T>(Action action) where T : Exception

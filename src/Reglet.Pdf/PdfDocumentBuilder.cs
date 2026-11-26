@@ -614,6 +614,8 @@ internal static class PdfDocumentBuilder
             handler.Report("PDF: a comment in a header, footer or note is not written.");
         }
 
+        TableScan.ReportEmptyTables(document, handler, "PDF");
+
         // OF-F01: an annotation without a page would be written nowhere, so say so.
         if (options.Annotations is { Count: > 0 } annotations)
         {

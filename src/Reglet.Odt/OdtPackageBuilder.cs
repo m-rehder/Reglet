@@ -855,6 +855,8 @@ internal static class OdtPackageBuilder
             handler.Report(message);
         }
 
+        TableScan.ReportEmptyTables(document, handler, "ODT");
+
         if (TableScan.Enumerate(document).Any(TableLayout.UsesAutoFit))
         {
             handler.Report("ODT: column widths by content (AutoFit) are not supported; the columns are written equally wide.");

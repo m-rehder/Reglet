@@ -1,6 +1,6 @@
 # Reglet – Release notes
 
-## Unreleased
+## 1.7.5
 
 ### DOCX reader
 
@@ -16,6 +16,11 @@
 - A paragraph font that Word stores on the paragraph mark and on every run comes back as `ParagraphStyle.FontFamily` and
   `FontSize` instead of as the mark's font plus a font on each run; a mark equal to the paragraph's font is dropped.
   Paragraphs with hyperlinks keep the mark as it is.
+
+### Writers
+
+- A table without rows or cells, which no format shows, is reported once per document by every writer (DOCX, ODT, PDF,
+  HTML) instead of being left out silently.
 
 ### Templates
 

@@ -3,6 +3,18 @@ namespace Reglet;
 /// <summary>Enumerates the tables and collects the table styles used in a document.</summary>
 internal static class TableScan
 {
+    /// <summary>
+    /// Reports a table without rows or cells once per document: no format shows it, and it usually comes from a list of
+    /// rows the caller expected to be filled.
+    /// </summary>
+    public static void ReportEmptyTables(PortableDocument document, UnsupportedFeatureHandler handler, string format)
+    {
+        if (Enumerate(document).Any(table => TableLayout.LogicalColumns(table) == 0))
+        {
+            handler.Report($"{format}: a table without rows or cells is not shown.");
+        }
+    }
+
     /// <summary>All tables of the document (body and bands, including nested tables).</summary>
     public static IEnumerable<TableBlock> Enumerate(PortableDocument document)
     {

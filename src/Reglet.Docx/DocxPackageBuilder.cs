@@ -149,6 +149,8 @@ internal static class DocxPackageBuilder
             handler.Report("DOCX: a comment in a header, footer or note is not written; Word has no comments there.");
         }
 
+        TableScan.ReportEmptyTables(document, handler, "DOCX");
+
         var needsExtendedComments = commentInfo.Body.Count > 0 && DocxComments.NeedsExtended(commentInfo.Body);
         if (commentInfo.Body.Count > 0)
         {

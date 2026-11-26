@@ -27,6 +27,7 @@ public sealed class HtmlDocumentWriter : IDocumentWriter
             output,
             stream =>
             {
+                TableScan.ReportEmptyTables(document, handler, "HTML");
                 var html = new HtmlBuilder(document, effective, handler, cancellationToken).Build();
                 stream.Write(new UTF8Encoding(false).GetBytes(html));
                 return null;
