@@ -2885,7 +2885,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         var widths = missingWidth ? null : columns.Select(column => column.Width
             ?? Length.FromPoints(remaining * (column.Weight!.Value / relativeWeight))).ToList();
 
-        return new TableBlock(rows)
+        var block = new TableBlock(rows)
         {
             ColumnWidths = widths is { Count: > 0 } ? widths : null,
             WidthPercent = widthPercent,
@@ -2895,6 +2895,27 @@ public sealed class OdtDocumentReader : IDocumentReader
             CellPaddingVertical = tableInfo?.PaddingVertical,
             LeftIndent = tableInfo?.LeftIndent,
         };
+        return block.Rows.Any(row => row.Height is not null && row.HeightRule != TableRowHeightRule.Exactly)
+            ? block.WithRows(block.Rows.Select(row => ContentMinimum(block, row)))
+            : block;
+    }
+
+    /// <summary>
+    /// ODF's min-row-height covers the whole row, the model's minimum only the content (as in Word): the cells' top and
+    /// bottom padding and the border above the row come off. A minimum they fill completely is no minimum.
+    /// </summary>
+    private static TableRow ContentMinimum(TableBlock table, TableRow row)
+    {
+        if (row.Height is not { } height || row.HeightRule == TableRowHeightRule.Exactly)
+        {
+            return row;
+        }
+
+        // Rounded so that 15 pt written as 17.9 pt (1.2 pt padding, 0.5 pt border) reads back as 15 pt, not 15.000000000000002.
+        var content = Math.Round(height.Points - OdtTableCellStyles.RowExtra(table, row), 6);
+        return content > 1e-6
+            ? row with { Height = Length.FromPoints(content) }
+            : row with { Height = null, HeightRule = TableRowHeightRule.Auto };
     }
 
     private static void AddRepeatedRow(ReadContext context, List<TableRow> rows, XElement tr, bool isHeader)

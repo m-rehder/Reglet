@@ -1954,7 +1954,8 @@ internal sealed class PdfBlockRenderer
             }
 
             // Row height (Y02): at least the minimum or exactly the fixed height. As in Word, a minimum is for the
-            // content: the cells' top and bottom padding comes on top of it; an exact height includes the padding.
+            // content: the cells' top and bottom padding and the border above the row come on top of it; an exact
+            // height includes both.
             var requestedHeight = row.Height?.Points ?? 0;
             var minimumPadding = requestedHeight > 0 ? 2 * cells.Select(cell => cell.PadY).DefaultIfEmpty(tablePadY).Max() : 0;
             result.Add(new RowLayout(
@@ -2038,7 +2039,7 @@ internal sealed class PdfBlockRenderer
 
                 if (content > height)
                 {
-                    rows[last] = rows[last] with { MinHeight = rows[last].NaturalHeight + content - height };
+                    rows[last] = rows[last] with { MinHeight = rows[last].NaturalHeight - rows[last].BorderTop + content - height };
                 }
 
                 rows[rowIndex] = rows[rowIndex] with { KeepHeight = Math.Max(rows[rowIndex].KeepHeight, total) };
@@ -2420,7 +2421,7 @@ internal sealed class PdfBlockRenderer
                 }
 
                 consumed += band;
-                sliceHeight = first ? Math.Max(consumed, row.MinHeight) : consumed;
+                sliceHeight = first ? Math.Max(consumed, row.MinHeight + band) : consumed;
             }
 
             // A required height counts when the row is placed; only an empty page can cut it down.
@@ -2880,9 +2881,9 @@ internal sealed class PdfBlockRenderer
         /// <summary>The height of the row when it is not split.</summary>
         public double NaturalHeight => ExactHeight > 0
             ? ExactHeight
-            : Math.Max(
+            : BorderTop + Math.Max(
                 MinHeight,
-                BorderTop + Math.Max(
+                Math.Max(
                     LineHeight + (2 * PadY),
                     Cells.Where(cell => !cell.Spanned && cell.Lines.Count > 0).Select(cell => cell.Lines.Sum(HeightOf) + (2 * cell.PadY)).DefaultIfEmpty(0).Max()));
     }

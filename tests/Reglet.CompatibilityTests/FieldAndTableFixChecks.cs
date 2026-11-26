@@ -158,19 +158,44 @@ internal static class FieldAndTableFixChecks
 
     private static void MinimumRowHeightLeavesThePaddingOnTop()
     {
-        double Pitch(TableRowHeightRule rule)
+        double Pitch(TableRowHeightRule rule, ParagraphBorder? border = null)
         {
             var bold = ParagraphStyle.Default with { FontFamily = "Arial", FontSize = Length.FromPoints(10) };
             var rows = new[] { "ROWA", "ROWB" }.Select(text => new TableRow([
                 new TableCell([new Paragraph(new TextRun(text) { Bold = true }) { Style = bold }]) { PaddingHorizontal = Length.FromPoints(5.4), PaddingVertical = Length.FromPoints(1.2) },
             ]) { Height = Length.FromPoints(15), HeightRule = rule });
-            var lines = Baselines(Document(new Section(new TableBlock(rows) { Border = ParagraphBorder.None })));
+            var lines = Baselines(Document(new Section(new TableBlock(rows) { Border = border ?? ParagraphBorder.None })));
             return lines["ROWA"] - lines["ROWB"];
         }
 
         // Word: an at-least height of 15 pt for a 10 pt line, plus 1.2 pt of cell padding above and below.
         Require(Math.Abs(Pitch(TableRowHeightRule.AtLeast) - 17.4) < 0.01, $"A minimum row height is for the content ({Pitch(TableRowHeightRule.AtLeast)}).");
         Require(Math.Abs(Pitch(TableRowHeightRule.Exactly) - 15) < 0.01, $"An exact row height includes the padding ({Pitch(TableRowHeightRule.Exactly)}).");
+        var grid = new ParagraphBorder(BorderStyle.Single, Length.FromPoints(0.5));
+        Require(Math.Abs(Pitch(TableRowHeightRule.AtLeast, grid) - 17.9) < 0.01, $"The border above the row comes on top as well ({Pitch(TableRowHeightRule.AtLeast, grid)}).");
+
+        // ODT: min-row-height is the whole row, so the padding and the 0.5 pt grid above go into it and come off again when read.
+        TableBlock Padded(TableRowHeightRule rule) => new([new TableRow([
+            new TableCell([new Paragraph(new TextRun("R"))]) { PaddingVertical = Length.FromPoints(1.2), PaddingHorizontal = Length.FromPoints(5.4) },
+        ]) { Height = Length.FromPoints(15), HeightRule = rule }]);
+        foreach (var (rule, attribute, written) in new[] { (TableRowHeightRule.AtLeast, "min-row-height", 17.9), (TableRowHeightRule.Exactly, "row-height", 15.0) })
+        {
+            using var buffer = new MemoryStream();
+            new OdtDocumentWriter().WriteAsync(Document(new Section(Padded(rule))), buffer).GetAwaiter().GetResult();
+            buffer.Position = 0;
+            XNamespace style = "urn:oasis:names:tc:opendocument:xmlns:style:1.0";
+            using (var zip = new ZipArchive(buffer, ZipArchiveMode.Read, leaveOpen: true))
+            {
+                var value = XDocument.Load(zip.GetEntry("content.xml")!.Open()).Descendants(style + "table-row-properties")
+                    .Select(element => (string?)element.Attribute(style + attribute)).Single(text => text is not null)!;
+                Require(Math.Abs(double.Parse(value.TrimEnd('p', 't'), CultureInfo.InvariantCulture) - written) < 0.01,
+                    $"ODT: {rule} writes {attribute} {written} pt ({value}).");
+            }
+
+            buffer.Position = 0;
+            var row = new OdtDocumentReader().Read(buffer).Document.Sections[0].Blocks.OfType<TableBlock>().Single().Rows[0];
+            Require(row.Height == Length.FromPoints(15) && row.HeightRule == rule, $"ODT: {rule} 15 pt is read back ({row.Height}, {row.HeightRule}).");
+        }
     }
 
     private static void ColumnWidensToItsLongestWord()

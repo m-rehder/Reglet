@@ -101,7 +101,8 @@ internal static class TableFormattingChecks
         Require(content.Contains("fo:background-color=\"#EEEEEE\"", StringComparison.Ordinal), "ODT: cell background.");
         Require(content.Contains("fo:border-top=\"", StringComparison.Ordinal), "ODT: cell borders.");
         Require(content.Contains("style:rel-width=\"80%\"", StringComparison.Ordinal), "ODT: table width in percent.");
-        Require(content.Contains("style:min-row-height=\"30pt\"", StringComparison.Ordinal), "ODT: minimum row height.");
+        // 30 pt for the content plus 4 pt of cell padding above and below and the table's 1 pt border (ODF counts the whole row).
+        Require(content.Contains("style:min-row-height=\"39pt\"", StringComparison.Ordinal), "ODT: minimum row height.");
         Require(content.Contains("style:vertical-align=\"middle\"", StringComparison.Ordinal), "ODT: vertical alignment.");
 
         using var pdfBuffer = new MemoryStream();

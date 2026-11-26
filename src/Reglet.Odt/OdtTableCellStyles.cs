@@ -86,11 +86,36 @@ internal sealed class OdtTableCellStyles
     }
 
     /// <summary>Name of the row style, or null if the row has neither a height nor KeepTogether.</summary>
-    public string? RowStyleName(TableRow row)
-        => RowKeyOf(row) is { } key && _rows.TryGetValue(key, out var name) ? name : null;
+    public string? RowStyleName(TableBlock table, TableRow row)
+        => RowKeyOf(table, row) is { } key && _rows.TryGetValue(key, out var name) ? name : null;
 
-    private static RowKey? RowKeyOf(TableRow row)
-        => row.Height is null && !row.KeepTogether ? null : new RowKey(row.Height?.Points, row.HeightRule, row.KeepTogether);
+    // A minimum height is for the content (as in Word), ODF's min-row-height for the whole row: the cells' top and
+    // bottom padding and the border above the row go into it. An exact height already includes both.
+    private static RowKey? RowKeyOf(TableBlock table, TableRow row)
+        => row.Height is null && !row.KeepTogether
+            ? null
+            : new RowKey(
+                row.Height is { } height && row.HeightRule != TableRowHeightRule.Exactly
+                    ? height.Points + RowExtra(table, row)
+                    : row.Height?.Points,
+                row.HeightRule,
+                row.KeepTogether);
+
+    /// <summary>
+    /// What a row needs beyond its content minimum: the largest top and bottom padding of its cells and the widest
+    /// border above it (the table's when the row has no cells).
+    /// </summary>
+    // shortcut: the border above comes from the cells' own top border or the table's, not from a conditional area or the
+    // row above; measure those when a styled table needs it.
+    internal static double RowExtra(TableBlock table, TableRow row)
+    {
+        var tableBorder = table.Border ?? table.Style?.Border ?? new ParagraphBorder(BorderStyle.Single, Typography.TableBorderWidth);
+        static double Width(ParagraphBorder border) => border.Style == BorderStyle.None ? 0 : border.Width.Points;
+        var padding = row.Cells.Select(cell => TableLayout.CellPadding(table, cell).Vertical.Points)
+            .DefaultIfEmpty(TableLayout.CellPadding(table, null).Vertical.Points).Max();
+        var border = row.Cells.Select(cell => Width(cell.Borders?.Top ?? tableBorder)).DefaultIfEmpty(Width(tableBorder)).Max();
+        return (2 * padding) + border;
+    }
 
     /// <summary>Name of the table style, or null if the table has no width/border/padding.</summary>
     public string? TableStyleName(TableBlock table, string? parent)
@@ -175,7 +200,7 @@ internal sealed class OdtTableCellStyles
                     var rowIndex = 0;
                     foreach (var row in table.Rows)
                     {
-                        styles.RegisterRow(row);
+                        styles.RegisterRow(table, row);
                         var style = table.Style;
                         var conditional = row.IsHeader
                             ? style?.HeaderBackground
@@ -230,9 +255,9 @@ internal sealed class OdtTableCellStyles
         }
     }
 
-    private void RegisterRow(TableRow row)
+    private void RegisterRow(TableBlock table, TableRow row)
     {
-        if (RowKeyOf(row) is { } key && !_rows.ContainsKey(key))
+        if (RowKeyOf(table, row) is { } key && !_rows.ContainsKey(key))
         {
             _rows[key] = "TR" + (_rowStart + _rows.Count + 1).ToString(CultureInfo.InvariantCulture);
         }

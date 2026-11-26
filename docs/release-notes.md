@@ -1,5 +1,18 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- A minimum row height also leaves the border above the row on top, as Word does: a 15 pt row with 1.2 pt of padding
+  and the 0.5 pt default grid is 17.9 pt high, as in Word and in LibreOffice.
+
+### ODT
+
+- A minimum row height is written the way the PDF and Word lay it out: ODF's `style:min-row-height` covers the whole
+  row, so the cells' top and bottom padding and the border above the row go into it, and come off again when an ODT
+  file is read. DOCX, ODT and PDF now give a row the same height.
+
 ## 1.7.7
 
 ### DOCX reader
