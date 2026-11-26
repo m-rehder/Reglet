@@ -1152,7 +1152,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             }
         }
 
-        paragraphStyle = LiftMarkFont(paragraphStyle, segments);
+        paragraphStyle = LiftMarkFont(paragraphStyle, segments, p);
 
         // An empty paragraph is a line of its own (its mark gives it height), unless it only carries a section boundary.
         // Only a paragraph empty in the file counts: one whose drawing, picture or object was not mapped stays away.
@@ -1178,12 +1178,14 @@ public sealed class DocxDocumentReader : IDocumentReader
 
     /// <summary>
     /// A paragraph font Word stores on the mark and on every run (as Reglet writes <see cref="ParagraphStyle.FontFamily"/>
-    /// and <see cref="ParagraphStyle.FontSize"/>): when the mark and all text runs share a font or size, it becomes the
-    /// paragraph's again and leaves the runs; a mark equal to the paragraph's font is dropped.
+    /// and <see cref="ParagraphStyle.FontSize"/>, also on every field run since 1.7.2): when all text runs share the mark's
+    /// font or size, or the paragraph has fields whose runs all carry it, it becomes the paragraph's again. Runs that carry
+    /// exactly that value leave it to the paragraph, runs with their own keep theirs; a mark equal to the paragraph's font is
+    /// dropped.
     /// </summary>
-    private static ParagraphStyle LiftMarkFont(ParagraphStyle style, List<List<Inline>> segments)
+    private static ParagraphStyle LiftMarkFont(ParagraphStyle style, List<List<Inline>> segments, XElement paragraph)
     {
-        // shortcut: runs inside hyperlinks, fields with results or content controls keep the mark as it is; lift them too when such paragraphs need it.
+        // shortcut: runs inside hyperlinks keep the mark as it is; lift them too when such paragraphs need it.
         var inlines = segments.SelectMany(segment => segment).ToList();
         if (inlines.Any(inline => inline is Hyperlink) || (style.MarkFontFamily is null && style.MarkFontSize is null))
         {
@@ -1191,23 +1193,32 @@ public sealed class DocxDocumentReader : IDocumentReader
         }
 
         var runs = inlines.OfType<TextRun>().ToList();
+        // The runs of the fields (fldChar/instrText and simple fields) show the formatting the fields have in the file.
+        var fieldRuns = paragraph.Descendants(W + "r")
+            .Where(run => run.Element(W + "fldChar") is not null || run.Element(W + "instrText") is not null
+                || run.Ancestors(W + "fldSimple").Any())
+            .Select(run => ReadTextRun(string.Empty, run.Element(W + "rPr")))
+            .ToList();
         var family = style.MarkFontFamily;
         var size = style.MarkFontSize;
-        var liftFamily = family is not null && runs.All(run => run.FontFamily == family);
-        var liftSize = size is not null && runs.All(run => run.FontSize == size);
+        var liftFamily = family is not null
+            && (runs.All(run => run.FontFamily == family) || (fieldRuns.Count > 0 && fieldRuns.All(run => run.FontFamily == family)));
+        var liftSize = size is not null
+            && (runs.All(run => run.FontSize == size) || (fieldRuns.Count > 0 && fieldRuns.All(run => run.FontSize == size)));
         if (liftFamily || liftSize)
         {
             foreach (var segment in segments)
             {
                 for (var index = 0; index < segment.Count; index++)
                 {
-                    if (segment[index] is TextRun run)
+                    if (segment[index] is TextRun run
+                        && ((liftFamily && run.FontFamily == family) || (liftSize && run.FontSize == size)))
                     {
                         var format = RunFormat.Of(run);
                         segment[index] = (format with
                         {
-                            FontFamily = liftFamily ? null : format.FontFamily,
-                            FontSize = liftSize ? null : format.FontSize,
+                            FontFamily = liftFamily && run.FontFamily == family ? null : format.FontFamily,
+                            FontSize = liftSize && run.FontSize == size ? null : format.FontSize,
                         }).ToRun(run.Text, run.CharacterStyleName);
                     }
                 }

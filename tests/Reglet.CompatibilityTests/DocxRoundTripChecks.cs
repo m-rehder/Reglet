@@ -119,6 +119,22 @@ internal static class DocxRoundTripChecks
             $"The paragraph font comes back as the paragraph's ({read.Style.FontFamily}/{read.Style.FontSize}, mark {read.Style.MarkFontFamily}/{read.Style.MarkFontSize}).");
         Require(read.Inlines.OfType<TextRun>().All(run => run.FontFamily is null && run.FontSize is null), "The runs no longer carry it one by one.");
 
+        // Runs with their own size beside a field: the field runs carry the paragraph's size, so the paragraph gets it back.
+        var nine = Length.FromPoints(9);
+        var calculation = new Paragraph([new TextRun("Seite ") { FontSize = nine }, new PageNumberField(), new TextRun(" / ") { FontSize = nine },
+            new PageCountField(), new TextRun(" ")])
+        {
+            Style = ParagraphStyle.Default with { FontFamily = "Arial", FontSize = Length.FromPoints(8) },
+        };
+        var readCalculation = (Paragraph)RoundTrip(new Section(new Paragraph(new TextRun("Body"))) { Footer = new HeaderFooter(calculation) })
+            .Sections[0].Footer!.Blocks.Single();
+        var calculationRuns = readCalculation.Inlines.OfType<TextRun>().ToList();
+        Require(readCalculation.Style.FontSize == Length.FromPoints(8) && readCalculation.Style.FontFamily == "Arial"
+                && readCalculation.Style.MarkFontSize is null && readCalculation.Style.MarkFontFamily is null,
+            $"Mixed run sizes beside fields: the paragraph keeps 8 pt ({readCalculation.Style.FontSize}, mark {readCalculation.Style.MarkFontSize}).");
+        Require(calculationRuns[0].FontSize == nine && calculationRuns[1].FontSize == nine && calculationRuns[2].FontSize is null,
+            "The 9 pt runs keep their size, the plain run leaves 8 pt to the paragraph.");
+
         var mixed = new Paragraph([new TextRun("big") { FontSize = Length.FromPoints(20) }]) { Style = ParagraphStyle.Default with { MarkFontSize = Length.FromPoints(30) } };
         var readMixed = (Paragraph)RoundTrip(new Section(mixed)).Sections[0].Blocks.Single();
         Require(readMixed.Style.MarkFontSize == Length.FromPoints(30) && readMixed.Style.FontSize is null

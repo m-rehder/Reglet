@@ -1,5 +1,14 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### DOCX reader
+
+- The paragraph font also comes back when the runs have sizes of their own beside fields: if the field runs carry the
+  mark's font or size (the writer puts the paragraph's formatting on every field run since 1.7.2), it becomes the
+  paragraph's again, so the fields keep it. Runs with exactly that value leave it to the paragraph, runs with their own
+  keep theirs.
+
 ## 1.7.5
 
 ### DOCX reader
