@@ -26,6 +26,7 @@ internal static class FieldAndTableFixChecks
             ParagraphMarkSetsTheHeight();
             AutoFitDistribution();
             AutoFitTable();
+            LastLineBelowAPictureStartsAtTheMargin();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -253,6 +254,32 @@ internal static class FieldAndTableFixChecks
         return Regex.Matches(PdfStreams.DecompressPages(buffer.ToArray())[0], @"Tf\s*(-?[\d.]+) (-?[\d.]+) Td\s*\(([^)]*)\) Tj")
             .GroupBy(match => match.Groups[3].Value)
             .ToDictionary(group => group.Key, group => double.Parse(group.First().Groups[1].Value, CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// The last line of a paragraph beside a square-wrapped picture starts at the margin once the picture has ended, also
+    /// when it holds a single word placed right after a wrap (it fell back to the indent of the paragraph's start).
+    /// </summary>
+    private static void LastLineBelowAPictureStartsAtTheMargin()
+    {
+        var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+        var picture = new ImageBlock(png, ImageMediaType.Png) { Width = Length.FromPoints(100), Height = Length.FromPoints(40), Wrap = ImageWrap.Square };
+        for (var words = 30; words <= 60; words++)
+        {
+            var text = string.Join(' ', Enumerable.Range(0, words).Select(index => "w" + index));
+            using var buffer = new MemoryStream();
+            new PdfDocumentWriter().WriteAsync(Document(new Section([picture, new Paragraph(new TextRun(text))])), buffer).GetAwaiter().GetResult();
+            var content = PdfStreams.DecompressPages(buffer.ToArray())[0];
+            // The picture's bottom edge from its placement matrix "100 0 0 40 x y cm".
+            var bottom = double.Parse(Regex.Match(content, @"100 0 0 40 [\d.]+ ([\d.]+) cm").Groups[1].Value, CultureInfo.InvariantCulture);
+            var lineStarts = Regex.Matches(content, @"Tf\s*(-?[\d.]+) (-?[\d.]+) Td\s*\((w\d+)\) Tj")
+                .GroupBy(match => match.Groups[2].Value)
+                .Select(group => (Y: double.Parse(group.Key, CultureInfo.InvariantCulture), X: double.Parse(group.First().Groups[1].Value, CultureInfo.InvariantCulture)));
+            foreach (var (y, x) in lineStarts.Where(line => line.Y + 12 < bottom))
+            {
+                Require(Math.Abs(x - 72) < 0.01, $"{words} words: the line at {y} below the picture (bottom {bottom}) starts at {x}, not at the margin.");
+            }
+        }
     }
 
     private static void Throws<T>(Action action) where T : Exception

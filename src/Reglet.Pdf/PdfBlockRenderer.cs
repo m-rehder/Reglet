@@ -3492,6 +3492,9 @@ internal sealed class PdfBlockRenderer
         }
 
         current.AddRange(pendingBookmarks);
+        // The last line may consist of a word placed right after a wrap, which never asked for its width: plan its
+        // margins too, or it falls back to those of the paragraph's start (beside a picture that has already ended).
+        widthForLine?.Invoke(lines);
         lines.Add(current);
 
         return lines;

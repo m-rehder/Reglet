@@ -1,5 +1,12 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- The last line of a paragraph beside a square-wrapped picture starts at the margin once the picture has ended. A last
+  line that held only one word after a wrap fell back to the indent of the paragraph's start.
+
 ## 1.7.4
 
 ### Tables
