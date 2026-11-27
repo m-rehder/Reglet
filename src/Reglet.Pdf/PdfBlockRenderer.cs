@@ -1974,12 +1974,12 @@ internal sealed class PdfBlockRenderer
             var row = result[index];
             var top = Math.Max(previousBottom, row.Cells.Where(cell => !cell.Continuation).Select(cell => BorderWidth(cell, row.Border, top: true)).DefaultIfEmpty(0).Max());
             previousBottom = row.Cells.Where(cell => !cell.Merged).Select(cell => BorderWidth(cell, row.Border, top: false)).DefaultIfEmpty(0).Max();
-            // Only the table's grid takes its room on top of a minimum height; Word draws a cell's own border inside the row.
+            // Only the table's grid takes its room in the row; Word draws a cell's own border inside the row, whatever its height rule.
             var grid = row.Cells.Where(cell => !cell.Continuation)
                 .Select(cell => GridWidth(cell.Area?.Border ?? row.Border ?? DefaultTableBorder)).DefaultIfEmpty(0).Max();
             if (row.ExactHeight == 0)
             {
-                result[index] = row with { BorderTop = top, GridTop = Math.Min(grid, top) };
+                result[index] = row with { BorderTop = Math.Min(grid, top) };
             }
         }
 
@@ -2042,7 +2042,7 @@ internal sealed class PdfBlockRenderer
 
                 if (content > height)
                 {
-                    rows[last] = rows[last] with { MinHeight = rows[last].NaturalHeight - rows[last].GridTop + content - height };
+                    rows[last] = rows[last] with { MinHeight = rows[last].NaturalHeight - rows[last].BorderTop + content - height };
                 }
 
                 rows[rowIndex] = rows[rowIndex] with { KeepHeight = Math.Max(rows[rowIndex].KeepHeight, total) };
@@ -2423,7 +2423,7 @@ internal sealed class PdfBlockRenderer
                 }
 
                 consumed += band;
-                sliceHeight = first ? Math.Max(consumed, row.MinHeight + row.GridTop) : consumed;
+                sliceHeight = first ? Math.Max(consumed, row.MinHeight + row.BorderTop) : consumed;
             }
 
             // A required height counts when the row is placed; only an empty page can cut it down. As in Word, a row
@@ -2865,8 +2865,7 @@ internal sealed class PdfBlockRenderer
         double PadY,
         ParagraphBorder? Border,
         double KeepHeight = 0,
-        double BorderTop = 0,
-        double GridTop = 0)
+        double BorderTop = 0)
     {
         public double HeightOf(CellLine line)
         {
@@ -2896,11 +2895,9 @@ internal sealed class PdfBlockRenderer
         /// <summary>The height of the row when it is not split.</summary>
         public double NaturalHeight => ExactHeight > 0
             ? ExactHeight
-            : Math.Max(
-                MinHeight + GridTop,
-                BorderTop + Math.Max(
-                    LineHeight + (2 * PadY),
-                    Cells.Where(cell => !cell.Spanned && cell.Lines.Count > 0).Select(cell => cell.Lines.Sum(HeightOf) + (2 * cell.PadY)).DefaultIfEmpty(0).Max()));
+            : BorderTop + Math.Max(
+                Math.Max(MinHeight, LineHeight + (2 * PadY)),
+                Cells.Where(cell => !cell.Spanned && cell.Lines.Count > 0).Select(cell => cell.Lines.Sum(HeightOf) + (2 * cell.PadY)).DefaultIfEmpty(0).Max());
     }
 
 

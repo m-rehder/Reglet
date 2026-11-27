@@ -38,6 +38,7 @@ internal static class FieldAndTableFixChecks
             SpaceBeforeStaysAfterAColumnBreak();
             TableAtTheEndGetsAClosingParagraph();
             OtherColumnsGiveEqualShares();
+            CellBorderStaysInsideAnAutomaticRow();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -292,6 +293,23 @@ internal static class FieldAndTableFixChecks
         Require(Math.Abs(own - 36.9) < 0.01, $"A cell's own border stays inside a minimum row ({own}).");
         var grid = RowPitch(Row, new ParagraphBorder(BorderStyle.Single, Length.FromPoints(0.5)));
         Require(Math.Abs(grid - 37.4) < 0.01, $"The table's grid above the row comes on top ({grid}).");
+    }
+
+    private static void CellBorderStaysInsideAnAutomaticRow()
+    {
+        // Word: no grid, rows without a height, cells with their own 0.625 pt bottom border, 1.2 pt of padding and an
+        // Arial 9 pt line: 12.72 pt per row, the 9 pt line plus the padding; the border is drawn inside the row.
+        var arial = DocumentDefaults.Default with { FontFamily = "Arial", FontSize = Length.FromPoints(9) };
+        TableRow Row(string text, ParagraphBorders? borders) => new([new TableCell(text)
+        {
+            PaddingVertical = Length.FromPoints(1.2),
+            PaddingHorizontal = Length.FromPoints(5.4),
+            Borders = borders,
+        }]);
+        var bordered = RowPitch(text => Row(text, new ParagraphBorders { Bottom = new ParagraphBorder(BorderStyle.Single, Length.FromPoints(0.625)) }),
+            ParagraphBorder.None, arial);
+        var plain = RowPitch(text => Row(text, null), ParagraphBorder.None, arial);
+        Require(Math.Abs(bordered - plain) < 0.01, $"A cell's own border stays inside an automatic row ({bordered} / {plain}).");
     }
 
     private static void RowLineHeightComesFromTheRuns()
