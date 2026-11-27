@@ -10,6 +10,14 @@
 - `FontFace.Load`/`LoadFile`, with or without a family name, copy out only the font they return; the others of the
   collection are only read in place. A broken font elsewhere in the collection no longer stops them.
 
+### PDF
+
+- The ideographic space U+3000 is East Asian text and takes the East Asian font, as in Word. Before, a space took the
+  font of the character before it, so `2020　による` drew U+3000 in Arial, which lacks it, and a document in strict mode
+  stopped with "the embedded font does not contain all required glyphs".
+- Any other space the font before it lacks (U+2009, U+202F, …) goes through the East Asian and the fallback fonts like
+  any other character.
+
 ## 1.7.13
 
 ### Fonts

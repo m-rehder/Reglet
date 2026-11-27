@@ -3567,10 +3567,11 @@ internal sealed class PdfBlockRenderer
     }
 
     /// <summary>
-    /// A run in parts by the font that draws them, as Word does: an East Asian character takes the run's East Asian font
-    /// (<see cref="TextRun.EastAsianFontFamily"/>, then <see cref="DocumentDefaults.EastAsianFontFamily"/>); a character
-    /// the chosen font does not have takes the first of the run's font, its East Asian font and the fallback fonts
-    /// (<see cref="FontCollection.FallbackFamilies"/>) that has it. A run that one font draws stays as it is.
+    /// A run in parts by the font that draws them, as Word does: an East Asian character, the ideographic space U+3000
+    /// included, takes the run's East Asian font (<see cref="TextRun.EastAsianFontFamily"/>, then
+    /// <see cref="DocumentDefaults.EastAsianFontFamily"/>); a character the chosen font does not have, a space too, takes
+    /// the first of the run's font, its East Asian font and the fallback fonts (<see cref="FontCollection.FallbackFamilies"/>)
+    /// that has it. A run that one font draws stays as it is.
     /// </summary>
     private IEnumerable<TextRun> SplitByFont(TextRun raw, double? headingSize, ParagraphStyle? paragraphStyle)
     {
@@ -3597,9 +3598,12 @@ internal sealed class PdfBlockRenderer
         {
             var text = rune.ToString();
             (string? Family, bool Own) choice;
-            if (Rune.IsControl(rune) || Rune.IsWhiteSpace(rune))
+            var previous = parts.Count > 0 ? (parts[^1].Family, parts[^1].Own) : (run.FontFamily, true);
+            // A space stays with the font before it, if that font has it; an East Asian space (U+3000) is East Asian
+            // text, as in Word, and any other space the font lacks is looked for like any other character.
+            if (Rune.IsControl(rune) || (Rune.IsWhiteSpace(rune) && !IsEastAsian(rune.Value) && Font(previous.Item1).CanEncode(text)))
             {
-                choice = parts.Count > 0 ? (parts[^1].Family, parts[^1].Own) : (run.FontFamily, true);
+                choice = previous;
             }
             else
             {

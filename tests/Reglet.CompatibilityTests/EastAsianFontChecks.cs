@@ -17,6 +17,7 @@ internal static class EastAsianFontChecks
         {
             PdfTakesTheEastAsianFont();
             PdfTakesAFallbackFont();
+            SpacesTakeAFontThatHasThem();
             DocxKeepsTheEastAsianFont();
             OdtKeepsTheEastAsianFont();
             CollectionFontsLoadByFamily();
@@ -33,7 +34,7 @@ internal static class EastAsianFontChecks
 
     private static FontFace Latin() => FontFace.Load(PdfAChecks.Font("LatinSans", ('H', 3), ('a', 4), ('e', 4), ('l', 5), ('o', 6)));
 
-    private static FontFace Kanji() => FontFace.Load(PdfAChecks.Font("KanjiSans", ('日', 1), ('本', 2), ('o', 6)));
+    private static FontFace Kanji() => FontFace.Load(PdfAChecks.Font("KanjiSans", ('日', 1), ('本', 2), ('o', 6), ('\u3000', 3), ('\u2009', 3)));
 
     /// <summary>The PDF's content and the font resources its text shows use.</summary>
     private static (List<string> Fonts, WriteResult Result) Pdf(PortableDocument document, FontCollection fonts)
@@ -67,6 +68,18 @@ internal static class EastAsianFontChecks
         Require(fonts.FallbackFamilies.Count == 1, "The fallback family is listed.");
         var (used, _) = Pdf(Document(new TextRun("Hello" + Japanese)), fonts);
         Require(used.Count == 2, $"The fallback font draws what the run's font lacks ({string.Join(", ", used)}).");
+    }
+
+    private static void SpacesTakeAFontThatHasThem()
+    {
+        // Word draws the ideographic space U+3000 with the East Asian font; the Latin font here has no U+3000 either.
+        var fonts = FontCollection.Empty.Add(Latin()).Add(Kanji());
+        var (ideographic, _) = Pdf(Document(new TextRun("Hello\u3000" + Japanese) { EastAsianFontFamily = "KanjiSans", Bold = true }), fonts);
+        Require(ideographic.Count == 2, "U+3000 between Latin and Japanese text takes the East Asian font, not .notdef.");
+        // A space the run's font lacks goes through the fallback fonts like any other character.
+        var (thin, _) = Pdf(Document(new TextRun("Hel\u2009lo")), FontCollection.Empty.Add(Latin()).AddFallback(Kanji()));
+        Require(thin.Count == 2, "U+2009 the run's font lacks takes the fallback font.");
+        Throws(() => Pdf(Document(new TextRun("Hel\u2009lo")), FontCollection.Empty.Add(Latin())), "Without a font that has it, the space is still reported.");
     }
 
     private static void DocxKeepsTheEastAsianFont()
