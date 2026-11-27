@@ -62,6 +62,18 @@ internal sealed class TrueTypeFont
     /// <summary>Embedding rights per OS/2 <c>fsType</c> (0 if the table is missing: installable).</summary>
     public ushort EmbeddingFlags { get; }
 
+    /// <summary>OS/2 <c>usWinAscent</c> and <c>usWinDescent</c> (both positive), or 0 when the table lacks them.</summary>
+    public int WinAscent { get; }
+
+    /// <inheritdoc cref="WinAscent"/>
+    public int WinDescent { get; }
+
+    /// <summary>
+    /// Whether the font is for East Asian text: its OS/2 <c>ulCodePageRange1</c> names a Japanese, Chinese or Korean
+    /// code page (bits 17 to 21).
+    /// </summary>
+    public bool IsEastAsian { get; }
+
     private TrueTypeFont(byte[] data, Dictionary<string, (int Offset, int Length)> tables)
     {
         _data = data;
@@ -115,6 +127,17 @@ internal sealed class TrueTypeFont
             WeightClass = ReadU16(data, os2.Offset + 4);
             EmbeddingFlags = ReadU16(data, os2.Offset + 8);
             fsSelection = ReadU16(data, os2.Offset + 62);
+            if (os2.Length >= 78)
+            {
+                WinAscent = ReadU16(data, os2.Offset + 74);
+                WinDescent = ReadU16(data, os2.Offset + 76);
+            }
+
+            // Version 1 adds the code page ranges.
+            if (os2.Length >= 86 && ReadU16(data, os2.Offset) >= 1)
+            {
+                IsEastAsian = (BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(os2.Offset + 78, 4)) & 0x003E0000) != 0;
+            }
         }
 
         IsBold = (fsSelection & 0x20) != 0 || (macStyle & 0x1) != 0 || WeightClass >= 600;

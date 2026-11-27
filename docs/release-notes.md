@@ -1,5 +1,15 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- A line set in an East Asian font is as high as in Word: 1.3 times the font's Windows ascent and descent (OS/2
+  `usWinAscent` + `usWinDescent`), the extra room half above and half below the text. A font counts as East Asian when
+  its OS/2 table names a Japanese, Chinese or Korean code page. Measured in Word for Windows with 13 fonts, among them
+  Microsoft YaHei (1.716 em), Yu Gothic (1.672 em), SimSun (1.30 em) and Meiryo (1.95 em). Before, Reglet took the
+  hhea line (YaHei 1.32 em, Yu Gothic 1.60 em), so Chinese documents had fewer pages than in Word and Japanese more.
+
 ## 1.7.15
 
 ### PDF

@@ -18,6 +18,7 @@ internal static class EastAsianFontChecks
             PdfTakesTheEastAsianFont();
             PdfTakesAFallbackFont();
             SpacesTakeAFontThatHasThem();
+            EastAsianLinesAreAsHighAsInWord();
             DocxKeepsTheEastAsianFont();
             OdtKeepsTheEastAsianFont();
             CollectionFontsLoadByFamily();
@@ -80,6 +81,31 @@ internal static class EastAsianFontChecks
         var (thin, _) = Pdf(Document(new TextRun("Hel\u2009lo")), FontCollection.Empty.Add(Latin()).AddFallback(Kanji()));
         Require(thin.Count == 2, "U+2009 the run's font lacks takes the fallback font.");
         Throws(() => Pdf(Document(new TextRun("Hel\u2009lo")), FontCollection.Empty.Add(Latin())), "Without a font that has it, the space is still reported.");
+    }
+
+    private static void EastAsianLinesAreAsHighAsInWord()
+    {
+        // Word: a line set in an East Asian font (a CJK code page in OS/2) is 1.3 times the font's Windows ascent and
+        // descent high (here 1.3 × 1200/1000 × 10 pt = 15.6 pt); without the code page the font keeps its hhea line.
+        double Pitch(uint codePages)
+        {
+            var face = FontFace.Load(PdfAChecks.Font("AsiaSans", codePages, ('日', 1), ('本', 2)));
+            var blocks = Enumerable.Range(0, 2).Select(_ => (Block)new Paragraph(new TextRun(Japanese) { EastAsianFontFamily = "AsiaSans" })
+            {
+                Style = ParagraphStyle.Default with { SpaceBefore = Length.Zero, SpaceAfter = Length.Zero },
+            }).ToList();
+            var document = new PortableDocument(new DocumentMetadata(), new Section(blocks)) { Defaults = DocumentDefaults.Default with { FontFamily = "LatinSans", FontSize = Length.FromPoints(10) } };
+            using var buffer = new MemoryStream();
+            new PdfDocumentWriter().WriteAsync(document, buffer, new PdfWriteOptions { FontCollection = FontCollection.Empty.Add(Latin()).Add(face) }).GetAwaiter().GetResult();
+            var ys = Regex.Matches(PdfStreams.DecompressPages(buffer.ToArray())[0], @"(-?[\d.]+) (-?[\d.]+) Td")
+                .Select(match => double.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+            return ys[0] - ys[1];
+        }
+
+        var eastAsian = Pitch(1u << 18);
+        Require(Math.Abs(eastAsian - 15.6) < 0.01, $"An East Asian font's line is 1.3 times its Windows height ({eastAsian}).");
+        var other = Pitch(1u);
+        Require(Math.Abs(other - 10) < 0.01, $"Without a CJK code page the font keeps its hhea line ({other}).");
     }
 
     private static void DocxKeepsTheEastAsianFont()

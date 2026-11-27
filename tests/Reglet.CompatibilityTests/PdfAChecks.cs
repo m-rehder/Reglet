@@ -348,7 +348,10 @@ internal static class PdfAChecks
     internal static byte[] Font() => Font("PdfATest", ('H', 3), ('a', 4), ('e', 4), ('l', 5), ('o', 6));
 
     /// <summary>A small TrueType font with its own name and character map (glyph ids 1 to 6).</summary>
-    internal static byte[] Font(string name, params (int Code, ushort Glyph)[] characters)
+    internal static byte[] Font(string name, params (int Code, ushort Glyph)[] characters) => Font(name, null, characters);
+
+    /// <summary>The same with an OS/2 table (version 1: Windows ascent 900, descent 300 and the given code pages).</summary>
+    internal static byte[] Font(string name, uint? codePages, params (int Code, ushort Glyph)[] characters)
     {
         const int count = 7;
         var glyf = new List<byte>();
@@ -386,7 +389,23 @@ internal static class PdfAChecks
             ("loca", loca),
         };
 
+        if (codePages is { } pages)
+        {
+            tables.Add(("OS/2", Os2(pages)));
+        }
+
         return SyntheticTrueTypeFont.Build(tables.ToArray());
+    }
+
+    private static byte[] Os2(uint codePages)
+    {
+        var os2 = new byte[86];
+        BinaryPrimitives.WriteUInt16BigEndian(os2.AsSpan(0, 2), 1);
+        BinaryPrimitives.WriteUInt16BigEndian(os2.AsSpan(4, 2), 400);
+        BinaryPrimitives.WriteUInt16BigEndian(os2.AsSpan(74, 2), 900);
+        BinaryPrimitives.WriteUInt16BigEndian(os2.AsSpan(76, 2), 300);
+        BinaryPrimitives.WriteUInt32BigEndian(os2.AsSpan(78, 4), codePages);
+        return os2;
     }
 
     private static void AssertContains(string text, string expected)
