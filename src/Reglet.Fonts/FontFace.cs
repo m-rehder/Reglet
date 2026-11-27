@@ -78,7 +78,7 @@ public sealed class FontFace
     /// <summary>Loads and validates a font from bytes; of a collection (<c>.ttc</c>) its first font. The bytes are copied.</summary>
     /// <exception cref="FontException">The file is corrupted.</exception>
     /// <exception cref="UnsupportedFeatureException">CFF or cmap format is not supported.</exception>
-    public static FontFace Load(ReadOnlySpan<byte> data) => Of(TrueTypeFont.CollectionMembers(data.ToArray())[0]);
+    public static FontFace Load(ReadOnlySpan<byte> data) => First(data.ToArray());
 
     /// <summary>
     /// Loads the font of a family from bytes: of a collection (<c>.ttc</c>) the font whose <see cref="FamilyName"/> is
@@ -86,7 +86,7 @@ public sealed class FontFace
     /// </summary>
     /// <exception cref="FontException">The file is corrupted, or no font of it has the family; the message names those it has.</exception>
     /// <exception cref="UnsupportedFeatureException">CFF or cmap format is not supported.</exception>
-    public static FontFace Load(ReadOnlySpan<byte> data, string familyName) => Pick(LoadCollection(data), familyName, "the data");
+    public static FontFace Load(ReadOnlySpan<byte> data, string familyName) => Pick(data.ToArray(), familyName, "the data");
 
     /// <summary>All fonts of a collection (<c>.ttc</c>) in their order there; a single font file gives one.</summary>
     /// <exception cref="FontException">The file is corrupted.</exception>
@@ -97,12 +97,12 @@ public sealed class FontFace
     /// <summary>Loads and validates a font from a file (<c>.ttf</c>; of a <c>.ttc</c> its first font).</summary>
     /// <exception cref="FontException">The file is corrupted or unreadable.</exception>
     /// <exception cref="UnsupportedFeatureException">CFF or cmap format is not supported.</exception>
-    public static FontFace LoadFile(string path) => Of(TrueTypeFont.CollectionMembers(ReadFile(path))[0]);
+    public static FontFace LoadFile(string path) => First(ReadFile(path));
 
     /// <summary>Loads the font of a family from a file, for example <c>LoadFile(@"C:\Windows\Fonts\msyh.ttc", "Microsoft YaHei")</c>.</summary>
     /// <exception cref="FontException">The file is corrupted or unreadable, or no font of it has the family.</exception>
     /// <exception cref="UnsupportedFeatureException">CFF or cmap format is not supported.</exception>
-    public static FontFace LoadFile(string path, string familyName) => Pick(LoadCollectionFile(path), familyName, Path.GetFileName(path));
+    public static FontFace LoadFile(string path, string familyName) => Pick(ReadFile(path), familyName, Path.GetFileName(path));
 
     /// <summary>All fonts of a collection file (<c>.ttc</c>); a single font file gives one.</summary>
     /// <exception cref="FontException">The file is corrupted or unreadable.</exception>
@@ -112,11 +112,43 @@ public sealed class FontFace
 
     private static FontFace Of(byte[] data) => new(data, TrueTypeFont.Load(data));
 
-    private static FontFace Pick(IReadOnlyList<FontFace> faces, string familyName, string source)
+    /// <summary>The font of a file, of a collection its first one (only that one is copied out).</summary>
+    private static FontFace First(byte[] data)
+        => TrueTypeFont.CollectionOffsets(data) is { } offsets ? Of(TrueTypeFont.ExtractMember(data, offsets[0])) : Of(data);
+
+    /// <summary>
+    /// The font of a family: the fonts of a collection are read where they are, and only the chosen one is copied out.
+    /// A font that cannot be read is no candidate.
+    /// </summary>
+    private static FontFace Pick(byte[] data, string familyName, string source)
     {
         ArgumentException.ThrowIfNullOrEmpty(familyName);
-        return faces.FirstOrDefault(face => string.Equals(face.FamilyName, familyName, StringComparison.OrdinalIgnoreCase))
-            ?? throw new FontException($"{source} has no font of the family '{familyName}' (it has: {string.Join(", ", faces.Select(face => face.FamilyName).Distinct())}).");
+        var names = new List<string>();
+        var offsets = TrueTypeFont.CollectionOffsets(data);
+        foreach (var start in offsets ?? [0])
+        {
+            string family;
+            try
+            {
+                family = TrueTypeFont.Load(data, start).FamilyName;
+            }
+            catch (Exception exception) when (exception is FontException or UnsupportedFeatureException)
+            {
+                continue;
+            }
+
+            if (string.Equals(family, familyName, StringComparison.OrdinalIgnoreCase))
+            {
+                return offsets is null ? Of(data) : Of(TrueTypeFont.ExtractMember(data, start));
+            }
+
+            if (!names.Contains(family, StringComparer.Ordinal))
+            {
+                names.Add(family);
+            }
+        }
+
+        throw new FontException($"{source} has no font of the family '{familyName}' (it has: {string.Join(", ", names)}).");
     }
 
     private static byte[] ReadFile(string path)

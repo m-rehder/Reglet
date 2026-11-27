@@ -63,8 +63,6 @@ public sealed class FontCollection
             throw new FontException("The font directory could not be read.", exception);
         }
 
-        // sorted so that the result does not depend on the file system order.
-        Array.Sort(files, StringComparer.Ordinal);
         var collection = Empty;
         foreach (var file in files)
         {
@@ -103,7 +101,6 @@ public sealed class FontCollection
                 continue;
             }
 
-            Array.Sort(files, StringComparer.Ordinal);
             foreach (var file in files)
             {
                 IReadOnlyList<byte[]> members;

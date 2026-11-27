@@ -194,16 +194,20 @@ internal sealed class TrueTypeFont
         return ReadU16(_data, _hmtxOffset + index * 4);
     }
 
-    public static TrueTypeFont Load(byte[] data)
+    /// <summary>
+    /// Parses the font whose offset table starts at <paramref name="start"/>: 0 for a font file, the offset of a font
+    /// in a collection (its table offsets count from the start of the collection) to read it there without a copy.
+    /// </summary>
+    public static TrueTypeFont Load(byte[] data, int start = 0)
     {
         ArgumentNullException.ThrowIfNull(data);
 
-        if (data.Length < 12)
+        if (start < 0 || data.Length - 12L < start)
         {
             throw new FontException("File is too short for an sfnt structure.");
         }
 
-        var version = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(0, 4));
+        var version = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(start, 4));
         switch (version)
         {
             case SfntCff:
@@ -218,8 +222,8 @@ internal sealed class TrueTypeFont
                 throw new FontException($"Unknown sfnt version 0x{version:X8}.");
         }
 
-        var numTables = BinaryPrimitives.ReadUInt16BigEndian(data.AsSpan(4, 2));
-        var directoryEnd = 12 + numTables * 16;
+        var numTables = BinaryPrimitives.ReadUInt16BigEndian(data.AsSpan(start + 4, 2));
+        var directoryEnd = (long)start + 12 + (numTables * 16);
         if (directoryEnd > data.Length)
         {
             throw new FontException("Table directory extends beyond the end of the file.");
@@ -228,7 +232,7 @@ internal sealed class TrueTypeFont
         var tables = new Dictionary<string, (int Offset, int Length)>(StringComparer.Ordinal);
         for (var i = 0; i < numTables; i++)
         {
-            var record = 12 + i * 16;
+            var record = start + 12 + (i * 16);
             var tag = Encoding.ASCII.GetString(data, record, 4);
             var offset = (int)BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(record + 8, 4));
             var length = (int)BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(record + 12, 4));
@@ -251,43 +255,55 @@ internal sealed class TrueTypeFont
         }
     }
 
+    /// <summary>The fonts a collection holds at most; real ones hold a few dozen.</summary>
+    internal const int MaxCollectionFonts = 1024;
+
     /// <summary>
-    /// The fonts of a file as standalone sfnt files: a TrueType collection (<c>ttcf</c>) gives one per font, each with
-    /// only its own tables, so that only the chosen font is embedded; any other file is its only font.
+    /// The start of each font of a TrueType collection (<c>ttcf</c>), or <see langword="null"/> for a file that is not
+    /// one.
     /// </summary>
-    /// <exception cref="FontException">The collection header or a table lies outside the file.</exception>
-    public static IReadOnlyList<byte[]> CollectionMembers(byte[] data)
+    /// <exception cref="FontException">The collection header lies outside the file or lists too many fonts.</exception>
+    public static IReadOnlyList<int>? CollectionOffsets(byte[] data)
     {
         ArgumentNullException.ThrowIfNull(data);
         if (data.Length < 12 || BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(0, 4)) != SfntCollection)
         {
-            return [data];
+            return null;
         }
 
         var count = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(8, 4));
-        if (count == 0 || 12L + (count * 4L) > data.Length)
+        if (count == 0 || count > MaxCollectionFonts || 12L + (count * 4L) > data.Length)
         {
-            throw new FontException("The collection header lists more fonts than the file holds.");
+            throw new FontException($"The collection header lists {count} fonts; a collection holds 1 to {MaxCollectionFonts} within its file.");
         }
 
-        var members = new List<byte[]>((int)count);
+        var offsets = new int[count];
         for (var index = 0; index < count; index++)
         {
-            members.Add(ExtractMember(data, BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(12 + (index * 4), 4))));
+            var start = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(12 + (index * 4), 4));
+            offsets[index] = start <= data.Length - 12L
+                ? (int)start
+                : throw new FontException("A font of the collection lies outside the file.");
         }
 
-        return members;
+        return offsets;
     }
 
-    /// <summary>Copies one font of a collection, whose table offsets count from the start of the collection, into a file of its own.</summary>
-    private static byte[] ExtractMember(byte[] data, uint start)
-    {
-        if (start > data.Length - 12L)
-        {
-            throw new FontException("A font of the collection lies outside the file.");
-        }
+    /// <summary>
+    /// The fonts of a file as standalone sfnt files: a TrueType collection gives one per font, each with only its own
+    /// tables, so that only the chosen font is embedded; any other file is its only font.
+    /// </summary>
+    /// <exception cref="FontException">The collection header or a table lies outside the file.</exception>
+    public static IReadOnlyList<byte[]> CollectionMembers(byte[] data)
+        => CollectionOffsets(data) is { } offsets ? offsets.Select(start => ExtractMember(data, start)).ToList() : [data];
 
-        var offset = (int)start;
+    /// <summary>
+    /// Copies one font of a collection, whose table offsets count from the start of the collection, into a file of its
+    /// own. Its tables together cannot be larger than the file: a font whose records all point at one large table
+    /// would otherwise take that many copies of it.
+    /// </summary>
+    internal static byte[] ExtractMember(byte[] data, int offset)
+    {
         var numTables = BinaryPrimitives.ReadUInt16BigEndian(data.AsSpan(offset + 4, 2));
         var directory = 12 + (numTables * 16);
         if (offset + (long)directory > data.Length)
@@ -309,6 +325,10 @@ internal sealed class TrueTypeFont
 
             tables.Add((record, (int)tableOffset, (int)length));
             size += (length + 3) & ~3L;
+            if (size > data.Length + directory)
+            {
+                throw new FontException("The tables of a font of the collection are larger than the file.");
+            }
         }
 
         var result = new byte[size];

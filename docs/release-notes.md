@@ -1,5 +1,15 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### Fonts
+
+- A TrueType collection whose fonts claim more table data than the file holds, or more than 1 024 fonts, is rejected
+  with a `FontException` when it is loaded. Before, a crafted `.ttc` whose table records all pointed at one large
+  region made Reglet try to copy it thousands of times and run out of memory, also from `FontCollection.FromSystem`.
+- `FontFace.Load`/`LoadFile`, with or without a family name, copy out only the font they return; the others of the
+  collection are only read in place. A broken font elsewhere in the collection no longer stops them.
+
 ## 1.7.13
 
 ### Fonts

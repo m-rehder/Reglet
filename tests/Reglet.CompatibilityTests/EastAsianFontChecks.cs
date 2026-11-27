@@ -20,6 +20,7 @@ internal static class EastAsianFontChecks
             DocxKeepsTheEastAsianFont();
             OdtKeepsTheEastAsianFont();
             CollectionFontsLoadByFamily();
+            HostileCollectionsAreRejected();
             Console.WriteLine("East Asian fonts: all checks passed.");
             return 0;
         }
@@ -170,6 +171,55 @@ internal static class EastAsianFontChecks
         {
             directory.Delete(recursive: true);
         }
+    }
+
+    private static void HostileCollectionsAreRejected()
+    {
+        var latin = PdfAChecks.Font("LatinSans", ('H', 3), ('e', 4), ('l', 5), ('o', 6));
+
+        // A font whose 4 000 table records all point at one 1 MB region would take 4 GB as a copy of its own.
+        var big = new byte[12 + (4 * 1) + 12 + (4000 * 16) + (1 << 20)];
+        "ttcf"u8.CopyTo(big);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(big.AsSpan(4), 0x00010000);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(big.AsSpan(8), 1);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(big.AsSpan(12), 16);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(big.AsSpan(16), 0x00010000);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt16BigEndian(big.AsSpan(20), 4000);
+        var region = 16 + 12 + (4000 * 16);
+        for (var table = 0; table < 4000; table++)
+        {
+            var record = 16 + 12 + (table * 16);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(big.AsSpan(record), 0x41414141 + (uint)table);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(big.AsSpan(record + 8), (uint)region);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(big.AsSpan(record + 12), 1 << 20);
+        }
+
+        ThrowsFont(() => FontFace.Load(big), "Tables larger than the file are rejected, not copied.");
+        ThrowsFont(() => FontFace.LoadCollection(big), "Also when the whole collection is loaded.");
+
+        var many = Collection(latin);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(many.AsSpan(8), 100_000);
+        ThrowsFont(() => FontFace.LoadCollection(many), "A header with more fonts than a collection holds is rejected.");
+
+        // Only the chosen font is read: a broken font later in the collection does not stop the first or a named one.
+        var broken = Collection(latin, latin);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(broken.AsSpan(16), (uint)broken.Length - 12);
+        Require(FontFace.Load(broken).FamilyName == "LatinSans" && FontFace.Load(broken, "LatinSans").FamilyName == "LatinSans",
+            "Loading one font copies out only that one.");
+    }
+
+    private static void ThrowsFont(Action action, string message)
+    {
+        try
+        {
+            action();
+        }
+        catch (FontException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(message);
     }
 
     private static void Throws(Action action, string message)
