@@ -21,6 +21,9 @@
   the ascender of the text, so small text stood high in its line, up to 11 pt above Word's.
 - Each page has its own resource dictionary that names only the images and forms its content draws. Before, every page
   named every image of the document, so a page copied or extracted on its own carried all of them.
+- A table row at the foot of a page no longer leaves the first line of a paragraph with more lines alone there; that
+  line moves on with the rest, and the row moves whole when nothing else of it would stay, as Word does also without
+  widow control (measured in Word with rows of line breaks, wrapped text and single-line paragraphs).
 
 ## 1.7.10
 

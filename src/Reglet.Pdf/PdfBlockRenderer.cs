@@ -2113,6 +2113,7 @@ internal sealed class PdfBlockRenderer
                             tabStops: style.TabStops) with
                         {
                             Heading = first && block is Heading h2 && title.Length > 0 ? ((int)h2.Level, title, headingIndex) : null,
+                            OpensLongParagraph = first && !(index == atoms.Count && line == wrapped.Count - 1),
                             Before = first ? spaceBefore : 0,
                             After = index == atoms.Count && line == wrapped.Count - 1 ? spaceAfter : 0,
                             Spacing = style.LineSpacing,
@@ -2391,6 +2392,14 @@ internal sealed class PdfBlockRenderer
                     {
                         height += row.HeightOf(cell.Lines[target]);
                         target++;
+                    }
+
+                    // As Word does, also without widow control: the first line of a paragraph with more lines does not
+                    // stay alone at the foot of the page; it moves on with the rest (and the row with it, if it is all).
+                    if (target < cell.Lines.Count && target > offsets[index] && cell.Lines[target - 1].OpensLongParagraph)
+                    {
+                        target--;
+                        height -= row.HeightOf(cell.Lines[target]);
                     }
 
                     if (target == offsets[index] && target < cell.Lines.Count)
@@ -2836,6 +2845,9 @@ internal sealed class PdfBlockRenderer
         IReadOnlyList<TabStop>? TabStops = null)
     {
         public (int Level, string Title, int? Index)? Heading { get; init; }
+
+        /// <summary>The first line of a paragraph that has more lines (after a wrap or a line break).</summary>
+        public bool OpensLongParagraph { get; init; }
 
         public IReadOnlyList<(int Number, string Text)>? Notes { get; init; }
 

@@ -16,6 +16,7 @@ internal static class MigraDocParity2Checks
             RowKeptOnOnePage();
             LineBreaksAfterHyphen();
             TrailingSpacesHangOverTheEdge();
+            FirstLineOfAParagraphMovesWithTheRow();
             FixedColumnWidthsOverflow();
             ColumnWidthsInPercent();
             HeaderDistanceAndBodyStart();
@@ -81,6 +82,24 @@ internal static class MigraDocParity2Checks
             var rows = reader.Read(buffer).Document.Sections[0].Blocks.OfType<TableBlock>().Single().Rows;
             Require(rows[^1].KeepTogether && !rows[1].KeepTogether, name + ": KeepTogether survives on its row only.");
         }
+    }
+
+    private static void FirstLineOfAParagraphMovesWithTheRow()
+    {
+        // Word (no widow control): with room for one line of the row at the foot of the page, a row whose cells open
+        // with a paragraph of several lines moves whole to the next page; one of single-line paragraphs is split.
+        int LinesOnFirstPage(Func<string, TableCell> cell)
+        {
+            var style = ParagraphStyle.Default with { FontFamily = "Arial", FontSize = Length.FromPoints(10) };
+            var spacer = new Paragraph(new TextRun("top")) { Style = style with { LineSpacing = LineSpacing.Exactly(Length.FromPoints(PageSize.A4.Height.Points - 144 - 24)) } };
+            var document = Document(new Section([spacer, new TableBlock([new TableRow([cell("a"), cell("b")])])]) { Margins = new PageMargins(Length.FromPoints(72)) });
+            return Pages(document)[0].Count(piece => piece.Text.StartsWith('a'));
+        }
+
+        var breaks = LinesOnFirstPage(id => new TableCell([new Paragraph(new TextRun(string.Join("\n", Enumerable.Range(1, 5).Select(line => $"{id}{line}"))))]));
+        Require(breaks == 0, $"A paragraph's first line does not stay alone; the row moves ({breaks}).");
+        var single = LinesOnFirstPage(id => new TableCell(Enumerable.Range(1, 5).Select(line => (Block)new Paragraph(new TextRun($"{id}{line}"))).ToList()));
+        Require(single == 1, $"A row of single-line paragraphs is split after the first ({single}).");
     }
 
     private static void TrailingSpacesHangOverTheEdge()
