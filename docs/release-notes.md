@@ -1,5 +1,21 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### Fonts
+
+- TrueType collections (`.ttc`) load: `FontFace.LoadFile(path, familyName)` and `FontFace.Load(data, familyName)`
+  take the font of a family (case-insensitive), so `LoadFile(@"C:\Windows\Fonts\msyh.ttc", "Microsoft YaHei")` and
+  `"Microsoft YaHei UI"` are told apart; `FontFace.LoadCollection`/`LoadCollectionFile` list all fonts of a
+  collection; `Load`/`LoadFile` without a family take its first font. Only the chosen font is kept and embedded (as a
+  subset), not the whole collection. Windows ships its CJK fonts (Microsoft YaHei, Yu Gothic, MS Gothic, Microsoft
+  JhengHei, SimSun) only as collections. Before, any `.ttc` failed with "TrueType collections (ttcf) are not
+  supported".
+- `FontCollection.FromDirectory` and `FromSystem` also read `.ttc` files, every font of them. `FromSystem` skips a
+  single unusable font of a collection and keeps the others; `FromDirectory` still fails on the first unusable file.
+- An unknown family names the families the file has. A font that cannot be used fails when it is loaded, not later
+  when the PDF is written.
+
 ## 1.7.12
 
 ### Widow and orphan control

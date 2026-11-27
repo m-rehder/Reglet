@@ -1,10 +1,9 @@
 namespace Reglet;
 
 /// <summary>
-/// a validated, caller-provided TrueType font file (one style, e.g.
-/// "Noto Sans Bold"). Supported are glyf-based TrueType fonts; CFF-based
-/// OpenType fonts (OTTO) and collections (TTC) are rejected. The instance is
-/// immutable and can be used in parallel.
+/// a validated, caller-provided TrueType font (one style, e.g. "Noto Sans Bold"). Supported are glyf-based TrueType
+/// fonts, also from a collection (<c>.ttc</c>), of which only the chosen font is kept and embedded; CFF-based OpenType
+/// fonts (OTTO) are rejected. The instance is immutable and can be used in parallel.
 /// </summary>
 public sealed class FontFace
 {
@@ -76,33 +75,61 @@ public sealed class FontFace
     /// <summary>The unchanged bytes of the font file.</summary>
     internal byte[] Data => _data;
 
-    /// <summary>Loads and validates a font from bytes. The bytes are copied.</summary>
+    /// <summary>Loads and validates a font from bytes; of a collection (<c>.ttc</c>) its first font. The bytes are copied.</summary>
     /// <exception cref="FontException">The file is corrupted.</exception>
-    /// <exception cref="UnsupportedFeatureException">CFF, collection or cmap format is not supported.</exception>
-    public static FontFace Load(ReadOnlySpan<byte> data)
+    /// <exception cref="UnsupportedFeatureException">CFF or cmap format is not supported.</exception>
+    public static FontFace Load(ReadOnlySpan<byte> data) => Of(TrueTypeFont.CollectionMembers(data.ToArray())[0]);
+
+    /// <summary>
+    /// Loads the font of a family from bytes: of a collection (<c>.ttc</c>) the font whose <see cref="FamilyName"/> is
+    /// <paramref name="familyName"/> (case-insensitive), such as "Microsoft YaHei" beside "Microsoft YaHei UI".
+    /// </summary>
+    /// <exception cref="FontException">The file is corrupted, or no font of it has the family; the message names those it has.</exception>
+    /// <exception cref="UnsupportedFeatureException">CFF or cmap format is not supported.</exception>
+    public static FontFace Load(ReadOnlySpan<byte> data, string familyName) => Pick(LoadCollection(data), familyName, "the data");
+
+    /// <summary>All fonts of a collection (<c>.ttc</c>) in their order there; a single font file gives one.</summary>
+    /// <exception cref="FontException">The file is corrupted.</exception>
+    /// <exception cref="UnsupportedFeatureException">CFF or cmap format of one of the fonts is not supported.</exception>
+    public static IReadOnlyList<FontFace> LoadCollection(ReadOnlySpan<byte> data)
+        => TrueTypeFont.CollectionMembers(data.ToArray()).Select(Of).ToList();
+
+    /// <summary>Loads and validates a font from a file (<c>.ttf</c>; of a <c>.ttc</c> its first font).</summary>
+    /// <exception cref="FontException">The file is corrupted or unreadable.</exception>
+    /// <exception cref="UnsupportedFeatureException">CFF or cmap format is not supported.</exception>
+    public static FontFace LoadFile(string path) => Of(TrueTypeFont.CollectionMembers(ReadFile(path))[0]);
+
+    /// <summary>Loads the font of a family from a file, for example <c>LoadFile(@"C:\Windows\Fonts\msyh.ttc", "Microsoft YaHei")</c>.</summary>
+    /// <exception cref="FontException">The file is corrupted or unreadable, or no font of it has the family.</exception>
+    /// <exception cref="UnsupportedFeatureException">CFF or cmap format is not supported.</exception>
+    public static FontFace LoadFile(string path, string familyName) => Pick(LoadCollectionFile(path), familyName, Path.GetFileName(path));
+
+    /// <summary>All fonts of a collection file (<c>.ttc</c>); a single font file gives one.</summary>
+    /// <exception cref="FontException">The file is corrupted or unreadable.</exception>
+    /// <exception cref="UnsupportedFeatureException">CFF or cmap format of one of the fonts is not supported.</exception>
+    public static IReadOnlyList<FontFace> LoadCollectionFile(string path)
+        => TrueTypeFont.CollectionMembers(ReadFile(path)).Select(Of).ToList();
+
+    private static FontFace Of(byte[] data) => new(data, TrueTypeFont.Load(data));
+
+    private static FontFace Pick(IReadOnlyList<FontFace> faces, string familyName, string source)
     {
-        var copy = data.ToArray();
-        return new FontFace(copy, TrueTypeFont.Load(copy));
+        ArgumentException.ThrowIfNullOrEmpty(familyName);
+        return faces.FirstOrDefault(face => string.Equals(face.FamilyName, familyName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new FontException($"{source} has no font of the family '{familyName}' (it has: {string.Join(", ", faces.Select(face => face.FamilyName).Distinct())}).");
     }
 
-    /// <summary>Loads and validates a font from a file (<c>.ttf</c>).</summary>
-    /// <exception cref="FontException">The file is corrupted or unreadable.</exception>
-    /// <exception cref="UnsupportedFeatureException">CFF, collection or cmap format is not supported.</exception>
-    public static FontFace LoadFile(string path)
+    private static byte[] ReadFile(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-
-        byte[] data;
         try
         {
-            data = File.ReadAllBytes(path);
+            return File.ReadAllBytes(path);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             throw new FontException($"The font file '{Path.GetFileName(path)}' could not be read.", exception);
         }
-
-        return new FontFace(data, TrueTypeFont.Load(data));
     }
 
     /// <summary>Whether the font contains a glyph for the code point.</summary>

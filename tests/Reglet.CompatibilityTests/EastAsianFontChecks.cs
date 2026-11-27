@@ -19,6 +19,7 @@ internal static class EastAsianFontChecks
             PdfTakesAFallbackFont();
             DocxKeepsTheEastAsianFont();
             OdtKeepsTheEastAsianFont();
+            CollectionFontsLoadByFamily();
             Console.WriteLine("East Asian fonts: all checks passed.");
             return 0;
         }
@@ -95,6 +96,80 @@ internal static class EastAsianFontChecks
         var run = (TextRun)((Paragraph)read.Sections[0].Blocks[0]).Inlines[0];
         Require(run.EastAsianFontFamily == "MS Gothic", $"ODT: the run's East Asian font is read back ({run.EastAsianFontFamily}).");
         Require(read.Defaults.EastAsianFontFamily == "Microsoft JhengHei", $"ODT: the document's as well ({read.Defaults.EastAsianFontFamily}).");
+    }
+
+    /// <summary>A TrueType collection of the fonts: its header, then each font with its table offsets from the start of the file.</summary>
+    internal static byte[] Collection(params byte[][] fonts)
+    {
+        var output = new List<byte>(new byte[12 + (4 * fonts.Length)]);
+        var offsets = new List<uint>();
+        foreach (var source in fonts)
+        {
+            var start = (uint)output.Count;
+            offsets.Add(start);
+            var font = source.ToArray();
+            for (var table = 0; table < System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(font.AsSpan(4)); table++)
+            {
+                var record = font.AsSpan(12 + (table * 16) + 8, 4);
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(record, System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(record) + start);
+            }
+
+            output.AddRange(font);
+            while (output.Count % 4 != 0)
+            {
+                output.Add(0);
+            }
+        }
+
+        var result = output.ToArray();
+        "ttcf"u8.CopyTo(result);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(result.AsSpan(4), 0x00010000);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(result.AsSpan(8), (uint)fonts.Length);
+        for (var index = 0; index < offsets.Count; index++)
+        {
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(result.AsSpan(12 + (4 * index)), offsets[index]);
+        }
+
+        return result;
+    }
+
+    private static void CollectionFontsLoadByFamily()
+    {
+        var latin = PdfAChecks.Font("LatinSans", ('H', 3), ('e', 4), ('l', 5), ('o', 6));
+        var latinUi = PdfAChecks.Font("LatinSans UI", ('H', 3), ('e', 4), ('l', 5), ('o', 6));
+        var kanji = PdfAChecks.Font("KanjiSans", ('日', 1), ('本', 2));
+        var ttc = Collection(latin, latinUi, kanji);
+        var all = FontFace.LoadCollection(ttc);
+        Require(all.Select(face => face.FamilyName).SequenceEqual(["LatinSans", "LatinSans UI", "KanjiSans"]), $"All fonts of the collection ({string.Join(", ", all.Select(face => face.FamilyName))}).");
+        Require(FontFace.Load(ttc).FamilyName == "LatinSans", "Load takes the first font of a collection.");
+        var picked = FontFace.Load(ttc, "latinsans ui");
+        Require(picked.FamilyName == "LatinSans UI", "The family name picks the font, case-insensitively, and tells a UI variant apart.");
+        Require(picked.Data.Length < ttc.Length / 2 && picked.Data.AsSpan(0, 4).SequenceEqual(new byte[] { 0, 1, 0, 0 })
+                && FontFace.Load(picked.Data).FamilyName == "LatinSans UI",
+            "Only the chosen font is kept, as a file of its own with its tables.");
+        try
+        {
+            FontFace.Load(ttc, "Missing");
+            throw new InvalidOperationException("An unknown family is rejected.");
+        }
+        catch (FontException exception)
+        {
+            Require(exception.Message.Contains("KanjiSans", StringComparison.Ordinal), $"The message names the families of the collection ({exception.Message}).");
+        }
+
+        var directory = Directory.CreateTempSubdirectory("reglet-ttc");
+        try
+        {
+            File.WriteAllBytes(Path.Combine(directory.FullName, "fonts.ttc"), ttc);
+            var collection = FontCollection.FromDirectory(directory.FullName);
+            Require(collection.Contains("LatinSans UI") && collection.Contains("KanjiSans"), "A directory's collection adds every font of it.");
+            var (used, _) = Pdf(Document(new TextRun("Hello" + Japanese) { EastAsianFontFamily = "KanjiSans" }, DocumentDefaults.Default with { FontFamily = "LatinSans" }), collection);
+            Require(used.Count == 2, "The PDF draws with fonts from a collection.");
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
     }
 
     private static void Throws(Action action, string message)

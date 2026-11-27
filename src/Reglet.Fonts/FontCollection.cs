@@ -47,7 +47,7 @@ public sealed class FontCollection
     /// <summary>Number of styles across all families.</summary>
     public int Count => _families.Values.Sum(faces => faces.Count);
 
-    /// <summary>Loads all <c>.ttf</c> files of a directory (non-recursive) under their family name.</summary>
+    /// <summary>Loads all <c>.ttf</c> files and every font of the <c>.ttc</c> collections of a directory (non-recursive) under their family name.</summary>
     /// <exception cref="FontException">A file is corrupted, or two files use the same style.</exception>
     public static FontCollection FromDirectory(string directory)
     {
@@ -56,7 +56,7 @@ public sealed class FontCollection
         string[] files;
         try
         {
-            files = Directory.GetFiles(directory, "*.ttf", SearchOption.TopDirectoryOnly);
+            files = FontFiles(directory, SearchOption.TopDirectoryOnly);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -68,7 +68,10 @@ public sealed class FontCollection
         var collection = Empty;
         foreach (var file in files)
         {
-            collection = collection.Add(FontFace.LoadFile(file));
+            foreach (var face in FontFace.LoadCollectionFile(file))
+            {
+                collection = collection.Add(face);
+            }
         }
 
         return collection;
@@ -93,7 +96,7 @@ public sealed class FontCollection
             string[] files;
             try
             {
-                files = Directory.GetFiles(directory, "*.ttf", SearchOption.AllDirectories);
+                files = FontFiles(directory, SearchOption.AllDirectories);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
             {
@@ -103,19 +106,40 @@ public sealed class FontCollection
             Array.Sort(files, StringComparer.Ordinal);
             foreach (var file in files)
             {
+                IReadOnlyList<byte[]> members;
                 try
                 {
-                    collection = collection.Add(FontFace.LoadFile(file));
+                    members = TrueTypeFont.CollectionMembers(File.ReadAllBytes(file));
                 }
-                catch (Exception exception) when (exception is FontException or DocumentValidationException or IOException)
+                catch (Exception exception) when (exception is FontException or IOException or UnauthorizedAccessException)
                 {
-                    // A system directory may contain non-TrueType outlines, broken files or a
-                    // second file for an already loaded family/style.
+                    continue;
+                }
+
+                foreach (var member in members)
+                {
+                    try
+                    {
+                        collection = collection.Add(FontFace.Load(member));
+                    }
+                    catch (Exception exception) when (exception is FontException or UnsupportedFeatureException or DocumentValidationException)
+                    {
+                        // A system directory may contain CFF outlines, broken files or a second file for an already
+                        // loaded family/style: that font is skipped, the others stay.
+                    }
                 }
             }
         }
 
         return collection;
+    }
+
+    /// <summary>The <c>.ttf</c> and <c>.ttc</c> files of a directory, sorted so the result does not depend on the file system order.</summary>
+    private static string[] FontFiles(string directory, SearchOption option)
+    {
+        var files = Directory.GetFiles(directory, "*.ttf", option).Concat(Directory.GetFiles(directory, "*.ttc", option)).ToArray();
+        Array.Sort(files, StringComparer.Ordinal);
+        return files;
     }
 
     private static IEnumerable<string> SystemFontDirectories()

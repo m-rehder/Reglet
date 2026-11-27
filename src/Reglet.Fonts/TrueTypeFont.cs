@@ -6,7 +6,8 @@ namespace Reglet;
 /// <summary>
 /// minimal TrueType parser (glyf-based). Reads offset table, table directory, the
 /// metrics from head, hhea, maxp and hmtx, the names from name as well as style and
-/// embedding rights from OS/2 and head. CFF/OTTO and TTC are rejected.
+/// embedding rights from OS/2 and head. CFF/OTTO is rejected; a font of a collection (TTC) is first cut out of it
+/// (<see cref="CollectionMembers"/>).
 /// </summary>
 internal sealed class TrueTypeFont
 {
@@ -209,7 +210,7 @@ internal sealed class TrueTypeFont
                 throw new UnsupportedFeatureException(
                     "CFF-based OpenType fonts (OTTO) are not supported in version 1.");
             case SfntCollection:
-                throw new UnsupportedFeatureException("TrueType collections (ttcf) are not supported.");
+                throw new UnsupportedFeatureException("A TrueType collection (ttcf) holds several fonts: load one of them by its family name or from the list of the collection.");
             case SfntTrueType:
             case SfntAppleTrue:
                 break;
@@ -248,6 +249,83 @@ internal sealed class TrueTypeFont
         {
             throw new FontException("A font table contains invalid offsets or lengths.", exception);
         }
+    }
+
+    /// <summary>
+    /// The fonts of a file as standalone sfnt files: a TrueType collection (<c>ttcf</c>) gives one per font, each with
+    /// only its own tables, so that only the chosen font is embedded; any other file is its only font.
+    /// </summary>
+    /// <exception cref="FontException">The collection header or a table lies outside the file.</exception>
+    public static IReadOnlyList<byte[]> CollectionMembers(byte[] data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        if (data.Length < 12 || BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(0, 4)) != SfntCollection)
+        {
+            return [data];
+        }
+
+        var count = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(8, 4));
+        if (count == 0 || 12L + (count * 4L) > data.Length)
+        {
+            throw new FontException("The collection header lists more fonts than the file holds.");
+        }
+
+        var members = new List<byte[]>((int)count);
+        for (var index = 0; index < count; index++)
+        {
+            members.Add(ExtractMember(data, BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(12 + (index * 4), 4))));
+        }
+
+        return members;
+    }
+
+    /// <summary>Copies one font of a collection, whose table offsets count from the start of the collection, into a file of its own.</summary>
+    private static byte[] ExtractMember(byte[] data, uint start)
+    {
+        if (start > data.Length - 12L)
+        {
+            throw new FontException("A font of the collection lies outside the file.");
+        }
+
+        var offset = (int)start;
+        var numTables = BinaryPrimitives.ReadUInt16BigEndian(data.AsSpan(offset + 4, 2));
+        var directory = 12 + (numTables * 16);
+        if (offset + (long)directory > data.Length)
+        {
+            throw new FontException("The table directory of a font of the collection lies outside the file.");
+        }
+
+        var tables = new List<(int Record, int Offset, int Length)>(numTables);
+        long size = directory;
+        for (var table = 0; table < numTables; table++)
+        {
+            var record = offset + 12 + (table * 16);
+            var tableOffset = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(record + 8, 4));
+            var length = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(record + 12, 4));
+            if ((long)tableOffset + length > data.Length)
+            {
+                throw new FontException($"Table '{Encoding.ASCII.GetString(data, record, 4)}' of a font of the collection lies outside the file.");
+            }
+
+            tables.Add((record, (int)tableOffset, (int)length));
+            size += (length + 3) & ~3L;
+        }
+
+        var result = new byte[size];
+        data.AsSpan(offset, 12).CopyTo(result);
+        var position = directory;
+        for (var table = 0; table < tables.Count; table++)
+        {
+            var (record, tableOffset, length) = tables[table];
+            var target = 12 + (table * 16);
+            data.AsSpan(record, 8).CopyTo(result.AsSpan(target, 8));
+            BinaryPrimitives.WriteUInt32BigEndian(result.AsSpan(target + 8, 4), (uint)position);
+            BinaryPrimitives.WriteUInt32BigEndian(result.AsSpan(target + 12, 4), (uint)length);
+            data.AsSpan(tableOffset, length).CopyTo(result.AsSpan(position));
+            position += (length + 3) & ~3;
+        }
+
+        return result;
     }
 
     private static (int Offset, int Length) Require(

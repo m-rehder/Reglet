@@ -2561,7 +2561,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `FontCollection AddDefault(FontFace face)` — Sets the default font for text without its own family (family name "").
 - `FontCollection AddFallback(FontFace face)` — Adds a style under its own family name and makes the family a fallback (`FontCollection.FallbackFamilies`), for example a Japanese or Chinese font for text whose font has no East Asian characters. Adding a further style of a family that is a fallback already keeps its place.
 - `bool Contains(string family)` — Whether the family is contained in the collection.
-- `static FontCollection FromDirectory(string directory)` — Loads all `.ttf` files of a directory (non-recursive) under their family name.
+- `static FontCollection FromDirectory(string directory)` — Loads all `.ttf` files and every font of the `.ttc` collections of a directory (non-recursive) under their family name.
 - `static FontCollection FromSystem()` — Loads the installed TrueType fonts from the standard font directories of the platform. Files that are not TrueType outlines, are corrupted or repeat an existing family/style are skipped; directories that cannot be read are ignored.
 - `IReadOnlyList<FontFace> GetFaces(string family)` — The styles of a family (empty if the family is missing).
 - `FontMatch? Match(string? family, bool bold, bool italic)` — chooses the best style of a family. Order: exact style; for bold-italic first bold, then italic; then normal; finally any style of the family. Missing attributes are marked as synthetic in the result.
@@ -2577,7 +2577,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 
 #### FontFace
 
-`sealed class FontFace` — a validated, caller-provided TrueType font file (one style, e.g. "Noto Sans Bold"). Supported are glyf-based TrueType fonts; CFF-based OpenType fonts (OTTO) and collections (TTC) are rejected. The instance is immutable and can be used in parallel.
+`sealed class FontFace` — a validated, caller-provided TrueType font (one style, e.g. "Noto Sans Bold"). Supported are glyf-based TrueType fonts, also from a collection (`.ttc`), of which only the chosen font is kept and embedded; CFF-based OpenType fonts (OTTO) are rejected. The instance is immutable and can be used in parallel.
 
 - `string FamilyName { get; }` — Family name per font file (typographic family, otherwise name ID 1).
 - `string StyleName { get; }` — Style name per font file, e.g. "Bold Italic".
@@ -2595,8 +2595,12 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `bool AllowsSubsetting { get; }` — Whether the font may be reduced to the used glyphs when embedding (fsType bit 8 not set).
 - `bool CanRender(string text)` — Whether the font can render all characters of the text.
 - `IReadOnlyList<int> GetMissingCodePoints(string text)` — The code points of the text without a glyph (deduplicated, in text order).
-- `static FontFace Load(ReadOnlySpan<byte> data)` — Loads and validates a font from bytes. The bytes are copied.
-- `static FontFace LoadFile(string path)` — Loads and validates a font from a file (`.ttf`).
+- `static FontFace Load(ReadOnlySpan<byte> data)` — Loads and validates a font from bytes; of a collection (`.ttc`) its first font. The bytes are copied.
+- `static FontFace Load(ReadOnlySpan<byte> data, string familyName)` — Loads the font of a family from bytes: of a collection (`.ttc`) the font whose `FontFace.FamilyName` is `familyName` (case-insensitive), such as "Microsoft YaHei" beside "Microsoft YaHei UI".
+- `static IReadOnlyList<FontFace> LoadCollection(ReadOnlySpan<byte> data)` — All fonts of a collection (`.ttc`) in their order there; a single font file gives one.
+- `static IReadOnlyList<FontFace> LoadCollectionFile(string path)` — All fonts of a collection file (`.ttc`); a single font file gives one.
+- `static FontFace LoadFile(string path)` — Loads and validates a font from a file (`.ttf`; of a `.ttc` its first font).
+- `static FontFace LoadFile(string path, string familyName)` — Loads the font of a family from a file, for example `LoadFile(@"C:\Windows\Fonts\msyh.ttc", "Microsoft YaHei")`.
 - `bool Supports(int codePoint)` — Whether the font contains a glyph for the code point.
 - `string ToString()`
 
