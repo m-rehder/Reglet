@@ -26,7 +26,7 @@ public sealed record TableRow
 
     /// <summary>
     /// Row height; null means automatic. As in Word, a minimum height is for the content (the cells' top and bottom
-    /// padding and the border above the row come on top of it; ODT writes them into <c>style:min-row-height</c>), an
+    /// padding and the table's grid above the row come on top of it; ODT writes them into <c>style:min-row-height</c>), an
     /// exact height (<see cref="TableRowHeightRule.Exactly"/>) includes both.
     /// </summary>
     public Length? Height

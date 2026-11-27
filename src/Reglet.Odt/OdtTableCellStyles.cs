@@ -90,7 +90,7 @@ internal sealed class OdtTableCellStyles
         => RowKeyOf(table, row, lastRow) is { } key && _rows.TryGetValue(key, out var name) ? name : null;
 
     // A minimum height is for the content (as in Word), ODF's min-row-height for the whole row: the cells' top and
-    // bottom padding and the border above the row go into it. An exact height already includes both.
+    // bottom padding and the table's grid above the row go into it. An exact height already includes both.
     private static RowKey? RowKeyOf(TableBlock table, TableRow row, bool lastRow)
         => row.Height is null && !row.KeepTogether
             ? null

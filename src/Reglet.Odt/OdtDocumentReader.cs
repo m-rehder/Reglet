@@ -2902,7 +2902,7 @@ public sealed class OdtDocumentReader : IDocumentReader
 
     /// <summary>
     /// ODF's min-row-height covers the whole row, the model's minimum only the content (as in Word): the cells' top and
-    /// bottom padding, the border above the row and, in the last row, the border below come off. A minimum they fill
+    /// bottom padding, the table's grid above the row and, in the last row, the border below come off. A minimum they fill
     /// completely is no minimum.
     /// </summary>
     private static TableRow ContentMinimum(TableBlock table, TableRow row, bool lastRow)
