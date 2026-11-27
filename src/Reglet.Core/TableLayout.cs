@@ -180,8 +180,9 @@ internal static class TableLayout
 
     /// <summary>
     /// Word's automatic layout for set column widths: a column narrower than its longest word (<paramref name="minimum"/>)
-    /// widens to it, and the other columns give up the room in proportion to what they have beyond their own minimum.
-    /// The table keeps its width; when the other columns cannot give enough, the widths stay as they are.
+    /// widens to it, and every other column gives up an equal share of the room, whatever its width. A column that would
+    /// drop below its own minimum gives only what it has beyond it, and the rest is shared by the others. The table keeps
+    /// its width; when the other columns cannot give enough, the widths stay as they are.
     /// </summary>
     public static double[] WidenToMinimums(double[] widths, double[] minimum)
     {
@@ -195,9 +196,22 @@ internal static class TableLayout
             return widths;
         }
 
-        return widths.Select((width, column) => width < minimum[column]
-            ? minimum[column]
-            : width - ((width - minimum[column]) * deficit / slack)).ToArray();
+        var result = widths.Select((width, column) => Math.Max(width, minimum[column])).ToArray();
+        var donors = Enumerable.Range(0, widths.Length).Where(column => widths[column] > minimum[column]).ToList();
+        while (deficit > 1e-9 && donors.Count > 0)
+        {
+            var share = deficit / donors.Count;
+            foreach (var column in donors)
+            {
+                var given = Math.Min(share, result[column] - minimum[column]);
+                result[column] -= given;
+                deficit -= given;
+            }
+
+            donors.RemoveAll(column => result[column] - minimum[column] <= 1e-9);
+        }
+
+        return result;
     }
 
     /// <summary>

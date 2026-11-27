@@ -37,6 +37,7 @@ internal static class FieldAndTableFixChecks
             AuditFindings();
             SpaceBeforeStaysAfterAColumnBreak();
             TableAtTheEndGetsAClosingParagraph();
+            OtherColumnsGiveEqualShares();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -341,6 +342,18 @@ internal static class FieldAndTableFixChecks
         odt = TestPackages.ReplacePart(odt, "content.xml", Encoding.UTF8.GetBytes(content.ToString()));
         var heights = ((TableBlock)TestPackages.Read(odt, DocumentFormat.Odt).Sections[0].Blocks[0]).Rows.Select(row => row.Height?.Points).ToList();
         Require(heights is [15.5, 15.5, 15], $"ODT: only the last repeated row loses the border below ({string.Join(", ", heights)}).");
+    }
+
+    private static void OtherColumnsGiveEqualShares()
+    {
+        // Word takes the room for a widened column in equal parts from every other column, whatever its width.
+        var even = TableLayout.WidenToMinimums([40, 100, 200, 60], [50, 0, 0, 0]);
+        Require(Math.Abs(even[1] - (100 - (10 / 3.0))) < 1e-9 && Math.Abs(even[2] - (200 - (10 / 3.0))) < 1e-9 && even[0] == 50,
+            $"Equal shares from the other columns ({string.Join(", ", even)}).");
+        // A column that reaches its own minimum stops giving, the others give the rest.
+        var capped = TableLayout.WidenToMinimums([40, 100, 200, 61], [70, 99, 0, 60]);
+        Require(capped.SequenceEqual([70, 99, 172, 60]), $"Capped shares ({string.Join(", ", capped)}).");
+        Require(Math.Abs(capped.Sum() - 401) < 1e-9, "The table keeps its width.");
     }
 
     private static void TableAtTheEndGetsAClosingParagraph()

@@ -1,5 +1,13 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- When the automatic table layout widens a column to its longest word, every other column gives up an equal share of
+  the room, as Word does. Before, the columns gave in proportion to their width, so a wide description column lost
+  most of it and its text broke where Word's did not. A column that reaches its own longest word stops giving.
+
 ## 1.7.10
 
 ### PDF
