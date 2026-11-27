@@ -4242,7 +4242,7 @@ internal sealed class PdfBlockRenderer
                 atom.Font, atom.Text, atom.FontSize, atom.Color, X(x, width), atomBaseline,
                 atom.CharacterSpacing, atom.HorizontalScaling, atom.BidiLevels);
             x += width;
-            if (justifyExtra > 0 && IsWhiteSpace(atom.Text))
+            if (justifyExtra > 0 && atom.Text.Length > 0 && IsWhiteSpace(atom.Text))
             {
                 x += justifyExtra;
             }
