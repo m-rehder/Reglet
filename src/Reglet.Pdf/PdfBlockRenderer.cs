@@ -3517,7 +3517,29 @@ internal sealed class PdfBlockRenderer
         widthForLine?.Invoke(lines);
         lines.Add(current);
 
-        return lines;
+        return lines.Select(JoinHyphenParts).ToList();
+    }
+
+    /// <summary>
+    /// The parts of a word split at its hyphens for wrapping (<see cref="IsBreakAfterHyphen"/>) are one piece of text
+    /// again where they share a line: "2026-09-25" stays one text run in the page.
+    /// </summary>
+    private static List<TextAtom> JoinHyphenParts(List<TextAtom> line)
+    {
+        var joined = new List<TextAtom>(line.Count);
+        foreach (var atom in line)
+        {
+            if (atom.JoinsPrevious && joined.Count > 0 && joined[^1] is { Text: [.., '-' or '\u2010'] } previous)
+            {
+                joined[^1] = previous with { Text = previous.Text + atom.Text };
+            }
+            else
+            {
+                joined.Add(atom);
+            }
+        }
+
+        return joined;
     }
 
     /// <summary>The indexes of the soft hyphens in the last word of the line, the last one first (a space or tab ends the word).</summary>
@@ -3553,29 +3575,33 @@ internal sealed class PdfBlockRenderer
         => char.IsWhiteSpace(character) && character is not ('\u00A0' or '\u2007' or '\u202F');
 
     /// <summary>
-    /// A line may break before <paramref name="index"/> after a hyphen inside a word (UAX #14, class HY), as Word and
-    /// MigraDoc do: "UP-|Kombination", "A4-|Blatt"; never before a digit (UAX #14 HY × NU: "-5", "2026-09-25") or in "--".
+    /// A line may break before <paramref name="index"/> after a hyphen inside a word, as Word does: "UP-|Kombination",
+    /// "A4-|Blatt", and unlike UAX #14 (HY × NU) also before a digit: "9170-|2", "12-12-|2022". Never after a hyphen
+    /// that starts a word ("-5") or in "--".
     /// </summary>
     private static bool IsBreakAfterHyphen(string text, int index)
         => index >= 2
-            && char.IsLetter(text[index])
+            && char.IsLetterOrDigit(text[index])
             && (text[index - 1] == '\u2010' || (text[index - 1] == '-' && char.IsLetterOrDigit(text[index - 2])));
 
     private static IEnumerable<TextAtom> SplitAtSpaces(TextAtom atom)
     {
         var start = 0;
+        var joins = atom.JoinsPrevious;
         for (var index = 1; index < atom.Text.Length; index++)
         {
-            if (IsBreakingSpace(atom.Text[index]) != IsBreakingSpace(atom.Text[start]) || IsBreakAfterHyphen(atom.Text, index))
+            var hyphen = IsBreakAfterHyphen(atom.Text, index);
+            if (IsBreakingSpace(atom.Text[index]) != IsBreakingSpace(atom.Text[start]) || hyphen)
             {
-                yield return atom with { Text = atom.Text[start..index] };
+                yield return atom with { Text = atom.Text[start..index], JoinsPrevious = joins };
                 start = index;
+                joins = hyphen;
             }
         }
 
         if (start < atom.Text.Length)
         {
-            yield return atom with { Text = atom.Text[start..] };
+            yield return atom with { Text = atom.Text[start..], JoinsPrevious = joins };
         }
     }
 
@@ -4235,7 +4261,8 @@ internal sealed class PdfBlockRenderer
         (int Number, string Text)? Note = null,
         Bookmark? Bookmark = null,
         Comment? Comment = null,
-        InlineImageBox? Image = null);
+        InlineImageBox? Image = null,
+        bool JoinsPrevious = false);
 
     /// <summary>An image in a line: drawn on the baseline at its size.</summary>
     private sealed record InlineImageBox(PdfImageHandle Handle, double Width, double Height, ImageCrop? Crop, string? AltText);

@@ -76,7 +76,7 @@ Legend:
 | Named character styles | supported (AI01, `w:rStyle`) | supported (AI01, `style:parent-style-name`) | applied (AI01, no style mechanism) |
 | Kerning | supported (threshold) | approximated (boolean; a threshold is written as enabled and read back as 0) | approximated (shaping of embedded fonts, no kerning below a run's threshold; standard fonts without kerning; `PdfWriteOptions.Kerning = false` switches it off) |
 | Standard ligatures (`liga`) | target program | target program | supported (embedded fonts; `PdfWriteOptions.Ligatures = false` switches them off) |
-| Line break after a hyphen inside a word (UAX #14 HY) | target program | target program | supported (not before a digit) |
+| Line break after a hyphen inside a word (as Word, also before a digit) | target program | target program | supported |
 | Character spacing | supported | supported | supported (`Tc`) |
 | Horizontal scaling | supported | supported | supported (`Tz`) |
 | Baseline shift (`Position`) | supported | supported | supported |

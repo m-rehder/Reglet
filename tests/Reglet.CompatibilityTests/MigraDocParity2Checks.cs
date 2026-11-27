@@ -98,6 +98,11 @@ internal static class MigraDocParity2Checks
         // A minus before a number and a hyphen at the start of a word stay with what follows.
         var minus = Cell("Temperatur zwischen aaaaaaaaaaaaaaaaa -5 und +5 Grad");
         Require(minus.Any(piece => piece.Text == "-5"), "'-5' is not split.");
+        // Word also breaks after a hyphen before a digit: "DIN EN ISO 9170-" / "2", "12-12-" / "2022".
+        var dates = Cell("Daten " + string.Join("-", Enumerable.Repeat("12-12-2022", 6)));
+        Require(dates.Count > 2 && dates.Skip(1).All(piece => piece.Text is [.., '-'] || piece == dates[^1] || piece.Text == "Daten" || piece.Text == " ")
+                && dates[^1].Text is [>= '0' and <= '9', ..] && dates[^1].Y < dates[^2].Y - 5,
+            $"The line breaks after a hyphen before a digit ({string.Join(" | ", dates.Select(piece => piece.Text))}).");
     }
 
     private static void FixedColumnWidthsOverflow()

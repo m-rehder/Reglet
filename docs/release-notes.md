@@ -10,6 +10,10 @@
 - A cell's own border (`TableCell.Borders`) also stays inside a row without a minimum height, as Word draws it; only
   the table's grid above a row takes room in it. A table without a grid whose cells have a 0.625 pt bottom border was
   0.625 pt higher per row than in Word.
+- A line may break after a hyphen before a digit as well, as Word does: `DIN EN ISO 9170-` / `2`, `12-12-` / `2022`.
+  Before, Reglet followed UAX #14 (no break between a hyphen and a number) and moved the whole word to the next line.
+  A hyphen that starts a word (`-5`) still stays with what follows. Within a line, the parts of such a word remain one
+  piece of text in the page.
 
 ## 1.7.10
 
