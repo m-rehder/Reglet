@@ -1419,12 +1419,24 @@ internal static class DocxPackageBuilder
 
             if (sectionIndex < document.Sections.Count - 1)
             {
+                // The paragraph that carries the section end is as small as Word allows; the PDF sets the same height.
                 writer.WriteStartElement("w", "p", DocxConstants.WordprocessingML);
                 writer.WriteStartElement("w", "pPr", DocxConstants.WordprocessingML);
+                WriteClosingSpacing(writer);
                 WriteSectionProperties(writer, section, sectionIndex, headerFooters);
                 writer.WriteEndElement();
                 writer.WriteEndElement();
             }
+        }
+
+        // A body that ends with a table gets its closing paragraph here; Word would add one in the default formatting.
+        if (document.Sections[^1].Blocks.Count > 0 && !ClosingParagraph.EndsWithParagraph(document.Sections[^1].Blocks, inBand: false))
+        {
+            writer.WriteStartElement("w", "p", DocxConstants.WordprocessingML);
+            writer.WriteStartElement("w", "pPr", DocxConstants.WordprocessingML);
+            WriteClosingSpacing(writer);
+            writer.WriteEndElement();
+            writer.WriteEndElement();
         }
 
         WriteSectionProperties(writer, document.Sections[^1], document.Sections.Count - 1, headerFooters);
@@ -2539,7 +2551,7 @@ internal static class DocxPackageBuilder
 
         // ECMA-376 requires that a cell ends with a paragraph (also after a
         // nested table or an empty list).
-        if (!EndsWithParagraph(cell.Blocks, context.BandName is not null))
+        if (!ClosingParagraph.EndsWithParagraph(cell.Blocks, context.BandName is not null))
         {
             writer.WriteStartElement("w", "p", DocxConstants.WordprocessingML);
             writer.WriteEndElement();
@@ -3518,19 +3530,14 @@ internal static class DocxPackageBuilder
 
         // ECMA-376 requires that a header/footer ends with a paragraph (even if it
         // is empty or ends with a table); otherwise Word reports a repair.
-        if (!EndsWithParagraph(content.Blocks, inBand: true))
+        if (!ClosingParagraph.EndsWithParagraph(content.Blocks, inBand: true))
         {
             writer.WriteStartElement("w", "p", DocxConstants.WordprocessingML);
             if (content.Blocks.Count > 0)
             {
                 // The paragraph exists only for the schema: without height it adds nothing under a table, as in the PDF.
                 writer.WriteStartElement("w", "pPr", DocxConstants.WordprocessingML);
-                writer.WriteStartElement("w", "spacing", DocxConstants.WordprocessingML);
-                WriteWAttribute(writer, "before", 0L);
-                WriteWAttribute(writer, "after", 0L);
-                WriteWAttribute(writer, "line", 1L);
-                WriteWAttribute(writer, "lineRule", "exact");
-                writer.WriteEndElement();
+                WriteClosingSpacing(writer);
                 writer.WriteEndElement();
             }
 
@@ -3540,27 +3547,15 @@ internal static class DocxPackageBuilder
         writer.WriteEndElement();
     }
 
-    /// <summary>
-    /// whether the last-written element of these blocks is a <c>w:p</c>. In the header/footer
-    /// area, page breaks do nothing.
-    /// </summary>
-    private static bool EndsWithParagraph(IReadOnlyList<Block> blocks, bool inBand)
+    /// <summary>The spacing of <see cref="ClosingParagraph"/>: no space before or after, a line of one twip.</summary>
+    private static void WriteClosingSpacing(XmlWriter writer)
     {
-        if (blocks.Count == 0)
-        {
-            return false;
-        }
-
-        return blocks[^1] switch
-        {
-            Paragraph or Heading => true,
-            ImageBlock or DrawingShape or FormField or Diagram or Equation => true,
-            PageBreak => !inBand,
-            // An entry without a paragraph gets an empty numbered paragraph at the end.
-            ListBlock { Items.Count: > 0 } list => !list.Items[^1].Blocks.Any(block => block is Paragraph)
-                || EndsWithParagraph(list.Items[^1].Blocks, inBand),
-            _ => false,
-        };
+        writer.WriteStartElement("w", "spacing", DocxConstants.WordprocessingML);
+        WriteWAttribute(writer, "before", 0L);
+        WriteWAttribute(writer, "after", 0L);
+        WriteWAttribute(writer, "line", ClosingParagraph.LineTwips);
+        WriteWAttribute(writer, "lineRule", "exact");
+        writer.WriteEndElement();
     }
 
     /// <summary>An empty run: a field takes the run formatting of its paragraph, as a text run without its own does (and as the PDF draws it).</summary>

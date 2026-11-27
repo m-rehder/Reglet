@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO.Compression;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Reglet;
@@ -30,6 +31,8 @@ internal static class FieldAndTableFixChecks
             EmptyTableIsReported();
             MinimumRowHeightLeavesThePaddingOnTop();
             ColumnWidensToItsLongestWord();
+            BottomBorderCountsWhenARowFits();
+            TableAtTheEndGetsAClosingParagraph();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -219,6 +222,71 @@ internal static class FieldAndTableFixChecks
             $"Automatic layout: the column widens and breaks between the words ({string.Join(", ", auto.Keys)}).");
         var fixedLines = Lines(fixedLayout: true);
         Require(!fixedLines.ContainsKey("Material"), $"Fixed layout: the word breaks inside ({string.Join(", ", fixedLines.Keys)}).");
+    }
+
+    /// <summary>The PDF pages of a document and, per text, the page it is on.</summary>
+    private static (int Pages, Dictionary<string, int> PageOf) Pages(PortableDocument document)
+    {
+        using var buffer = new MemoryStream();
+        new PdfDocumentWriter().WriteAsync(document, buffer).GetAwaiter().GetResult();
+        var pages = PdfStreams.DecompressPages(buffer.ToArray());
+        var pageOf = new Dictionary<string, int>();
+        for (var index = 0; index < pages.Count; index++)
+        {
+            foreach (Match match in Regex.Matches(pages[index], @"\(([^)]*)\) Tj"))
+            {
+                pageOf.TryAdd(match.Groups[1].Value, index + 1);
+            }
+        }
+
+        // An empty page has no content stream, so the page objects are counted.
+        return (Regex.Matches(Encoding.Latin1.GetString(buffer.ToArray()), @"/Type\s*/Page(?!s)").Count, pageOf);
+    }
+
+    /// <summary>A page 60 pt high inside 36 pt margins, for three exact 20 pt rows and <paramref name="extra"/> points more.</summary>
+    private static Section ExactRows(double extra, ParagraphBorder border, params Block[] after)
+        => new([new TableBlock(new[] { "R1", "R2", "R3" }.Select(text => new TableRow([new TableCell(text)])
+            {
+                Height = Length.FromPoints(20),
+                HeightRule = TableRowHeightRule.Exactly,
+            })) { Border = border }, .. after])
+        {
+            PageSize = new PageSize(Length.FromPoints(300), Length.FromPoints(72 + 60 + extra)),
+            Margins = new PageMargins(Length.FromPoints(36)),
+        };
+
+    private static void BottomBorderCountsWhenARowFits()
+    {
+        // The rows fill 60 pt and leave 0.3 pt: a 0.625 pt bottom border no longer fits, a 0.25 pt one does (as in Word).
+        var thick = Pages(Document(ExactRows(0.3, new ParagraphBorder(BorderStyle.Single, Length.FromPoints(0.625)), new Paragraph(new TextRun("END")))));
+        Require(thick.PageOf["R2"] == 1 && thick.PageOf["R3"] == 2, $"The bottom border counts when a row fits (R3 on page {thick.PageOf["R3"]}).");
+        var thin = Pages(Document(ExactRows(0.3, new ParagraphBorder(BorderStyle.Single, Length.FromPoints(0.25)), new Paragraph(new TextRun("END")))));
+        Require(thin.PageOf["R3"] == 1, $"A thinner bottom border fits (R3 on page {thin.PageOf["R3"]}).");
+    }
+
+    private static void TableAtTheEndGetsAClosingParagraph()
+    {
+        // DOCX: a body that ends with a table gets an empty paragraph one twip high, which reads back as nothing.
+        var section = new Section(Table("A"));
+        var body = Body(Document(section)).Root!.Element(W + "body")!;
+        var closing = body.Elements().Reverse().Skip(1).First();
+        var spacing = closing.Element(W + "pPr")?.Element(W + "spacing");
+        Require(closing.Name == W + "p" && closing.ElementsBeforeSelf().Last().Name == W + "tbl"
+                && (string?)spacing?.Attribute(W + "line") == "1" && (string?)spacing?.Attribute(W + "lineRule") == "exact",
+            "DOCX: a closing paragraph without height follows the table at the end of the body.");
+        using (var buffer = new MemoryStream())
+        {
+            new DocxDocumentWriter().WriteAsync(Document(section), buffer).GetAwaiter().GetResult();
+            buffer.Position = 0;
+            Require(new DocxDocumentReader().Read(buffer).Document.Sections[0].Blocks is [TableBlock], "DOCX: the closing paragraph is not read as a block.");
+        }
+
+        var afterParagraph = Body(Document(new Section([Table("A"), new Paragraph(new TextRun("P"))]))).Root!.Element(W + "body")!;
+        Require(afterParagraph.Elements().Reverse().Skip(1).First().Elements(W + "r").Any(), "DOCX: a body ending with a paragraph gets none.");
+
+        // PDF: a table that fills the page to its end leaves the closing paragraph on a new page, as Word does.
+        Require(Pages(Document(ExactRows(0, ParagraphBorder.None))).Pages == 2, "PDF: the closing paragraph after a full page starts a page.");
+        Require(Pages(Document(ExactRows(0.1, ParagraphBorder.None))).Pages == 1, "PDF: with room left it stays on the page.");
     }
 
     private static void HeaderStartsAtItsDistance()

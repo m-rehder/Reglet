@@ -370,6 +370,14 @@ internal static class PdfDocumentBuilder
                 document.Styles,
                 document.SourceStyles ?? [],
                 cancellationToken);
+
+            // The paragraph the DOCX writer puts at a section end and after a table that ends the body, set as Word does.
+            if (sectionIndex + 1 < document.Sections.Count
+                || (section.Blocks.Count > 0 && !ClosingParagraph.EndsWithParagraph(section.Blocks, inBand: false)))
+            {
+                blocks.RenderClosingParagraph();
+            }
+
             options.Progress?.Report(new WriteProgress("section", sectionIndex + 1, document.Sections.Count));
         }
 

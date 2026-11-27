@@ -163,7 +163,7 @@ internal static class DocxWriterChecks
         var body = ReadEntry(zip, "word/document.xml");
 
         Require(body.Split("<w:sectPr", StringSplitOptions.None).Length - 1 == 2, "Each section has its own page properties.");
-        Require(body.Contains("<w:pPr><w:sectPr", StringComparison.Ordinal), "First section ends with a section break.");
+        Require(body.Contains("<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"1\" w:lineRule=\"exact\" /><w:sectPr", StringComparison.Ordinal), "First section ends with a section break in a paragraph without height.");
         Require(body.Contains("w:orient=\"landscape\"", StringComparison.Ordinal), "First alignment is preserved.");
         Require(body.Contains("w:w=\"11906\"", StringComparison.Ordinal), "A4 width of the second section is preserved.");
         Require(body.Contains("headerReference", StringComparison.Ordinal), "Header of the first section is referenced.");

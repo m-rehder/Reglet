@@ -928,7 +928,10 @@ public sealed class DocxDocumentReader : IDocumentReader
                 continue;
             }
 
-            ParseBodyElement(child, currentBlocks, numbering, resources, warnings);
+            if (!IsBodyClosingParagraph(child))
+            {
+                ParseBodyElement(child, currentBlocks, numbering, resources, warnings);
+            }
         }
 
         sections.Add(BuildSection(currentBlocks.ToList(), pendingSectionProps, numbering, resources, warnings));
@@ -1024,6 +1027,27 @@ public sealed class DocxDocumentReader : IDocumentReader
 
         var previous = element.ElementsBeforeSelf().LastOrDefault(sibling => sibling.Name != W + "tcPr");
         return previous?.Name == W + "tbl" || (previous is null && element.Element(W + "pPr") is null);
+    }
+
+    /// <summary>
+    /// Whether a paragraph is the one Reglet writes after a table that ends the body (<see cref="ClosingParagraph"/>):
+    /// empty, right after the table, only the body's sectPr after it, and nothing but that spacing. An empty paragraph
+    /// Word wrote there in its own formatting stays a paragraph.
+    /// </summary>
+    private static bool IsBodyClosingParagraph(XElement element)
+    {
+        if (element.Name != W + "p" || element.ElementsBeforeSelf().LastOrDefault()?.Name != W + "tbl"
+            || element.ElementsAfterSelf().Any(sibling => sibling.Name != W + "sectPr")
+            || element.Elements().Any(child => child.Name != W + "pPr"))
+        {
+            return false;
+        }
+
+        var spacing = element.Element(W + "pPr")?.Elements().ToList() is [var only] ? only : null;
+        return spacing?.Name == W + "spacing"
+            && (string?)spacing.Attribute(W + "before") == "0" && (string?)spacing.Attribute(W + "after") == "0"
+            && (string?)spacing.Attribute(W + "line") == ClosingParagraph.LineTwips.ToString(CultureInfo.InvariantCulture)
+            && (string?)spacing.Attribute(W + "lineRule") == "exact";
     }
 
     /// <summary>Reads an element of the body (or a cell): paragraph, table or content control.</summary>

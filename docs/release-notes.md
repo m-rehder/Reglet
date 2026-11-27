@@ -6,6 +6,20 @@
 
 - A minimum row height also leaves the border above the row on top, as Word does: a 15 pt row with 1.2 pt of padding
   and the 0.5 pt default grid is 17.9 pt high, as in Word and in LibreOffice.
+- A row that ends on a page also needs room for its bottom border, as in Word: a row whose bottom edge just fits but
+  whose border would reach below the text area moves to the next page.
+- The empty paragraph the DOCX writer puts after a table that ends the document, and the one that carries a section end,
+  is set too (one twip high), so a table that fills the last page to its end gives the same empty page as in Word.
+
+### DOCX
+
+- A body that ends with a table gets an empty paragraph one twip high (no spacing, `w:line="1"` exact) before
+  `w:sectPr`. Without it Word adds a paragraph in the default formatting when it opens the file, which could push a
+  full last page onto a new, empty one. The paragraph that carries a section end is as small. The reader leaves this
+  paragraph out again.
+- A header, footer or cell that ends with a chart, an embedded object or a column break no longer gets an extra empty
+  paragraph after it; one that ends with a diagram or equation, which a header or footer cannot hold, now gets the
+  paragraph it needs.
 
 ### ODT
 

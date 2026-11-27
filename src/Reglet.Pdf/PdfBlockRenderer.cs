@@ -2424,9 +2424,14 @@ internal sealed class PdfBlockRenderer
                 sliceHeight = first ? Math.Max(consumed, row.MinHeight + band) : consumed;
             }
 
-            // A required height counts when the row is placed; only an empty page can cut it down.
+            // A required height counts when the row is placed; only an empty page can cut it down. As in Word, a row
+            // that ends here also needs room for its bottom border, which is drawn below it.
             var pageRoom = _page.CursorY - _page.ContentBottom;
-            if (first && sliceHeight > pageRoom + 1e-6)
+            var endsHere = row.ExactHeight > 0 || targets.Select((target, index) => target >= row.Cells[index].Lines.Count).All(done => done);
+            var bottomBorder = endsHere
+                ? row.Cells.Where(cell => !cell.Merged).Select(cell => BorderWidth(cell, row.Border, top: false)).DefaultIfEmpty(0).Max()
+                : 0;
+            if (first && sliceHeight + bottomBorder > pageRoom + 1e-6)
             {
                 if (!freshPage && !_page.IsAtPageTop)
                 {
@@ -2441,7 +2446,7 @@ internal sealed class PdfBlockRenderer
                     _handler.Report("PDF: a table row with an exact height taller than the page is cut off at the page end.");
                 }
 
-                sliceHeight = Math.Max(consumed, pageRoom);
+                sliceHeight = Math.Max(consumed, Math.Min(sliceHeight, pageRoom));
             }
 
             var notes = row.Cells.SelectMany((cell, index) => cell.Lines.Skip(offsets[index]).Take(targets[index] - offsets[index]))
@@ -2500,6 +2505,16 @@ internal sealed class PdfBlockRenderer
     }
 
     /// <summary>Starts a new page within a table and repeats the header rows on it.</summary>
+    /// <summary>
+    /// Sets <see cref="ClosingParagraph"/>: it needs its room as Word's paragraph does, so a table that fills the page to
+    /// its end leaves it on the next page (in Word an empty last page).
+    /// </summary>
+    public void RenderClosingParagraph()
+    {
+        _page.EnsureSpace(ClosingParagraph.Height);
+        _page.Advance(ClosingParagraph.Height);
+    }
+
     private void NewTablePage(IReadOnlyList<RowLayout>? header)
     {
         _page.NewPage();
