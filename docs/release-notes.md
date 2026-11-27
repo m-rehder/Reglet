@@ -9,6 +9,8 @@
   set 1.672 em high instead of Arial's 1.15 em.
 - Room between East Asian text and Latin letters or digits, as Word's `w:autoSpaceDE`/`w:autoSpaceDN`: a quarter of
   the size of the East Asian text ("パーツ No.", "1 個"), not next to CJK punctuation or full-width forms.
+- Justified text adds its extra room only after real spaces. Before, an atom without text (a bookmark, or the new
+  East Asian spacing) also got it, so a justified line could run past the margin.
 
 ### API
 
