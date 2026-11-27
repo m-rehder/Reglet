@@ -1,5 +1,21 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- Each line in a table cell takes its height from the fonts of its own text, as in Word. Before, every line of a row
+  took the tallest font of the whole row, so a Latin header such as "Material Group" beside a cell in Yu Gothic was
+  set 1.672 em high instead of Arial's 1.15 em.
+- Room between East Asian text and Latin letters or digits, as Word's `w:autoSpaceDE`/`w:autoSpaceDN`: a quarter of
+  the size of the East Asian text ("パーツ No.", "1 個"), not next to CJK punctuation or full-width forms.
+
+### API
+
+- `ParagraphStyle.EastAsianLatinSpacing` and `ParagraphStyle.EastAsianDigitSpacing`: null (the default) is on, as in
+  Word; `false` switches the room off. DOCX writes and reads `w:autoSpaceDE`/`w:autoSpaceDN` (only an explicit off
+  is written), ODT `style:text-autospace` (`none` when both are off).
+
 ## 1.7.16
 
 ### PDF

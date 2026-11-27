@@ -90,6 +90,18 @@ public sealed record ParagraphStyle
     /// </summary>
     public bool? WidowControl { get; init; }
 
+    /// <summary>
+    /// Room between East Asian text (Han, kana, Hangul) and Latin letters, as Word's <c>w:autoSpaceDE</c>: a quarter of
+    /// the font size, as in "パーツ No.". <c>null</c> means on, as in Word; <c>false</c> sets the text without it.
+    /// </summary>
+    public bool? EastAsianLatinSpacing { get; init; }
+
+    /// <summary>
+    /// Room between East Asian text and digits, as Word's <c>w:autoSpaceDN</c> ("1 個"); <c>null</c> means on, as in
+    /// Word; <c>false</c> sets the text without it.
+    /// </summary>
+    public bool? EastAsianDigitSpacing { get; init; }
+
     /// <summary>Start a new page before the paragraph; <c>null</c> means "not set".</summary>
     public bool? PageBreakBefore { get; init; }
 

@@ -70,6 +70,8 @@ internal static class NamedStyleComparer
         style.KeepTogether.ToString(),
         style.PageBreakBefore.ToString(),
         style.WidowControl.ToString(),
+        style.EastAsianLatinSpacing.ToString(),
+        style.EastAsianDigitSpacing.ToString(),
         style.RightToLeft.ToString(),
         TabStopsKey(style.TabStops),
         // ADR-0010: the run formatting of the style belongs to its definition.

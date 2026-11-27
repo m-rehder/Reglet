@@ -2824,6 +2824,16 @@ public sealed class DocxDocumentReader : IDocumentReader
             style = style with { PageBreakBefore = IsOn(pageBreakBefore) };
         }
 
+        if (pPr.Element(W + "autoSpaceDE") is { } autoSpaceDE)
+        {
+            style = style with { EastAsianLatinSpacing = IsOn(autoSpaceDE) };
+        }
+
+        if (pPr.Element(W + "autoSpaceDN") is { } autoSpaceDN)
+        {
+            style = style with { EastAsianDigitSpacing = IsOn(autoSpaceDN) };
+        }
+
         if (pPr.Element(W + "bidi") is { } bidi)
         {
             style = style with { RightToLeft = IsOn(bidi) };

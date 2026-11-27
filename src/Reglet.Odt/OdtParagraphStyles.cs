@@ -229,6 +229,8 @@ internal sealed class OdtParagraphStyles
             || key.Style.KeepWithNext is not null
             || key.Style.KeepTogether is not null
             || key.Style.WidowControl is not null
+            || key.Style.EastAsianLatinSpacing is not null
+            || key.Style.EastAsianDigitSpacing is not null
             || key.Style.PageBreakBefore is not null
             || key.Style.TabStops is not null
             || key.Style.RightToLeft is not null

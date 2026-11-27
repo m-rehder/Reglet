@@ -2690,6 +2690,17 @@ internal static class DocxPackageBuilder
             writer.WriteEndElement();
         }
 
+        // Word takes a missing w:autoSpaceDE/w:autoSpaceDN as on: only an explicit off is written (schema order: before bidi).
+        if (style.EastAsianLatinSpacing is { } latinSpacing && Overrides(latinSpacing, inheritedBase?.EastAsianLatinSpacing ?? true))
+        {
+            WriteToggle(writer, "autoSpaceDE", latinSpacing);
+        }
+
+        if (style.EastAsianDigitSpacing is { } digitSpacing && Overrides(digitSpacing, inheritedBase?.EastAsianDigitSpacing ?? true))
+        {
+            WriteToggle(writer, "autoSpaceDN", digitSpacing);
+        }
+
         if (style.RightToLeft is { } rightToLeft
             && (inheritedBase is null || rightToLeft != inheritedBase.RightToLeft))
         {

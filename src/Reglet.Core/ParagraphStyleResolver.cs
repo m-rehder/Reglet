@@ -67,6 +67,8 @@ internal static class ParagraphStyleResolver
             KeepTogether = paragraph.KeepTogether is null ? inheritedBase.KeepTogether : effective.KeepTogether,
             PageBreakBefore = paragraph.PageBreakBefore is null ? inheritedBase.PageBreakBefore : effective.PageBreakBefore,
             WidowControl = paragraph.WidowControl is null ? inheritedBase.WidowControl : effective.WidowControl,
+            EastAsianLatinSpacing = paragraph.EastAsianLatinSpacing is null ? inheritedBase.EastAsianLatinSpacing : effective.EastAsianLatinSpacing,
+            EastAsianDigitSpacing = paragraph.EastAsianDigitSpacing is null ? inheritedBase.EastAsianDigitSpacing : effective.EastAsianDigitSpacing,
         };
         return true;
     }
@@ -148,6 +150,16 @@ internal static class ParagraphStyleResolver
         if (style.WidowControl is null && defaults.WidowControl is { } widowControl)
         {
             result = result with { WidowControl = widowControl };
+        }
+
+        if (style.EastAsianLatinSpacing is null && defaults.EastAsianLatinSpacing is { } latinSpacing)
+        {
+            result = result with { EastAsianLatinSpacing = latinSpacing };
+        }
+
+        if (style.EastAsianDigitSpacing is null && defaults.EastAsianDigitSpacing is { } digitSpacing)
+        {
+            result = result with { EastAsianDigitSpacing = digitSpacing };
         }
 
         if (style.PageBreakBefore is null && defaults.PageBreakBefore is { } pageBreakBefore)
@@ -258,6 +270,16 @@ internal static class ParagraphStyleResolver
         if (Inherited(paragraph.WidowControl, sourceBase.WidowControl) && !Equals(current.WidowControl, source.WidowControl))
         {
             result = result with { WidowControl = current.WidowControl };
+        }
+
+        if (Inherited(paragraph.EastAsianLatinSpacing, sourceBase.EastAsianLatinSpacing) && !Equals(current.EastAsianLatinSpacing, source.EastAsianLatinSpacing))
+        {
+            result = result with { EastAsianLatinSpacing = current.EastAsianLatinSpacing };
+        }
+
+        if (Inherited(paragraph.EastAsianDigitSpacing, sourceBase.EastAsianDigitSpacing) && !Equals(current.EastAsianDigitSpacing, source.EastAsianDigitSpacing))
+        {
+            result = result with { EastAsianDigitSpacing = current.EastAsianDigitSpacing };
         }
 
         if (Inherited(paragraph.PageBreakBefore, sourceBase.PageBreakBefore)
@@ -407,6 +429,8 @@ internal static class ParagraphStyleResolver
             && left.KeepTogether == right.KeepTogether
             && left.PageBreakBefore == right.PageBreakBefore
             && left.WidowControl == right.WidowControl
+            && left.EastAsianLatinSpacing == right.EastAsianLatinSpacing
+            && left.EastAsianDigitSpacing == right.EastAsianDigitSpacing
             && SameTabStops(left.TabStops, right.TabStops)
             && left.RightToLeft == right.RightToLeft;
 

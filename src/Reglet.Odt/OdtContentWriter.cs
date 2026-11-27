@@ -585,6 +585,15 @@ internal static class OdtContentWriter
             WriteWidowControl(writer, widowControl);
         }
 
+        // ODF has one switch for both: off when both are off, on when both are set on.
+        var autoSpace = style.EastAsianLatinSpacing == false && style.EastAsianDigitSpacing == false ? "none"
+            : style.EastAsianLatinSpacing == true && style.EastAsianDigitSpacing == true ? "ideograph-alpha" : null;
+        var parentAutoSpace = parent is { EastAsianLatinSpacing: false, EastAsianDigitSpacing: false } ? "none" : "ideograph-alpha";
+        if (autoSpace is not null && (parent is null || autoSpace != parentAutoSpace))
+        {
+            writer.WriteAttributeString("style", "text-autospace", OdtNamespaces.Style, autoSpace);
+        }
+
         if (style.PageBreakBefore is { } pageBreakBefore
             && !breakWritten
             && (parent is null || parent.PageBreakBefore != pageBreakBefore))

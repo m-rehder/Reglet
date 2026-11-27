@@ -1279,6 +1279,8 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `bool? KeepWithNext { get; init; }` — Keep a heading/paragraph together with the first line of the following block; `null` means "not set".
 - `bool? KeepTogether { get; init; }` — Keep the whole paragraph on one page (do not split across pages); `null` means "not set".
 - `bool? WidowControl { get; init; }` — Widow and orphan control: a paragraph split across pages keeps at least two lines on each, in the text and in a table row (the row moves whole when its paragraph may not split there). `null` means on, as in Word, where a missing `w:widowControl` is on; `false` splits a paragraph exactly where the room ends. DOCX writes it as `w:widowControl`, ODT as `fo:widows`/`fo:orphans`.
+- `bool? EastAsianLatinSpacing { get; init; }` — Room between East Asian text (Han, kana, Hangul) and Latin letters, as Word's `w:autoSpaceDE`: a quarter of the font size, as in "パーツ No.". `null` means on, as in Word; `false` sets the text without it.
+- `bool? EastAsianDigitSpacing { get; init; }` — Room between East Asian text and digits, as Word's `w:autoSpaceDN` ("1 個"); `null` means on, as in Word; `false` sets the text without it.
 - `bool? PageBreakBefore { get; init; }` — Start a new page before the paragraph; `null` means "not set".
 - `IReadOnlyList<TabStop>? TabStops { get; init; }` — Tab stops; `null` means "not set" and inherits, an empty list means no tab stops.
 - `bool? RightToLeft { get; init; }` — Paragraph direction from right to left (base direction); `null` means "not set" and inherits, `false` is an explicit left-to-right.

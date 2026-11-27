@@ -1437,7 +1437,8 @@ public sealed class OdtDocumentReader : IDocumentReader
         bool? KeepTogether = null,
         IReadOnlyList<TabStop>? TabStops = null,
         ParagraphBorders? Borders = null,
-        bool? WidowControl = null)
+        bool? WidowControl = null,
+        bool? AutoSpace = null)
     {
         public static ParagraphFormat Empty { get; } = new(null, null, null, null, null, null, null, null, null);
 
@@ -1456,7 +1457,8 @@ public sealed class OdtDocumentReader : IDocumentReader
             child.KeepTogether ?? parent.KeepTogether,
             child.TabStops ?? parent.TabStops,
             child.Borders ?? parent.Borders,
-            child.WidowControl ?? parent.WidowControl);
+            child.WidowControl ?? parent.WidowControl,
+            child.AutoSpace ?? parent.AutoSpace);
 
         public ParagraphStyle ToStyle()
         {
@@ -1527,6 +1529,11 @@ public sealed class OdtDocumentReader : IDocumentReader
                 style = style with { WidowControl = widowControl };
             }
 
+            if (AutoSpace is { } autoSpace)
+            {
+                style = style with { EastAsianLatinSpacing = autoSpace, EastAsianDigitSpacing = autoSpace };
+            }
+
             if (TabStops is { } tabStops)
             {
                 // ODF counts from the paragraph indent, the model from the margin.
@@ -1590,7 +1597,13 @@ public sealed class OdtDocumentReader : IDocumentReader
             },
             ReadTabStops(properties.Element(Style + "tab-stops")),
             ReadParagraphBorders(properties),
-            ReadWidowControl(properties));
+            ReadWidowControl(properties),
+            properties.Attribute(Style + "text-autospace")?.Value switch
+            {
+                "none" => false,
+                "ideograph-alpha" => true,
+                _ => null,
+            });
         return format == ParagraphFormat.Empty ? null : format;
     }
 

@@ -19,6 +19,8 @@ internal static class EastAsianFontChecks
             PdfTakesAFallbackFont();
             SpacesTakeAFontThatHasThem();
             EastAsianLinesAreAsHighAsInWord();
+            LatinLinesBesideEastAsianCellsKeepTheirHeight();
+            EastAsianTextIsSpacedFromLatinAndDigits();
             DocxKeepsTheEastAsianFont();
             OdtKeepsTheEastAsianFont();
             CollectionFontsLoadByFamily();
@@ -106,6 +108,59 @@ internal static class EastAsianFontChecks
         Require(Math.Abs(eastAsian - 15.6) < 0.01, $"An East Asian font's line is 1.3 times its Windows height ({eastAsian}).");
         var other = Pitch(1u);
         Require(Math.Abs(other - 10) < 0.01, $"Without a CJK code page the font keeps its hhea line ({other}).");
+    }
+
+    private static void LatinLinesBesideEastAsianCellsKeepTheirHeight()
+    {
+        // Word: each line takes its height from the fonts of its own text; Latin lines in a cell keep the Latin height
+        // beside a cell of Japanese text in a taller East Asian font (here 1.0 em against 1.56 em).
+        var face = FontFace.Load(PdfAChecks.Font("AsiaSans", 1u << 18, ('日', 1), ('本', 2)));
+        var plain = ParagraphStyle.Default with { SpaceBefore = Length.Zero, SpaceAfter = Length.Zero };
+        var row = new TableRow([
+            new TableCell([new Paragraph(new TextRun("Hello\nHello")) { Style = plain }]),
+            new TableCell([new Paragraph(new TextRun(Japanese) { EastAsianFontFamily = "AsiaSans" }) { Style = plain }]),
+        ]);
+        var document = new PortableDocument(new DocumentMetadata(), new Section(new TableBlock([row])))
+        {
+            Defaults = DocumentDefaults.Default with { FontFamily = "LatinSans", FontSize = Length.FromPoints(10), EastAsianFontFamily = "AsiaSans" },
+        };
+        using var buffer = new MemoryStream();
+        new PdfDocumentWriter().WriteAsync(document, buffer, new PdfWriteOptions { FontCollection = FontCollection.Empty.Add(Latin()).Add(face) }).GetAwaiter().GetResult();
+        var content = PdfStreams.DecompressPages(buffer.ToArray())[0];
+        var ys = Regex.Matches(content, @"(-?[\d.]+) (-?[\d.]+) Td\s*\[?<0003")
+            .Select(match => double.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        Require(ys.Count == 2 && Math.Abs(ys[0] - ys[1] - 10) < 0.01, $"The Latin lines are 10 pt apart, not 15.6 ({string.Join(", ", ys)}).");
+    }
+
+    private static void EastAsianTextIsSpacedFromLatinAndDigits()
+    {
+        // Word (autoSpaceDE/autoSpaceDN on unless switched off): a quarter of the size between East Asian text and
+        // Latin letters or digits. "日本" is 11 pt wide here (11 pt text), so "Hello" starts 13.75 pt after it, or 11 without.
+        double Start(ParagraphStyle style, string latin)
+        {
+            var fonts = FontCollection.Empty.Add(FontFace.Load(PdfAChecks.Font("LatinSans", ('H', 3), ('e', 4), ('l', 5), ('o', 6), ('1', 3)))).Add(Kanji());
+            var document = Document(new TextRun(latin)) with { Sections = [new Section(new Paragraph(new TextRun(Japanese + latin) { EastAsianFontFamily = "KanjiSans" }) { Style = style })] };
+            using var buffer = new MemoryStream();
+            new PdfDocumentWriter().WriteAsync(document, buffer, new PdfWriteOptions { FontCollection = fonts }).GetAwaiter().GetResult();
+            var xs = Regex.Matches(PdfStreams.DecompressPages(buffer.ToArray())[0], @"(-?[\d.]+) (-?[\d.]+) Td")
+                .Select(match => double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+            return xs[1] - xs[0];
+        }
+
+        var on = Start(ParagraphStyle.Default, "Hello");
+        Require(Math.Abs(on - 13.75) < 0.01, $"A quarter of the size between Japanese and Latin text ({on}).");
+        Require(Math.Abs(Start(ParagraphStyle.Default with { EastAsianLatinSpacing = false }, "Hello") - 11) < 0.01, "Off with autoSpaceDE = 0.");
+        Require(Math.Abs(Start(ParagraphStyle.Default, "1") - 13.75) < 0.01, "Also before a digit.");
+        Require(Math.Abs(Start(ParagraphStyle.Default with { EastAsianDigitSpacing = false }, "1") - 11) < 0.01, "Off with autoSpaceDN = 0.");
+
+        var off = Document(new TextRun("x")) with { Sections = [new Section(new Paragraph(new TextRun("x")) { Style = ParagraphStyle.Default with { EastAsianLatinSpacing = false, EastAsianDigitSpacing = false } })] };
+        foreach (var format in new[] { DocumentFormat.Docx, DocumentFormat.Odt })
+        {
+            var style = ((Paragraph)TestPackages.Read(TestPackages.Write(off, format), format).Sections[0].Blocks[0]).Style;
+            Require(style.EastAsianLatinSpacing == false && style.EastAsianDigitSpacing == false, $"{format}: the switched-off spacing is read back.");
+            var plain = ((Paragraph)TestPackages.Read(TestPackages.Write(Document(new TextRun("x")), format), format).Sections[0].Blocks[0]).Style;
+            Require(plain.EastAsianLatinSpacing is null && plain.EastAsianDigitSpacing is null, $"{format}: the default stays unset.");
+        }
     }
 
     private static void DocxKeepsTheEastAsianFont()

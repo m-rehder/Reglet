@@ -2724,7 +2724,7 @@ internal sealed class PdfBlockRenderer
 
                     // Right to left the line is mirrored inside the cell's inner box.
                     var cellMirror = atoms.Count > 0 && atoms[0].RightToLeft ? (2 * (cellX + cell.PadX)) + innerWidth : (double?)null;
-                    WriteAtoms(atoms, lineX, y - line.Before - (line.Spacing is { Rule: LineSpacingRule.Exactly } exact ? ExactLineAscent(exact) : row.Ascent + AtLeastExtra(line.Spacing, row.LineHeight)) - row.ImageRise(line), justifyExtra, line.TabStops, cellMirror, cellX + cell.PadX);
+                    WriteAtoms(atoms, lineX, y - line.Before - (line.Spacing is { Rule: LineSpacingRule.Exactly } exact ? ExactLineAscent(exact) : row.AscentOf(line) + AtLeastExtra(line.Spacing, row.TextHeightOf(line))) - row.ImageRise(line), justifyExtra, line.TabStops, cellMirror, cellX + cell.PadX);
                     y -= row.HeightOf(line);
                 }
                 else
@@ -2931,7 +2931,7 @@ internal sealed class PdfBlockRenderer
     private static IEnumerable<(int Number, string Text)> CellNotes(CellLine line)
         => line.Notes is { } notes ? notes : (line.Atoms ?? []).Where(atom => atom.Note is not null).Select(atom => atom.Note!.Value);
 
-    /// <summary>A laid-out table row; text lines share the row's line height.</summary>
+    /// <summary>A laid-out table row; each text line takes its height from its own text (the row's line height is for a row without text).</summary>
     private sealed record RowLayout(
         bool IsHeader,
         List<CellLayout> Cells,
@@ -2951,17 +2951,41 @@ internal sealed class PdfBlockRenderer
                 return line.Height;
             }
 
-            var height = line.Spacing is not { } spacing ? LineHeight : spacing.Rule switch
+            var natural = TextHeightOf(line);
+            var height = line.Spacing is not { } spacing ? natural : spacing.Rule switch
             {
-                LineSpacingRule.Multiple => LineHeight * spacing.Factor,
-                LineSpacingRule.AtLeast => Math.Max(LineHeight, spacing.Height.Points),
+                LineSpacingRule.Multiple => natural * spacing.Factor,
+                LineSpacingRule.AtLeast => Math.Max(natural, spacing.Height.Points),
                 _ => spacing.Height.Points,
             };
-            return height + ImageExtra(line, AtomLineHeight, LineHeight) + line.Before + line.After;
+            return height + ImageExtra(line, AtomLineHeight, natural) + line.Before + line.After;
         }
 
-        /// <summary>How far an inline image in the line moves its baseline down, below the row's ascent.</summary>
-        public double ImageRise(CellLine line) => ImageExtra(line, AtomAscent, Ascent);
+        /// <summary>
+        /// The height of a text line from the fonts of its own text, as in Word: a line in Arial beside a cell in Yu
+        /// Gothic keeps Arial's height. An empty line takes its paragraph mark; a line of only pictures the row's.
+        /// </summary>
+        public double TextHeightOf(CellLine line) => LineMetrics(line).Height;
+
+        /// <summary>The height above the baseline of a text line, from its own text as <see cref="TextHeightOf"/>.</summary>
+        public double AscentOf(CellLine line) => LineMetrics(line).Ascent;
+
+        private (double Height, double Ascent) LineMetrics(CellLine line)
+        {
+            var measured = line.Atoms is { } atoms ? Measured(atoms) : [];
+            if (measured.Count == 0)
+            {
+                return line.Empty.Height > 0 ? line.Empty : (LineHeight, Ascent);
+            }
+
+            var text = measured.Where(atom => atom.Image is null).ToList();
+            return text.Count == 0
+                ? (LineHeight, Ascent)
+                : (text.Max(atom => atom.Font.Metrics.LineHeightEm * atom.FontSize), text.Max(atom => atom.Font.Metrics.AscentEm * atom.FontSize));
+        }
+
+        /// <summary>How far an inline image in the line moves its baseline down, below the line's ascent.</summary>
+        public double ImageRise(CellLine line) => ImageExtra(line, AtomAscent, AscentOf(line));
 
         // As in a paragraph, an image line is as high as its image needs and its baseline as low.
         private static double ImageExtra(CellLine line, Func<TextAtom, double> measure, double rowValue)
@@ -3262,7 +3286,7 @@ internal sealed class PdfBlockRenderer
             }
         }
 
-        return atoms;
+        return SpaceEastAsianText(atoms, paragraphStyle);
     }
 
     /// <summary>A field result in the default font (bold in headings) at the paragraph's size.</summary>
@@ -3522,7 +3546,7 @@ internal sealed class PdfBlockRenderer
 
             // A tab has no text of its own; while wrapping it keeps at least a small gap so that
             // text and a right-aligned tab target (e.g. a page number) do not run together.
-            var segments = atom.IsTab
+            var segments = atom.IsTab || atom.Gap > 0
                 ? [atom with { }]
                 : SplitAtSpaces(atom).SelectMany(part => SplitToFit(part, SplitWidth));
             foreach (var segment in segments)
@@ -3662,6 +3686,86 @@ internal sealed class PdfBlockRenderer
             raw.Text[part.Start..(index + 1 < parts.Count ? parts[index + 1].Start : raw.Text.Length)],
             part.Own ? raw.FontFamily : part.Family));
     }
+
+    /// <summary>
+    /// Word's room between East Asian text and Latin letters (<c>w:autoSpaceDE</c>) or digits (<c>w:autoSpaceDN</c>):
+    /// a quarter of the East Asian text's size, measured in Word as 2.28 pt at 9 pt (2.25 pt on its 1/600 inch grid). It
+    /// is an atom of its own without text, so it neither draws nor copies, and a line may break there.
+    /// </summary>
+    private static List<TextAtom> SpaceEastAsianText(List<TextAtom> atoms, ParagraphStyle? style)
+    {
+        var latin = style?.EastAsianLatinSpacing != false;
+        var digits = style?.EastAsianDigitSpacing != false;
+        if (!latin && !digits)
+        {
+            return atoms;
+        }
+
+        bool Spaced(int left, int right)
+        {
+            var (a, b) = (SpacingKind(left), SpacingKind(right));
+            return (a, b) switch
+            {
+                (SpacingClass.EastAsian, SpacingClass.Latin) or (SpacingClass.Latin, SpacingClass.EastAsian) => latin,
+                (SpacingClass.EastAsian, SpacingClass.Digit) or (SpacingClass.Digit, SpacingClass.EastAsian) => digits,
+                _ => false,
+            };
+        }
+
+        static bool IsText(TextAtom atom) => atom is { Text.Length: > 0, Image: null, IsTab: false, IsHardBreak: false, IsSoftHyphen: false, Note: null, Bookmark: null, Comment: null };
+
+        var result = new List<TextAtom>(atoms.Count);
+        void Add(TextAtom atom)
+        {
+            if (result.Count > 0 && result[^1] is var previous && IsText(previous) && IsText(atom)
+                && Spaced(char.ConvertToUtf32(previous.Text, previous.Text.Length - (char.IsLowSurrogate(previous.Text[^1]) && previous.Text.Length > 1 ? 2 : 1)), char.ConvertToUtf32(atom.Text, 0)))
+            {
+                var eastAsian = SpacingKind(char.ConvertToUtf32(atom.Text, 0)) == SpacingClass.EastAsian ? atom : previous;
+                result.Add(atom with { Text = string.Empty, Gap = 0.25 * eastAsian.FontSize, Hyperlink = null, JoinsPrevious = false });
+            }
+
+            result.Add(atom);
+        }
+
+        foreach (var atom in atoms)
+        {
+            if (!IsText(atom))
+            {
+                Add(atom);
+                continue;
+            }
+
+            // Within one atom (the same font for both scripts) the text is cut where the room goes.
+            var start = 0;
+            var previousRune = -1;
+            var position = 0;
+            foreach (var rune in atom.Text.EnumerateRunes())
+            {
+                if (previousRune >= 0 && Spaced(previousRune, rune.Value))
+                {
+                    Add(atom with { Text = atom.Text[start..position] });
+                    start = position;
+                }
+
+                previousRune = rune.Value;
+                position += rune.Utf16SequenceLength;
+            }
+
+            Add(start == 0 ? atom : atom with { Text = atom.Text[start..] });
+        }
+
+        return result;
+    }
+
+    private enum SpacingClass { Other, EastAsian, Latin, Digit }
+
+    /// <summary>The class of a character for East Asian spacing: CJK punctuation and full-width forms get no room.</summary>
+    private static SpacingClass SpacingKind(int codePoint)
+        => IsEastAsian(codePoint) && codePoint is not ((>= 0x3000 and <= 0x303F) or (>= 0xFE30 and <= 0xFE4F) or (>= 0xFF00 and <= 0xFFEF))
+            ? SpacingClass.EastAsian
+            : codePoint is >= '0' and <= '9' ? SpacingClass.Digit
+            : !IsEastAsian(codePoint) && Rune.IsValid(codePoint) && Rune.IsLetter(new Rune(codePoint)) ? SpacingClass.Latin
+            : SpacingClass.Other;
 
     /// <summary>Whether a character belongs to an East Asian script: Han, kana, Hangul, Bopomofo, CJK punctuation and full-width forms.</summary>
     private static bool IsEastAsian(int codePoint) => codePoint is
@@ -3817,6 +3921,11 @@ internal sealed class PdfBlockRenderer
 
     private static double MeasureAtom(TextAtom atom)
     {
+        if (atom.Gap > 0)
+        {
+            return atom.Gap;
+        }
+
         if (atom.IsTab)
         {
             return 0;
@@ -4014,6 +4123,12 @@ internal sealed class PdfBlockRenderer
                 }
 
                 x = Math.Max(x, textX);
+                continue;
+            }
+
+            if (atom.Gap > 0)
+            {
+                x += atom.Gap;
                 continue;
             }
 
@@ -4425,7 +4540,8 @@ internal sealed class PdfBlockRenderer
         Bookmark? Bookmark = null,
         Comment? Comment = null,
         InlineImageBox? Image = null,
-        bool JoinsPrevious = false);
+        bool JoinsPrevious = false,
+        double Gap = 0);
 
     /// <summary>An image in a line: drawn on the baseline at its size.</summary>
     private sealed record InlineImageBox(PdfImageHandle Handle, double Width, double Height, ImageCrop? Crop, string? AltText);
