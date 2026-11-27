@@ -23,13 +23,11 @@ public static class Typography
     public static readonly Length ParagraphSpaceAfter = Length.FromPoints(6);
 
     /// <summary>
-    /// amount by which Word and LibreOffice reduce the space before of the first paragraph after a
-    /// section break (new page). Measured with LibreOffice from our DOCX
-    /// and observed in Word ("~5 pt" at a 12-pt heading): effectively
-    /// <c>max(0, SpaceBefore − this amount)</c>. After a manual page break
-    /// the space is dropped entirely (0). DOCX leaves the computation to Word/LibreOffice;
-    /// ODT and PDF reproduce the reduction.
+    /// Obsolete: the amount by which Word in an older compatibility mode reduced the space before of the first paragraph
+    /// after a section break. Word in compatibility mode 15, which Reglet's DOCX declares, keeps the full space before
+    /// after a section break and after a hard page break; Reglet's PDF and ODT do the same and no longer use this value.
     /// </summary>
+    [Obsolete("Word in compatibility mode 15, which Reglet's DOCX declares, keeps the full space before after a section break; Reglet no longer applies this reduction.")]
     public static readonly Length SpaceBeforeReductionAtSectionStart = Length.FromPoints(6);
 
     /// <summary>Padding of a table cell left and right (Word default 108 twips).</summary>

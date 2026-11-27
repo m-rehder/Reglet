@@ -1815,7 +1815,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 `static class Typography` — central typography baseline used by all writers. Changes here affect the same across formats.
 
 - `static readonly Length ParagraphSpaceAfter` — default spacing after a paragraph when `ParagraphStyle.SpaceAfter` is `null` (not set). List items (except the last paragraph of a list), table cells and headers/footers are compact and receive 0.
-- `static readonly Length SpaceBeforeReductionAtSectionStart` — amount by which Word and LibreOffice reduce the space before of the first paragraph after a section break (new page). Measured with LibreOffice from our DOCX and observed in Word ("~5 pt" at a 12-pt heading): effectively `max(0, SpaceBefore − this amount)`. After a manual page break the space is dropped entirely (0). DOCX leaves the computation to Word/LibreOffice; ODT and PDF reproduce the reduction.
+- `static readonly Length SpaceBeforeReductionAtSectionStart` — Obsolete: the amount by which Word in an older compatibility mode reduced the space before of the first paragraph after a section break. Word in compatibility mode 15, which Reglet's DOCX declares, keeps the full space before after a section break and after a hard page break; Reglet's PDF and ODT do the same and no longer use this value.
 - `static readonly Length TableCellPaddingHorizontal` — Padding of a table cell left and right (Word default 108 twips).
 - `static readonly Length TableBorderWidth` — Line width of the table borders (black, outer and inner).
 - `static readonly Length TableCellPaddingVertical` — Padding of a table cell top and bottom.

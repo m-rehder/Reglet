@@ -274,7 +274,7 @@ internal sealed class PdfBlockRenderer
                 RenderTable(table);
                 break;
             case PageBreak:
-                _page.NewPage();
+                _page.NewPageByBreak();
                 break;
             case ColumnBreak:
                 _page.NextColumn();
@@ -1165,7 +1165,7 @@ internal sealed class PdfBlockRenderer
     {
         if (style.PageBreakBefore == true && !_page.IsAtPageTop)
         {
-            _page.NewPage();
+            _page.NewPageByBreak();
         }
 
         var atoms = BuildAtoms(inlines, headingSize, style);
@@ -1281,12 +1281,11 @@ internal sealed class PdfBlockRenderer
 
         // With keepWithNext the whole paragraph stays with the first following line, provided
         // both even fit on one page.
-        var spaceBeforePoints = (style.SpaceBefore ?? Length.Zero).Points;
-        var spaceBefore = _page.IsAtTopOfSectionStart
-            ? Math.Max(0, spaceBeforePoints - Typography.SpaceBeforeReductionAtSectionStart.Points)
-            : spaceBeforePoints;
+        // Word (compatibility mode 15) keeps the space before at the top of a page that a section break or a hard page
+        // break began, and drops it only at the top of a page the flow began.
+        var spaceBefore = (style.SpaceBefore ?? Length.Zero).Points;
         // The gap between two paragraphs is the larger of the space after and the space before, not their sum.
-        if (!_page.IsAtTopOfSectionStart && !_page.IsAtTopOfContinuedPage)
+        if (!_page.IsAtTopAfterBreak && !_page.IsAtTopOfContinuedPage)
         {
             spaceBefore = Math.Max(0, spaceBefore - carriedAfter);
         }
@@ -1299,6 +1298,8 @@ internal sealed class PdfBlockRenderer
             while (_page.HasPendingFootnotes) _page.NewPage();
         }
         _page.EnsureSpace((keepBlockTogether ? together : spaceBefore + lineHeights[0]) + firstNoteHeight);
+        // A paragraph that starts at the top of a page does not move on for widow control: the space before it does not count.
+        var startsAtPageTop = _page.IsAtPageTop;
         if (!_page.IsAtTopOfContinuedPage)
         {
             _page.Advance(spaceBefore);
@@ -1389,7 +1390,7 @@ internal sealed class PdfBlockRenderer
                 split = 0;
             }
 
-            if (split <= 0 && (start > 0 || _page.IsAtPageTop))
+            if (split <= 0 && (start > 0 || _page.IsAtPageTop || startsAtPageTop))
             {
                 return -1;
             }

@@ -1,5 +1,24 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- The space before the first paragraph of a page stays after a section break and after a hard page break
+  (`PageBreak`, `ParagraphStyle.PageBreakBefore`), as Word does in compatibility mode 15, which Reglet's DOCX declares.
+  It is dropped only at the top of a page or column the flow began. Before, it was dropped after a hard break and
+  reduced by 6 pt after a section break, so a page that began with a section break stood 6 pt higher than in Word.
+- A paragraph that starts at the top of a page no longer moves to the next page for widow and orphan control because
+  of its space before.
+
+### ODT
+
+- The paragraph after a page break or a section break keeps its space before (`fo:margin-top`), as in Word.
+
+### API
+
+- `Typography.SpaceBeforeReductionAtSectionStart` is obsolete; Reglet no longer applies the reduction.
+
 ## 1.7.9
 
 ### PDF

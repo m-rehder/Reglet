@@ -718,8 +718,8 @@ internal static class RegressionChecks
 
     private static void DropsSpaceBeforeAtTopOfContinuedPage()
     {
-        // Like Word (confirmed by screenshot): after a manual break and after overflow
-        // the space before is dropped; after a section break it remains.
+        // Word (compatibility mode 15): after a hard page break and after a section break the space before stays; only
+        // at the top of a page the flow began is it dropped.
         var top = PageSize.A4.Height.Points - PageMargins.Normal.Top.Points;
         var size = Typography.HeadingSize(HeadingLevel.Level2).Points;
         var before = Typography.HeadingSpaceBefore.Points;
@@ -727,19 +727,21 @@ internal static class RegressionChecks
 
         var afterBreak = PdfPageContents(PortableDocument.Create()
             .Paragraph("start").PageBreak().Heading("Break", level: 2).Paragraph("x").Build());
-        Require(Math.Abs(TextY(afterBreak[1], "Break") - (top - size * ascent)) < 0.01, "PDF: no space before after a manual break.");
+        Require(Math.Abs(TextY(afterBreak[1], "Break") - (top - before - size * ascent)) < 0.01, "PDF: the space before stays after a manual break.");
+        var breakBefore = PdfPageContents(new PortableDocument(new DocumentMetadata(), new Section(new Block[]
+        {
+            new Paragraph(new TextRun("start")),
+            new Heading(HeadingLevel.Level2, new TextRun("Before")) { Style = ParagraphStyle.Default with { PageBreakBefore = true, SpaceBefore = Length.FromPoints(before) } },
+        })));
+        Require(Math.Abs(TextY(breakBefore[1], "Before") - (top - before - size * ascent)) < 0.01, "PDF: the space before stays after a page break before.");
 
         var sections = new PortableDocument(new DocumentMetadata(), new[]
         {
             new Section(new Paragraph(new TextRun("one"))),
             new Section(new Block[] { new Heading(HeadingLevel.Level2, new TextRun("Section")) }),
         });
-        // After a section break Word/LibreOffice reduce the space before by a
-        // fixed amount (see Typography.SpaceBeforeReductionAtSectionStart; in Word about 5 pt
-        // at a 12-pt heading, measured in LibreOffice as max(0, before − 6)).
-        Require(Math.Abs(TextY(PdfPageContents(sections)[1], "Section")
-            - (top - (before - Typography.SpaceBeforeReductionAtSectionStart.Points) - size * ascent)) < 0.01,
-            "PDF: space before is reduced after a section break (like Word).");
+        Require(Math.Abs(TextY(PdfPageContents(sections)[1], "Section") - (top - before - size * ascent)) < 0.01,
+            "PDF: the full space before stays after a section break (like Word).");
 
         var overflowChecked = false;
         for (var fill = 30; fill <= 60 && !overflowChecked; fill++)
@@ -761,8 +763,7 @@ internal static class RegressionChecks
 
         Require(overflowChecked, "A fill amount puts the heading at the top of a new page.");
 
-        // ODT: the style at the manual break sets the space before to 0, that at the
-        // section break is shortened by the measured reduction (like Word/LibreOffice).
+        // ODT: the styles at the manual break and at the section break keep the space before (like Word).
         var document = new PortableDocument(new DocumentMetadata(), new[]
         {
             new Section(new Block[] { new Paragraph(new TextRun("start")), new PageBreak(), new Heading(HeadingLevel.Level2, new TextRun("break")) }),
@@ -778,11 +779,8 @@ internal static class RegressionChecks
             return Regex.Match(content, $"style:name=\"{name}\".*?</style:style>").Value;
         }
 
-        Require(StyleBody("break").Contains("fo:margin-top=\"0pt\"", StringComparison.Ordinal), "ODT: no space before after a manual break.");
-        var reduced = (Typography.HeadingSpaceBefore.Points - Typography.SpaceBeforeReductionAtSectionStart.Points)
-            .ToString("0.##", CultureInfo.InvariantCulture);
-        Require(StyleBody("section").Contains($"fo:margin-top=\"{reduced}pt\"", StringComparison.Ordinal),
-            "ODT: space before is reduced after a section break (like Word).");
+        Require(!StyleBody("break").Contains("fo:margin-top=", StringComparison.Ordinal) && !StyleBody("section").Contains("fo:margin-top=", StringComparison.Ordinal),
+            "ODT: the break styles keep the space before of the heading style.");
     }
 
     private static void DocxDeclaresCurrentCompatibilityMode()

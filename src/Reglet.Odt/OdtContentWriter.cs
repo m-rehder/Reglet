@@ -513,21 +513,8 @@ internal static class OdtContentWriter
                 writer.WriteAttributeString("style", "page-number", OdtNamespaces.Style, pageNumberStart.ToString(CultureInfo.InvariantCulture));
             }
 
-            // Like Word: after a manual page break the space before is dropped (also the
-            // of the heading style); after a section break Word/LibreOffice reduce
-            // it by Typography.SpaceBeforeReductionAtSectionStart (measured: about 5 pt at 12 pt).
-            if (key.Break is { MasterPage: null })
-            {
-                writer.WriteAttributeString("fo", "margin-top", OdtNamespaces.Fo, "0pt");
-            }
-            else if (key.Break is { MasterPage: not null, PageNumberOnly: false })
-            {
-                WriteLengthIfNonZero(writer, "margin-top", ReducedAtSectionStart(key));
-            }
-            else
-            {
-                WriteNullableLengthIfDifferent(writer, "margin-top", style.SpaceBefore, parent?.SpaceBefore);
-            }
+            // As in Word (compatibility mode 15), the space before stays after a page break and a section break.
+            WriteNullableLengthIfDifferent(writer, "margin-top", style.SpaceBefore, parent?.SpaceBefore);
 
             WriteSpaceAfter(writer, style, key.Compact, parent);
 
@@ -815,21 +802,6 @@ internal static class OdtContentWriter
         {
             writer.WriteAttributeString("fo", "margin-bottom", OdtNamespaces.Fo, "0pt");
         }
-    }
-
-    /// <summary>
-    /// space before after a section break: max(0, SpaceBefore − reduction), as
-    /// Word/LibreOffice. Headings take their space before from the named style
-    /// (Typography.HeadingSpaceBefore); the automatic break style then shortens it.
-    /// </summary>
-    private static Length ReducedAtSectionStart(OdtParagraphKey key)
-    {
-        var style = key.Style;
-        var full = style.SpaceBefore
-            ?? (style.StyleName is { } name && name.StartsWith("Heading", StringComparison.Ordinal)
-                ? Typography.HeadingSpaceBefore
-                : Length.Zero);
-        return Length.FromPoints(Math.Max(0, full.Points - Typography.SpaceBeforeReductionAtSectionStart.Points));
     }
 
     private static void WriteBlock(

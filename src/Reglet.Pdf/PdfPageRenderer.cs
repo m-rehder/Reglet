@@ -76,6 +76,7 @@ internal sealed class PdfPageRenderer
     private int _lineCounter;
     private bool _pageStarted;
     private bool _pageStartedByBreak;
+    private bool _pageStartedByHardBreak;
     private bool _inBand;
     private bool _suppressAnnotations;
     private double _bandMaxHeight;
@@ -184,18 +185,17 @@ internal sealed class PdfPageRenderer
     private int _sectionCount;
 
     /// <summary>
-    /// whether the cursor is at the very top of a page that was created by a section break
-    /// has begun (not the document start, not a break/overflow). There
-    /// Word/LibreOffice the space before of the first paragraph.
+    /// Whether the cursor is at the very top of a page that a section break or a hard page break began (not the document
+    /// start, not the flow). Word (compatibility mode 15) keeps the space before of the first paragraph there.
     /// </summary>
-    public bool IsAtTopOfSectionStart => !_inBand && !_pageStartedByBreak && _sectionCount > 1 && _cursorY == _contentTop;
+    public bool IsAtTopAfterBreak => !_inBand && _cursorY == _contentTop
+        && (_pageStartedByHardBreak || (!_pageStartedByBreak && _sectionCount > 1));
 
     /// <summary>
-    /// whether the cursor is at the very top of a page that was created by a break or
-    /// overflow has begun (not by a section start). As in Word, the
-    /// there the space before a paragraph.
+    /// Whether the cursor is at the very top of a page or column that the flow began (text that did not fit). As in Word,
+    /// the space before a paragraph is dropped there.
     /// </summary>
-    public bool IsAtTopOfContinuedPage => !_inBand && _pageStartedByBreak && _cursorY == _contentTop;
+    public bool IsAtTopOfContinuedPage => !_inBand && _pageStartedByBreak && !_pageStartedByHardBreak && _cursorY == _contentTop;
 
     public void BeginSection(Section section)
     {
@@ -286,6 +286,7 @@ internal sealed class PdfPageRenderer
             _contentBottom = _contentBottomBase;
             StartPage();
             _pageStartedByBreak = false;
+            _pageStartedByHardBreak = false;
         }
     }
 
@@ -334,6 +335,7 @@ internal sealed class PdfPageRenderer
             _contentLeft = _fullContentLeft + _columnIndex * (_columnWidth + _columnGap);
             _cursorY = _contentTop;
             _pageStartedByBreak = true;
+            _pageStartedByHardBreak = false;
         }
         else
         {
@@ -353,6 +355,19 @@ internal sealed class PdfPageRenderer
         FinishPage();
         StartPage();
         _pageStartedByBreak = true;
+        _pageStartedByHardBreak = false;
+    }
+
+    /// <summary>Starts a new page for a hard page break (a page break block or "page break before").</summary>
+    public void NewPageByBreak()
+    {
+        if (_inBand)
+        {
+            return;
+        }
+
+        NewPage();
+        _pageStartedByHardBreak = true;
     }
 
     public void WriteLine(PdfFontHandle font, string text, double fontSize, Color color, double x)
