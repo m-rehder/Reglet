@@ -1296,7 +1296,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `Color? Highlight { get; init; }` — Highlighting of the text; null means none.
 - `string? FontFamily { get; init; }` — Font family of the runs; null means the document default.
 - `Length? FontSize { get; init; }` — Font size of the runs; null means the document default.
-- `string? MarkFontFamily { get; init; }` — Font family of the paragraph mark (Word's `w:pPr/w:rPr`); null means `ParagraphStyle.FontFamily`, else the document default. The mark sets the height of a paragraph without visible text and counts towards its last line. DOCX and PDF honour it; ODT has no paragraph mark.
+- `string? MarkFontFamily { get; init; }` — Font family of the paragraph mark (Word's `w:pPr/w:rPr`); null means `ParagraphStyle.FontFamily`, else the document default. The mark sets the height of a paragraph without visible text; as in Word, it does not raise a line with text. DOCX and PDF honour it; ODT has no paragraph mark.
 - `Length? MarkFontSize { get; init; }` — Font size of the paragraph mark; null means `ParagraphStyle.FontSize`, else the document default. See `ParagraphStyle.MarkFontFamily`.
 - `ParagraphBorder? TextBorder { get; init; }` — Border around the text (`ParagraphStyle.Borders` is the box of the paragraph).
 - `Length? Kerning { get; init; }` — Minimum font size for the kerning; null means no specification.

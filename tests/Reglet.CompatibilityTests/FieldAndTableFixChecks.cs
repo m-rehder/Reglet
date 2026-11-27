@@ -32,6 +32,9 @@ internal static class FieldAndTableFixChecks
             MinimumRowHeightLeavesThePaddingOnTop();
             ColumnWidensToItsLongestWord();
             BottomBorderCountsWhenARowFits();
+            CellBorderStaysInsideAMinimumRow();
+            RowLineHeightComesFromTheRuns();
+            AuditFindings();
             TableAtTheEndGetsAClosingParagraph();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
@@ -265,6 +268,70 @@ internal static class FieldAndTableFixChecks
         Require(thin.PageOf["R3"] == 1, $"A thinner bottom border fits (R3 on page {thin.PageOf["R3"]}).");
     }
 
+    /// <summary>The distance between the baselines of the second and third row (the first has no border above it).</summary>
+    private static double RowPitch(Func<string, TableRow> row, ParagraphBorder tableBorder, DocumentDefaults? defaults = null)
+    {
+        var document = Document(new Section(new TableBlock([row("ROWA"), row("ROWB"), row("ROWC")]) { Border = tableBorder }));
+        var lines = Baselines(defaults is null ? document : document with { Defaults = defaults });
+        return lines["ROWB"] - lines["ROWC"];
+    }
+
+    private static void CellBorderStaysInsideAMinimumRow()
+    {
+        // Word: a table without a grid, every cell with only its own 0.625 pt bottom border, rows of at least 34.5 pt with
+        // 1.2 pt of padding above and below: 36.9 pt, the border is drawn inside the row.
+        TableRow Row(string text) => new([new TableCell(text)
+        {
+            PaddingVertical = Length.FromPoints(1.2),
+            PaddingHorizontal = Length.FromPoints(5.4),
+            Borders = new ParagraphBorders { Bottom = new ParagraphBorder(BorderStyle.Single, Length.FromPoints(0.625)) },
+        }]) { Height = Length.FromPoints(34.5), HeightRule = TableRowHeightRule.AtLeast };
+        var own = RowPitch(Row, ParagraphBorder.None);
+        Require(Math.Abs(own - 36.9) < 0.01, $"A cell's own border stays inside a minimum row ({own}).");
+        var grid = RowPitch(Row, new ParagraphBorder(BorderStyle.Single, Length.FromPoints(0.5)));
+        Require(Math.Abs(grid - 37.4) < 0.01, $"The table's grid above the row comes on top ({grid}).");
+    }
+
+    private static void RowLineHeightComesFromTheRuns()
+    {
+        // Word: document Arial 10 pt, a cell paragraph without a size of its own holding one 9 pt run: the row is as high
+        // as the 9 pt line plus 2.4 pt of padding, not as the 10 pt mark.
+        var arial = DocumentDefaults.Default with { FontFamily = "Arial", FontSize = Length.FromPoints(10) };
+        TableRow Row(double size, string text) => new([new TableCell([new Paragraph(new TextRun(text) { FontSize = Length.FromPoints(size) })])
+        {
+            PaddingVertical = Length.FromPoints(1.2),
+            PaddingHorizontal = Length.FromPoints(5.4),
+        }]);
+        var nine = RowPitch(text => Row(9, text), ParagraphBorder.None, arial) - 2.4;
+        var ten = RowPitch(text => Row(10, text), ParagraphBorder.None, arial) - 2.4;
+        Require(Math.Abs(nine - (ten * 0.9)) < 0.01, $"A 9 pt line is 9/10 of a 10 pt one beside a 10 pt mark ({nine} / {ten}).");
+    }
+
+    private static void AuditFindings()
+    {
+        // DOCX: only the inner lines cleared is not a table without borders.
+        var package = TestPackages.Write(Document(new Section(Table("A"))), DocumentFormat.Docx);
+        var body = XDocument.Parse(Encoding.UTF8.GetString(TestPackages.ReadPart(package, "word/document.xml")));
+        var borders = body.Descendants(W + "tblBorders").Single();
+        borders.ReplaceNodes(new XElement(W + "insideH", new XAttribute(W + "val", "nil")), new XElement(W + "insideV", new XAttribute(W + "val", "nil")));
+        package = TestPackages.ReplacePart(package, "word/document.xml", Encoding.UTF8.GetBytes(body.ToString()));
+        var innerOnly = (TableBlock)TestPackages.Read(package, DocumentFormat.Docx).Sections[0].Blocks[0];
+        Require(innerOnly.Border != ParagraphBorder.None, "DOCX: inner lines cleared alone keep the outer border.");
+
+        // DOCX: a table of contents is written as paragraphs, so a body ending with one needs no closing paragraph.
+        var toc = TestPackages.Read(TestPackages.Write(Document(new Section([new Heading(HeadingLevel.Level1, new TextRun("T")), new TableOfContents()])), DocumentFormat.Docx), DocumentFormat.Docx);
+        Require(toc.Sections[0].Blocks[^1] is not Paragraph { Inlines.Count: 0 }, "DOCX: no empty paragraph after a closing index.");
+
+        // ODT: repeated rows at the end of a table; only the last one takes the border below off.
+        var odt = TestPackages.Write(Document(new Section(new TableBlock([new TableRow([new TableCell("R")]) { Height = Length.FromPoints(15), HeightRule = TableRowHeightRule.AtLeast }]))), DocumentFormat.Odt);
+        var content = XDocument.Parse(Encoding.UTF8.GetString(TestPackages.ReadPart(odt, "content.xml")));
+        XNamespace table = "urn:oasis:names:tc:opendocument:xmlns:table:1.0";
+        content.Descendants(table + "table-row").Single().SetAttributeValue(table + "number-rows-repeated", "3");
+        odt = TestPackages.ReplacePart(odt, "content.xml", Encoding.UTF8.GetBytes(content.ToString()));
+        var heights = ((TableBlock)TestPackages.Read(odt, DocumentFormat.Odt).Sections[0].Blocks[0]).Rows.Select(row => row.Height?.Points).ToList();
+        Require(heights is [15.5, 15.5, 15], $"ODT: only the last repeated row loses the border below ({string.Join(", ", heights)}).");
+    }
+
     private static void TableAtTheEndGetsAClosingParagraph()
     {
         // DOCX: a body that ends with a table gets an empty paragraph one twip high, which reads back as nothing.
@@ -322,7 +389,8 @@ internal static class FieldAndTableFixChecks
 
         var smallText = new TextRun("small") { FontSize = Length.FromPoints(6) };
         var lastLine = Gap(new Paragraph(smallText) { Style = ParagraphStyle.Default with { MarkFontSize = Length.FromPoints(30) } });
-        Require(lastLine > Gap(new Paragraph(smallText)) + 15, "The mark raises the last line of a paragraph with text.");
+        // Word: a line with text takes its height from its runs, the mark only sizes an empty paragraph.
+        Require(Math.Abs(lastLine - Gap(new Paragraph(smallText))) < 0.01, $"The mark does not raise a line with text ({lastLine}).");
 
         var marked = new Paragraph([]) { Style = ParagraphStyle.Default with { MarkFontSize = Length.FromPoints(30), MarkFontFamily = "Arial" } };
         var body = Body(Document(new Section(marked)));

@@ -28,6 +28,8 @@ internal static class ClosingParagraph
         {
             Paragraph or Heading => true,
             ImageBlock or DrawingShape or FormField => true,
+            // Written as field paragraphs, the last one closing the field.
+            TableOfContents or TableOfFigures or AlphabeticalIndex => true,
             // Written as a paragraph in the body only; in a band they are left out.
             Diagram or Equation or Chart or EmbeddedObject or PageBreak or ColumnBreak => !inBand,
             // An entry without a paragraph gets an empty numbered paragraph at the end.

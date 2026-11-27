@@ -1172,8 +1172,6 @@ internal sealed class PdfBlockRenderer
 
         // An empty paragraph occupies a blank line as in Word, in the font of its paragraph mark.
         var (defaultFont, emptySize) = MarkFormat(headingSize, style);
-        var markHeight = defaultFont.Metrics.LineHeightEm * emptySize;
-        var markAscent = defaultFont.Metrics.AscentEm * emptySize;
         var fontSize = Measured(atoms) is { Count: > 0 } visible ? visible.Max(atom => atom.FontSize) : emptySize;
 
         // left, right and first-line indent limit the wrap width and shift
@@ -1520,13 +1518,11 @@ internal sealed class PdfBlockRenderer
 
         // height of the line according to the metrics of its fonts; empty lines use the
         // default font with the paragraph's font size.
-        // The paragraph mark stands at the end of the last line and raises it as a character would (Word).
+        // As in Word, a line with text takes its height from its runs; the paragraph mark sizes only an empty paragraph.
         double LineHeightOf(IReadOnlyList<TextAtom> line)
             => Measured(line) is { Count: > 0 } measured
-                ? IsLastLine(line) ? Math.Max(markHeight, measured.Max(AtomLineHeight)) : measured.Max(AtomLineHeight)
+                ? measured.Max(AtomLineHeight)
                 : defaultFont.Metrics.LineHeightEm * fontSize;
-
-        bool IsLastLine(IReadOnlyList<TextAtom> line) => lines.Count > 0 && ReferenceEquals(line, lines[^1]);
 
         double ScaledLineHeight(IReadOnlyList<TextAtom> line)
         {
@@ -1543,7 +1539,7 @@ internal sealed class PdfBlockRenderer
         // how Word sets the baseline within the line box.
         double LineAscentOf(IReadOnlyList<TextAtom> line)
             => Measured(line) is { Count: > 0 } measured
-                ? IsLastLine(line) ? Math.Max(markAscent, measured.Max(AtomAscent)) : measured.Max(AtomAscent)
+                ? measured.Max(AtomAscent)
                 : defaultFont.Metrics.AscentEm * fontSize;
     }
 
@@ -1822,7 +1818,7 @@ internal sealed class PdfBlockRenderer
                 ? TableLayout.ResolveColumnWidthsWithPercent(table, logicalColumns, availableWidth)
                 : TableLayout.WidenToMinimums(
                     TableLayout.ResolveColumnWidthsWithPercent(table, logicalColumns, availableWidth),
-                    ColumnContentWidths(table, logicalColumns).Minimum);
+                    ColumnContentWidths(table, logicalColumns, withMaximum: false).Minimum);
 
         var style = table.Style;
         var styleBorder = table.Border ?? style?.Border;
@@ -1921,14 +1917,14 @@ internal sealed class PdfBlockRenderer
                 columnIndex += span;
             }
 
-            // The line height comes from the text of the row's cells (an empty line from its paragraph's font);
-            // the document's size only for a row without any text line.
+            // The line height comes from the text of the row's cells (an empty line from its paragraph mark, which, as in
+            // Word, does not raise a line with text); the document's size only for a row without any text line.
             var lineHeight = 0.0;
             var ascent = 0.0;
             foreach (var line in cells.SelectMany(cell => cell.Lines).Where(line => line.Atoms is not null))
             {
                 var measured = Measured(line.Atoms!);
-                if (measured.Count == 0 || line.EndsParagraph)
+                if (measured.Count == 0)
                 {
                     lineHeight = Math.Max(lineHeight, line.Empty.Height);
                     ascent = Math.Max(ascent, line.Empty.Ascent);
@@ -1954,7 +1950,7 @@ internal sealed class PdfBlockRenderer
             }
 
             // Row height (Y02): at least the minimum or exactly the fixed height. As in Word, a minimum is for the
-            // content: the cells' top and bottom padding and the border above the row come on top of it; an exact
+            // content: the cells' top and bottom padding and the table's grid above the row come on top of it; an exact
             // height includes both.
             var requestedHeight = row.Height?.Points ?? 0;
             var minimumPadding = requestedHeight > 0 ? 2 * cells.Select(cell => cell.PadY).DefaultIfEmpty(tablePadY).Max() : 0;
@@ -1977,9 +1973,12 @@ internal sealed class PdfBlockRenderer
             var row = result[index];
             var top = Math.Max(previousBottom, row.Cells.Where(cell => !cell.Continuation).Select(cell => BorderWidth(cell, row.Border, top: true)).DefaultIfEmpty(0).Max());
             previousBottom = row.Cells.Where(cell => !cell.Merged).Select(cell => BorderWidth(cell, row.Border, top: false)).DefaultIfEmpty(0).Max();
+            // Only the table's grid takes its room on top of a minimum height; Word draws a cell's own border inside the row.
+            var grid = row.Cells.Where(cell => !cell.Continuation)
+                .Select(cell => GridWidth(cell.Area?.Border ?? row.Border ?? DefaultTableBorder)).DefaultIfEmpty(0).Max();
             if (row.ExactHeight == 0)
             {
-                result[index] = row with { BorderTop = top };
+                result[index] = row with { BorderTop = top, GridTop = Math.Min(grid, top) };
             }
         }
 
@@ -1995,6 +1994,9 @@ internal sealed class PdfBlockRenderer
 
         return result;
     }
+
+    /// <summary>The width of a table's grid line (none is 0).</summary>
+    private static double GridWidth(ParagraphBorder border) => border.Style == BorderStyle.None ? 0 : border.Width.Points;
 
     /// <summary>The width of a cell's top or bottom border, resolved as <see cref="DrawCellBorders"/> draws it.</summary>
     private static double BorderWidth(CellLayout cell, ParagraphBorder? tableBorder, bool top)
@@ -2039,7 +2041,7 @@ internal sealed class PdfBlockRenderer
 
                 if (content > height)
                 {
-                    rows[last] = rows[last] with { MinHeight = rows[last].NaturalHeight - rows[last].BorderTop + content - height };
+                    rows[last] = rows[last] with { MinHeight = rows[last].NaturalHeight - rows[last].GridTop + content - height };
                 }
 
                 rows[rowIndex] = rows[rowIndex] with { KeepHeight = Math.Max(rows[rowIndex].KeepHeight, total) };
@@ -2106,7 +2108,6 @@ internal sealed class PdfBlockRenderer
                             After = index == atoms.Count && line == wrapped.Count - 1 ? spaceAfter : 0,
                             Spacing = style.LineSpacing,
                             Empty = (emptyFont.Metrics.LineHeightEm * emptySize, emptyFont.Metrics.AscentEm * emptySize),
-                            EndsParagraph = index == atoms.Count && line == wrapped.Count - 1,
                         });
                     }
 
@@ -2421,7 +2422,7 @@ internal sealed class PdfBlockRenderer
                 }
 
                 consumed += band;
-                sliceHeight = first ? Math.Max(consumed, row.MinHeight + band) : consumed;
+                sliceHeight = first ? Math.Max(consumed, row.MinHeight + row.GridTop) : consumed;
             }
 
             // A required height counts when the row is placed; only an empty page can cut it down. As in Word, a row
@@ -2504,7 +2505,6 @@ internal sealed class PdfBlockRenderer
         _page.EndContainer();
     }
 
-    /// <summary>Starts a new page within a table and repeats the header rows on it.</summary>
     /// <summary>
     /// Sets <see cref="ClosingParagraph"/>: it needs its room as Word's paragraph does, so a table that fills the page to
     /// its end leaves it on the next page (in Word an empty last page).
@@ -2515,6 +2515,7 @@ internal sealed class PdfBlockRenderer
         _page.Advance(ClosingParagraph.Height);
     }
 
+    /// <summary>Starts a new page within a table and repeats the header rows on it.</summary>
     private void NewTablePage(IReadOnlyList<RowLayout>? header)
     {
         _page.NewPage();
@@ -2836,11 +2837,8 @@ internal sealed class PdfBlockRenderer
 
         public LineSpacing? Spacing { get; init; }
 
-        /// <summary>The line height and ascent of the paragraph mark: the line's height without visible text, and at least that of the last line.</summary>
+        /// <summary>The line height and ascent of the paragraph mark: the line's height without visible text.</summary>
         public (double Height, double Ascent) Empty { get; init; }
-
-        /// <summary>Whether the paragraph mark ends this line.</summary>
-        public bool EndsParagraph { get; init; }
 
         /// <summary>An image, tagged as a figure with its alternative text.</summary>
         public bool Figure { get; init; }
@@ -2866,7 +2864,8 @@ internal sealed class PdfBlockRenderer
         double PadY,
         ParagraphBorder? Border,
         double KeepHeight = 0,
-        double BorderTop = 0)
+        double BorderTop = 0,
+        double GridTop = 0)
     {
         public double HeightOf(CellLine line)
         {
@@ -2896,9 +2895,9 @@ internal sealed class PdfBlockRenderer
         /// <summary>The height of the row when it is not split.</summary>
         public double NaturalHeight => ExactHeight > 0
             ? ExactHeight
-            : BorderTop + Math.Max(
-                MinHeight,
-                Math.Max(
+            : Math.Max(
+                MinHeight + GridTop,
+                BorderTop + Math.Max(
                     LineHeight + (2 * PadY),
                     Cells.Where(cell => !cell.Spanned && cell.Lines.Count > 0).Select(cell => cell.Lines.Sum(HeightOf) + (2 * cell.PadY)).DefaultIfEmpty(0).Max()));
     }
@@ -4034,13 +4033,16 @@ internal sealed class PdfBlockRenderer
     /// </summary>
     private double[] AutoFitColumns(TableBlock table, int columns, double availableWidth)
     {
-        var (minimum, maximum) = ColumnContentWidths(table, columns);
+        var (minimum, maximum) = ColumnContentWidths(table, columns, withMaximum: true);
         var target = availableWidth * (table.WidthPercent ?? 100) / 100;
         return TableLayout.AutoFitWidths(minimum, maximum, target, fill: table.WidthPercent is not null);
     }
 
-    /// <summary>Per column, the longest word and the unbroken text of its single-column cells, each plus the padding.</summary>
-    private (double[] Minimum, double[] Maximum) ColumnContentWidths(TableBlock table, int columns)
+    /// <summary>
+    /// Per column, the longest word and (with <paramref name="withMaximum"/>) the unbroken text of its single-column
+    /// cells, each plus the padding.
+    /// </summary>
+    private (double[] Minimum, double[] Maximum) ColumnContentWidths(TableBlock table, int columns, bool withMaximum)
     {
         var minimum = new double[columns];
         var maximum = new double[columns];
@@ -4074,7 +4076,7 @@ internal sealed class PdfBlockRenderer
                         .Where(atom => atom.Bookmark is null && atom.Comment is null).ToList();
                     var longestWord = atoms.Where(atom => !atom.IsTab && !atom.IsHardBreak)
                         .SelectMany(SplitAtSpaces).Select(MeasureAtom).DefaultIfEmpty(0).Max();
-                    var longestLine = WrapAtoms(atoms, double.MaxValue).Select(LineWidth).DefaultIfEmpty(0).Max();
+                    var longestLine = withMaximum ? WrapAtoms(atoms, double.MaxValue).Select(LineWidth).DefaultIfEmpty(0).Max() : 0;
                     minimum[column] = Math.Max(minimum[column], longestWord + padding);
                     maximum[column] = Math.Max(maximum[column], Math.Max(longestWord, longestLine) + padding);
                 }

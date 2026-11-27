@@ -2896,7 +2896,7 @@ public sealed class OdtDocumentReader : IDocumentReader
             LeftIndent = tableInfo?.LeftIndent,
         };
         return block.Rows.Any(row => row.Height is not null && row.HeightRule != TableRowHeightRule.Exactly)
-            ? block.WithRows(block.Rows.Select(row => ContentMinimum(block, row)))
+            ? block.WithRows(block.Rows.Select((row, index) => ContentMinimum(block, row, index == block.Rows.Count - 1)))
             : block;
     }
 
@@ -2905,7 +2905,7 @@ public sealed class OdtDocumentReader : IDocumentReader
     /// bottom padding, the border above the row and, in the last row, the border below come off. A minimum they fill
     /// completely is no minimum.
     /// </summary>
-    private static TableRow ContentMinimum(TableBlock table, TableRow row)
+    private static TableRow ContentMinimum(TableBlock table, TableRow row, bool lastRow)
     {
         if (row.Height is not { } height || row.HeightRule == TableRowHeightRule.Exactly)
         {
@@ -2913,7 +2913,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         }
 
         // Rounded so that 15 pt written as 17.9 pt (1.2 pt padding, 0.5 pt border) reads back as 15 pt, not 15.000000000000002.
-        var content = Math.Round(height.Points - OdtTableCellStyles.RowExtra(table, row), 6);
+        var content = Math.Round(height.Points - OdtTableCellStyles.RowExtra(table, row, lastRow), 6);
         return content > 1e-6
             ? row with { Height = Length.FromPoints(content) }
             : row with { Height = null, HeightRule = TableRowHeightRule.Auto };

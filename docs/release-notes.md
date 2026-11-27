@@ -1,5 +1,32 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- Only the table's grid above a row comes on top of a minimum row height. A cell's own border (`TableCell.Borders`)
+  stays inside the row, as Word draws it: a table without a grid whose cells have a 0.625 pt bottom border and rows of
+  at least 34.5 pt with 1.2 pt of padding is 36.9 pt per row again, as in 1.7.7 and in Word. The check whether a row
+  still fits on the page keeps counting its bottom border.
+- A line with text takes its height from its runs, as in Word; the paragraph mark only sizes an empty paragraph. A cell
+  paragraph with a 9 pt run in a 10 pt document is as high as its 9 pt line, no longer as the 10 pt mark. This applies
+  to body paragraphs too: a larger `MarkFontSize` no longer raises the last line of a paragraph with text.
+- A table without a fixed layout no longer measures the unbroken text of every cell to widen its columns, only the
+  longest word.
+
+### DOCX
+
+- `w:tblBorders` is read as no border only when all four outer sides are `none` or `nil`; inner lines cleared alone
+  keep the outer border of the table style.
+- A body, cell or band that ends with a table of contents, table of figures or index no longer gets an extra empty
+  paragraph after it; these are written as paragraphs. The reader also leaves out the closing paragraph after any
+  element that is not a paragraph.
+
+### ODT
+
+- Only the table's grid above a row goes into `style:min-row-height`, not a cell's own border. Rows repeated with
+  `table:number-rows-repeated` at the end of a table: only the last one counts the border below the table.
+
 ## 1.7.8
 
 ### PDF

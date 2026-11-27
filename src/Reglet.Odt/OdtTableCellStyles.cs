@@ -86,36 +86,35 @@ internal sealed class OdtTableCellStyles
     }
 
     /// <summary>Name of the row style, or null if the row has neither a height nor KeepTogether.</summary>
-    public string? RowStyleName(TableBlock table, TableRow row)
-        => RowKeyOf(table, row) is { } key && _rows.TryGetValue(key, out var name) ? name : null;
+    public string? RowStyleName(TableBlock table, TableRow row, bool lastRow)
+        => RowKeyOf(table, row, lastRow) is { } key && _rows.TryGetValue(key, out var name) ? name : null;
 
     // A minimum height is for the content (as in Word), ODF's min-row-height for the whole row: the cells' top and
     // bottom padding and the border above the row go into it. An exact height already includes both.
-    private static RowKey? RowKeyOf(TableBlock table, TableRow row)
+    private static RowKey? RowKeyOf(TableBlock table, TableRow row, bool lastRow)
         => row.Height is null && !row.KeepTogether
             ? null
             : new RowKey(
                 row.Height is { } height && row.HeightRule != TableRowHeightRule.Exactly
-                    ? height.Points + RowExtra(table, row)
+                    ? height.Points + RowExtra(table, row, lastRow)
                     : row.Height?.Points,
                 row.HeightRule,
                 row.KeepTogether);
 
     /// <summary>
-    /// What a row needs beyond its content minimum: the largest top and bottom padding of its cells, the widest border
-    /// above it (the table's when the row has no cells) and, in the table's last row, the widest border below it, which
-    /// Word adds to the table and LibreOffice draws inside the row.
+    /// What a row needs beyond its content minimum: the largest top and bottom padding of its cells, the table's grid
+    /// above it (Word draws a cell's own border inside the row) and, in the table's last row, the widest border below it,
+    /// which Word adds to the table and LibreOffice draws inside the row.
     /// </summary>
-    // shortcut: the border above comes from the cells' own top border or the table's, not from a conditional area or the
-    // row above; measure those when a styled table needs it.
-    internal static double RowExtra(TableBlock table, TableRow row)
+    // shortcut: the grid is the table's border, not a conditional area's; measure those when a styled table needs it.
+    internal static double RowExtra(TableBlock table, TableRow row, bool lastRow)
     {
         var tableBorder = table.Border ?? table.Style?.Border ?? new ParagraphBorder(BorderStyle.Single, Typography.TableBorderWidth);
         static double Width(ParagraphBorder border) => border.Style == BorderStyle.None ? 0 : border.Width.Points;
         var padding = row.Cells.Select(cell => TableLayout.CellPadding(table, cell).Vertical.Points)
             .DefaultIfEmpty(TableLayout.CellPadding(table, null).Vertical.Points).Max();
-        var border = row.Cells.Select(cell => Width(cell.Borders?.Top ?? tableBorder)).DefaultIfEmpty(Width(tableBorder)).Max();
-        var below = ReferenceEquals(row, table.Rows[^1])
+        var border = Width(tableBorder);
+        var below = lastRow
             ? row.Cells.Select(cell => Width(cell.Borders?.Bottom ?? tableBorder)).DefaultIfEmpty(Width(tableBorder)).Max()
             : 0;
         return (2 * padding) + border + below;
@@ -204,7 +203,7 @@ internal sealed class OdtTableCellStyles
                     var rowIndex = 0;
                     foreach (var row in table.Rows)
                     {
-                        styles.RegisterRow(table, row);
+                        styles.RegisterRow(table, row, rowIndex == table.Rows.Count - 1);
                         var style = table.Style;
                         var conditional = row.IsHeader
                             ? style?.HeaderBackground
@@ -259,9 +258,9 @@ internal sealed class OdtTableCellStyles
         }
     }
 
-    private void RegisterRow(TableBlock table, TableRow row)
+    private void RegisterRow(TableBlock table, TableRow row, bool lastRow)
     {
-        if (RowKeyOf(table, row) is { } key && !_rows.ContainsKey(key))
+        if (RowKeyOf(table, row, lastRow) is { } key && !_rows.ContainsKey(key))
         {
             _rows[key] = "TR" + (_rowStart + _rows.Count + 1).ToString(CultureInfo.InvariantCulture);
         }

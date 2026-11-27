@@ -1030,13 +1030,13 @@ public sealed class DocxDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// Whether a paragraph is the one Reglet writes after a table that ends the body (<see cref="ClosingParagraph"/>):
-    /// empty, right after the table, only the body's sectPr after it, and nothing but that spacing. An empty paragraph
-    /// Word wrote there in its own formatting stays a paragraph.
+    /// Whether a paragraph is the one Reglet writes where the body does not end with a paragraph (after a table or an
+    /// index, <see cref="ClosingParagraph"/>): empty, not after a paragraph, only the body's sectPr after it, and nothing
+    /// but that spacing. An empty paragraph Word wrote there in its own formatting stays a paragraph.
     /// </summary>
     private static bool IsBodyClosingParagraph(XElement element)
     {
-        if (element.Name != W + "p" || element.ElementsBeforeSelf().LastOrDefault()?.Name != W + "tbl"
+        if (element.Name != W + "p" || element.ElementsBeforeSelf().LastOrDefault() is not { } previous || previous.Name == W + "p"
             || element.ElementsAfterSelf().Any(sibling => sibling.Name != W + "sectPr")
             || element.Elements().Any(child => child.Name != W + "pPr"))
         {
@@ -2644,8 +2644,8 @@ public sealed class DocxDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// Reads a table's border from the first outer side; <c>none</c> or <c>nil</c> on every side is
-    /// <see cref="ParagraphBorder.None"/> (no grid), not a missing border (which falls back to the default grid).
+    /// Reads a table's border from the first outer side; <c>none</c> or <c>nil</c> on all four outer sides (and any inner
+    /// line given) is <see cref="ParagraphBorder.None"/> (no grid), not a missing border (which falls back to the default grid).
     /// </summary>
     private static ParagraphBorder? ReadTableBorder(XElement? borders)
     {
@@ -2657,7 +2657,10 @@ public sealed class DocxDocumentReader : IDocumentReader
         var sides = borders.Elements()
             .Where(element => element.Name.LocalName is "top" or "left" or "bottom" or "right" or "insideH" or "insideV" or "start" or "end")
             .ToList();
-        if (sides.Count > 0 && sides.All(side => side.Attribute(W + "val")?.Value is "none" or "nil"))
+        // Only all four outer sides cleared mean no border; inner lines alone cleared keep the style's outer border.
+        bool Cleared(string name, string? alternative = null) => sides.Any(side => side.Name.LocalName == name || side.Name.LocalName == alternative);
+        if (Cleared("top") && Cleared("bottom") && Cleared("left", "start") && Cleared("right", "end")
+            && sides.All(side => side.Attribute(W + "val")?.Value is "none" or "nil"))
         {
             return ParagraphBorder.None;
         }

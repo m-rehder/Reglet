@@ -1705,7 +1705,7 @@ internal static class OdtContentWriter
         FieldContext? fields = null)
     {
         writer.WriteStartElement("table", "table-row", OdtNamespaces.Table);
-        if (paragraphStyles.CellStyles.RowStyleName(table, row) is { } rowStyle)
+        if (paragraphStyles.CellStyles.RowStyleName(table, row, lastRow) is { } rowStyle)
         {
             writer.WriteAttributeString("table", "style-name", OdtNamespaces.Table, rowStyle);
         }

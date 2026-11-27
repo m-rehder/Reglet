@@ -157,7 +157,7 @@ public sealed record ParagraphStyle
 
     /// <summary>
     /// Font family of the paragraph mark (Word's <c>w:pPr/w:rPr</c>); null means <see cref="FontFamily"/>, else the document
-    /// default. The mark sets the height of a paragraph without visible text and counts towards its last line. DOCX and PDF
+    /// default. The mark sets the height of a paragraph without visible text; as in Word, it does not raise a line with text. DOCX and PDF
     /// honour it; ODT has no paragraph mark.
     /// </summary>
     public string? MarkFontFamily { get; init; }
