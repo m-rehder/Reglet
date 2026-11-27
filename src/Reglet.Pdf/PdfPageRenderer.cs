@@ -185,8 +185,8 @@ internal sealed class PdfPageRenderer
     private int _sectionCount;
 
     /// <summary>
-    /// Whether the cursor is at the very top of a page that a section break or a hard page break began (not the document
-    /// start, not the flow). Word (compatibility mode 15) keeps the space before of the first paragraph there.
+    /// Whether the cursor is at the very top of a page or column that a section break or a hard page or column break began
+    /// (not the document start, not the flow). Word (compatibility mode 15) keeps the space before of the first paragraph there.
     /// </summary>
     public bool IsAtTopAfterBreak => !_inBand && _cursorY == _contentTop
         && (_pageStartedByHardBreak || (!_pageStartedByBreak && _sectionCount > 1));
@@ -367,6 +367,18 @@ internal sealed class PdfPageRenderer
         }
 
         NewPage();
+        _pageStartedByHardBreak = true;
+    }
+
+    /// <summary>Moves to the next column (or page) for a hard column break.</summary>
+    public void NextColumnByBreak()
+    {
+        if (_inBand)
+        {
+            return;
+        }
+
+        NextColumn();
         _pageStartedByHardBreak = true;
     }
 

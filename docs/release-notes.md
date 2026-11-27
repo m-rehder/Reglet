@@ -4,8 +4,9 @@
 
 ### PDF
 
-- The space before the first paragraph of a page stays after a section break and after a hard page break
-  (`PageBreak`, `ParagraphStyle.PageBreakBefore`), as Word does in compatibility mode 15, which Reglet's DOCX declares.
+- The space before the first paragraph of a page stays after a section break and after a hard page or column break
+  (`PageBreak`, `ParagraphStyle.PageBreakBefore`, `ColumnBreak`), as Word does in compatibility mode 15, which Reglet's
+  DOCX declares.
   It is dropped only at the top of a page or column the flow began. Before, it was dropped after a hard break and
   reduced by 6 pt after a section break, so a page that began with a section break stood 6 pt higher than in Word.
 - A paragraph that starts at the top of a page no longer moves to the next page for widow and orphan control because

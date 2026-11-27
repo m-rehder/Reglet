@@ -35,6 +35,7 @@ internal static class FieldAndTableFixChecks
             CellBorderStaysInsideAMinimumRow();
             RowLineHeightComesFromTheRuns();
             AuditFindings();
+            SpaceBeforeStaysAfterAColumnBreak();
             TableAtTheEndGetsAClosingParagraph();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
@@ -305,6 +306,16 @@ internal static class FieldAndTableFixChecks
         var nine = RowPitch(text => Row(9, text), ParagraphBorder.None, arial) - 2.4;
         var ten = RowPitch(text => Row(10, text), ParagraphBorder.None, arial) - 2.4;
         Require(Math.Abs(nine - (ten * 0.9)) < 0.01, $"A 9 pt line is 9/10 of a 10 pt one beside a 10 pt mark ({nine} / {ten}).");
+    }
+
+    private static void SpaceBeforeStaysAfterAColumnBreak()
+    {
+        // Word keeps the space before after a hard break, also a column break; only the flow drops it.
+        double Top(double before) => Baselines(Document(new Section([
+            new Paragraph(new TextRun("LEFT")), new ColumnBreak(),
+            new Paragraph(new TextRun("RIGHT")) { Style = ParagraphStyle.Default with { SpaceBefore = Length.FromPoints(before) } },
+        ]) { TextColumns = 2 }))["RIGHT"];
+        Require(Math.Abs(Top(0) - Top(6) - 6) < 0.01, $"The space before stays after a column break ({Top(0)} / {Top(6)}).");
     }
 
     private static void AuditFindings()

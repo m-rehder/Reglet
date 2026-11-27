@@ -277,7 +277,7 @@ internal sealed class PdfBlockRenderer
                 _page.NewPageByBreak();
                 break;
             case ColumnBreak:
-                _page.NextColumn();
+                _page.NextColumnByBreak();
                 break;
             case ImageBlock image:
                 RenderImage(image, indent);
