@@ -1537,11 +1537,13 @@ internal sealed class PdfBlockRenderer
         }
 
         // distance of the baseline from the line start: the largest ascender of the line,
-        // how Word sets the baseline within the line box.
+        // how Word sets the baseline within the line box; in a line of exact height at a fixed share of it.
         double LineAscentOf(IReadOnlyList<TextAtom> line)
-            => Measured(line) is { Count: > 0 } measured
-                ? measured.Max(AtomAscent)
-                : defaultFont.Metrics.AscentEm * fontSize;
+            => style.LineSpacing is { Rule: LineSpacingRule.Exactly } exact
+                ? ExactLineAscent(exact)
+                : Measured(line) is { Count: > 0 } measured
+                    ? measured.Max(AtomAscent)
+                    : defaultFont.Metrics.AscentEm * fontSize;
     }
 
     /// <summary>
@@ -1551,6 +1553,12 @@ internal sealed class PdfBlockRenderer
     private static List<TextAtom> Measured(IReadOnlyList<TextAtom> line)
         => line.Where(atom => atom.Bookmark is null && atom.Comment is null
             && (atom.Text.Length > 0 || atom.Image is not null || atom.IsHardBreak || atom.IsTab)).ToList();
+
+    /// <summary>
+    /// Word sets the baseline of a line of exact height at four fifths of it, whatever the size of its text: lines of
+    /// 21 pt with 6 pt and 10 pt Arial both have their baseline 16.8 pt below the top of the line.
+    /// </summary>
+    private static double ExactLineAscent(LineSpacing exact) => 0.8 * exact.Height.Points;
 
     private static double AlignmentOffset(TextAlignment alignment, double available, double lineWidth) => alignment switch
     {
@@ -2656,7 +2664,7 @@ internal sealed class PdfBlockRenderer
 
                     // Right to left the line is mirrored inside the cell's inner box.
                     var cellMirror = atoms.Count > 0 && atoms[0].RightToLeft ? (2 * (cellX + cell.PadX)) + innerWidth : (double?)null;
-                    WriteAtoms(atoms, lineX, y - line.Before - row.Ascent - row.ImageRise(line), justifyExtra, line.TabStops, cellMirror, cellX + cell.PadX);
+                    WriteAtoms(atoms, lineX, y - line.Before - (line.Spacing is { Rule: LineSpacingRule.Exactly } exact ? ExactLineAscent(exact) : row.Ascent) - row.ImageRise(line), justifyExtra, line.TabStops, cellMirror, cellX + cell.PadX);
                     y -= row.HeightOf(line);
                 }
                 else

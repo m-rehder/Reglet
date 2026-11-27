@@ -16,6 +16,9 @@
   piece of text in the page.
 - Spaces at the end of a line no longer count when the line is aligned right, centered or justified; they hang over
   the edge, as in Word. A right-aligned `Date: ` ends with the colon at the edge instead of 3 pt before it.
+- In a line of exact height (`LineSpacing.Exactly`), the baseline lies at four fifths of the line, whatever the size of
+  its text, as in Word: lines of 21 pt with 6 pt and 10 pt text both have it 16.8 pt below their top. Before, it lay at
+  the ascender of the text, so small text stood high in its line, up to 11 pt above Word's.
 
 ## 1.7.10
 

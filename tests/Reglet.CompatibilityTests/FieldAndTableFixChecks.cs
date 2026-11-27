@@ -39,6 +39,7 @@ internal static class FieldAndTableFixChecks
             TableAtTheEndGetsAClosingParagraph();
             OtherColumnsGiveEqualShares();
             CellBorderStaysInsideAnAutomaticRow();
+            ExactLinesShareTheirBaseline();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -310,6 +311,22 @@ internal static class FieldAndTableFixChecks
             ParagraphBorder.None, arial);
         var plain = RowPitch(text => Row(text, null), ParagraphBorder.None, arial);
         Require(Math.Abs(bordered - plain) < 0.01, $"A cell's own border stays inside an automatic row ({bordered} / {plain}).");
+    }
+
+    private static void ExactLinesShareTheirBaseline()
+    {
+        // Word: exactly 21 pt, lines of 6 pt and 10 pt Arial: the baselines are 21 pt apart and 16.8 pt below the top of
+        // each line, whatever the size.
+        var style = ParagraphStyle.Default with { FontFamily = "Arial", LineSpacing = LineSpacing.Exactly(Length.FromPoints(21)) };
+        Paragraph Address() => new([new TextRun("LINEA\n") { FontSize = Length.FromPoints(6) }, new TextRun("LINEB\nLINEC") { FontSize = Length.FromPoints(10) }]) { Style = style };
+        var margins = new PageMargins(Length.FromPoints(50));
+        var page = Baselines(Document(new Section(Address()) { Margins = margins }));
+        var top = PageSize.A4.Height.Points - 50;
+        Require(Math.Abs(top - page["LINEA"] - 16.8) < 0.01, $"The 6 pt line's baseline lies 16.8 pt below the top ({top - page["LINEA"]}).");
+        Require(Math.Abs(page["LINEA"] - page["LINEB"] - 21) < 0.01 && Math.Abs(page["LINEB"] - page["LINEC"] - 21) < 0.01,
+            $"The baselines are 21 pt apart ({page["LINEA"]}, {page["LINEB"]}, {page["LINEC"]}).");
+        var cell = Baselines(Document(new Section(new TableBlock([new TableRow([new TableCell([Address()])])])) { Margins = margins }));
+        Require(Math.Abs(cell["LINEA"] - cell["LINEB"] - 21) < 0.01, $"In a cell as well ({cell["LINEA"]}, {cell["LINEB"]}).");
     }
 
     private static void RowLineHeightComesFromTheRuns()
