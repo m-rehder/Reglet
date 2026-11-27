@@ -244,8 +244,8 @@ internal static class TableImportChecks
         var styleName = (string)rows[1].Attribute(table + "style-name")!;
         var minStyle = content.Descendants(style + "style").First(node => (string?)node.Attribute(style + "name") == styleName);
         var properties = minStyle.Element(style + "table-row-properties")!;
-        // 30 pt for the content plus the 0.5 pt default grid above the row (ODF counts the whole row).
-        Require((string?)properties.Attribute(style + "min-row-height") == "30.5pt", "ODT: minimum row height uses the standard attribute.");
+        // 30 pt for the content plus the 0.5 pt default grid above and, in the last row, below (ODF counts the whole row).
+        Require((string?)properties.Attribute(style + "min-row-height") == "31pt", "ODT: minimum row height uses the standard attribute.");
         var read = (TableBlock)TestPackages.Read(package, DocumentFormat.Odt).Sections[0].Blocks[0];
         Require(read.Rows[0].Height?.Points == 20 && read.Rows[0].HeightRule == TableRowHeightRule.Exactly
             && read.Rows[1].Height?.Points == 30 && read.Rows[1].HeightRule == TableRowHeightRule.AtLeast,
@@ -265,13 +265,13 @@ internal static class TableImportChecks
         package = TestPackages.ReplacePart(package, "content.xml", Encoding.UTF8.GetBytes(content.ToString()));
         package = TestPackages.ReplacePart(package, "styles.xml", Encoding.UTF8.GetBytes(styles.ToString()));
         read = (TableBlock)TestPackages.Read(package, DocumentFormat.Odt).Sections[0].Blocks[0];
-        // ODF's 25 pt are the whole row; the model keeps the content minimum, without the 0.5 pt grid above.
-        Require(read.Rows[1].Height?.Points == 24.5 && read.Rows[1].HeightRule == TableRowHeightRule.AtLeast,
+        // ODF's 25 pt are the whole row; the model keeps the content minimum, without the 0.5 pt grid above and below.
+        Require(read.Rows[1].Height?.Points == 24 && read.Rows[1].HeightRule == TableRowHeightRule.AtLeast,
             "ODT: a minimum row height is inherited from a named style.");
         var regenerated = new PortableDocument(new DocumentMetadata(), new Section(read));
         var docx = (TableBlock)TestPackages.Read(TestPackages.Write(regenerated, DocumentFormat.Docx), DocumentFormat.Docx).Sections[0].Blocks[0];
         Require(docx.Rows[0].HeightRule == TableRowHeightRule.Exactly && docx.Rows[1].HeightRule == TableRowHeightRule.AtLeast
-            && docx.Rows[1].Height?.Points == 24.5, "ODT row heights survive conversion to DOCX.");
+            && docx.Rows[1].Height?.Points == 24, "ODT row heights survive conversion to DOCX.");
         minStyle.Add(new XElement(style + "table-row-properties", new XAttribute(style + "row-height", "40pt"),
             new XAttribute(style + "use-optimal-row-height", "false")));
         package = TestPackages.ReplacePart(package, "content.xml", Encoding.UTF8.GetBytes(content.ToString()));

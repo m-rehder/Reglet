@@ -177,11 +177,12 @@ internal static class FieldAndTableFixChecks
         var grid = new ParagraphBorder(BorderStyle.Single, Length.FromPoints(0.5));
         Require(Math.Abs(Pitch(TableRowHeightRule.AtLeast, grid) - 17.9) < 0.01, $"The border above the row comes on top as well ({Pitch(TableRowHeightRule.AtLeast, grid)}).");
 
-        // ODT: min-row-height is the whole row, so the padding and the 0.5 pt grid above go into it and come off again when read.
+        // ODT: min-row-height is the whole row, so the padding and the 0.5 pt grid above go into it, and in the table's last
+        // row the grid below too (LibreOffice draws it inside the row); they come off again when read.
         TableBlock Padded(TableRowHeightRule rule) => new([new TableRow([
             new TableCell([new Paragraph(new TextRun("R"))]) { PaddingVertical = Length.FromPoints(1.2), PaddingHorizontal = Length.FromPoints(5.4) },
         ]) { Height = Length.FromPoints(15), HeightRule = rule }]);
-        foreach (var (rule, attribute, written) in new[] { (TableRowHeightRule.AtLeast, "min-row-height", 17.9), (TableRowHeightRule.Exactly, "row-height", 15.0) })
+        foreach (var (rule, attribute, written) in new[] { (TableRowHeightRule.AtLeast, "min-row-height", 18.4), (TableRowHeightRule.Exactly, "row-height", 15.0) })
         {
             using var buffer = new MemoryStream();
             new OdtDocumentWriter().WriteAsync(Document(new Section(Padded(rule))), buffer).GetAwaiter().GetResult();

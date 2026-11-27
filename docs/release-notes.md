@@ -26,6 +26,9 @@
 - A minimum row height is written the way the PDF and Word lay it out: ODF's `style:min-row-height` covers the whole
   row, so the cells' top and bottom padding and the border above the row go into it, and come off again when an ODT
   file is read. DOCX, ODT and PDF now give a row the same height.
+- In the table's last row the border below goes into the minimum as well: Word adds it to the table, LibreOffice draws
+  it inside the row. A table whose last row just fits with its bottom border now breaks in LibreOffice where it breaks in
+  Word and in the PDF.
 
 ## 1.7.7
 

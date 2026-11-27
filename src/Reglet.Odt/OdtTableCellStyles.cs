@@ -102,8 +102,9 @@ internal sealed class OdtTableCellStyles
                 row.KeepTogether);
 
     /// <summary>
-    /// What a row needs beyond its content minimum: the largest top and bottom padding of its cells and the widest
-    /// border above it (the table's when the row has no cells).
+    /// What a row needs beyond its content minimum: the largest top and bottom padding of its cells, the widest border
+    /// above it (the table's when the row has no cells) and, in the table's last row, the widest border below it, which
+    /// Word adds to the table and LibreOffice draws inside the row.
     /// </summary>
     // shortcut: the border above comes from the cells' own top border or the table's, not from a conditional area or the
     // row above; measure those when a styled table needs it.
@@ -114,7 +115,10 @@ internal sealed class OdtTableCellStyles
         var padding = row.Cells.Select(cell => TableLayout.CellPadding(table, cell).Vertical.Points)
             .DefaultIfEmpty(TableLayout.CellPadding(table, null).Vertical.Points).Max();
         var border = row.Cells.Select(cell => Width(cell.Borders?.Top ?? tableBorder)).DefaultIfEmpty(Width(tableBorder)).Max();
-        return (2 * padding) + border;
+        var below = ReferenceEquals(row, table.Rows[^1])
+            ? row.Cells.Select(cell => Width(cell.Borders?.Bottom ?? tableBorder)).DefaultIfEmpty(Width(tableBorder)).Max()
+            : 0;
+        return (2 * padding) + border + below;
     }
 
     /// <summary>Name of the table style, or null if the table has no width/border/padding.</summary>
