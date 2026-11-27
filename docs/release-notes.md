@@ -1,5 +1,17 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### PDF
+
+- A table row with a paragraph that keeps with the next (`ParagraphStyle.KeepWithNext`, or a heading) moves to the
+  next page together with the start of the next row when that one no longer fits, as in Word; a chain of such rows
+  moves as one. Before, a subheading row of an order stayed alone at the foot of the page.
+- The room a minimum line height (`LineSpacing.AtLeast`) adds lies above the text, as in Word: the baseline sits at
+  the foot of the line. Before, the text sat at the top and stood up to the extra room higher than in Word.
+- A line may break after a hyphen inside a word before any character but a space, another hyphen or a mark that
+  cannot start a line, as Word does: `Staub-` / `/Putzschutzabdeckung.`.
+
 ## 1.7.14
 
 ### Fonts

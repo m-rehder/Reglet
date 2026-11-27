@@ -1541,9 +1541,10 @@ internal sealed class PdfBlockRenderer
         double LineAscentOf(IReadOnlyList<TextAtom> line)
             => style.LineSpacing is { Rule: LineSpacingRule.Exactly } exact
                 ? ExactLineAscent(exact)
-                : Measured(line) is { Count: > 0 } measured
+                : (Measured(line) is { Count: > 0 } measured
                     ? measured.Max(AtomAscent)
-                    : defaultFont.Metrics.AscentEm * fontSize;
+                    : defaultFont.Metrics.AscentEm * fontSize)
+                    + AtLeastExtra(style.LineSpacing, LineHeightOf(line));
     }
 
     /// <summary>
@@ -1559,6 +1560,13 @@ internal sealed class PdfBlockRenderer
     /// 21 pt with 6 pt and 10 pt Arial both have their baseline 16.8 pt below the top of the line.
     /// </summary>
     private static double ExactLineAscent(LineSpacing exact) => 0.8 * exact.Height.Points;
+
+    /// <summary>
+    /// The room a minimum line height (<see cref="LineSpacingRule.AtLeast"/>) adds to a line: Word puts it above the
+    /// text, so the baseline sits at the foot of the line as without the minimum.
+    /// </summary>
+    private static double AtLeastExtra(LineSpacing? spacing, double naturalHeight)
+        => spacing is { Rule: LineSpacingRule.AtLeast } atLeast ? Math.Max(0, atLeast.Height.Points - naturalHeight) : 0;
 
     private static double AlignmentOffset(TextAlignment alignment, double available, double lineWidth) => alignment switch
     {
@@ -1998,6 +2006,23 @@ internal sealed class PdfBlockRenderer
             if (table.Rows[index].KeepTogether && result[index].NaturalHeight <= _page.ContentHeight)
             {
                 result[index] = result[index] with { KeepHeight = Math.Max(result[index].KeepHeight, result[index].NaturalHeight) };
+            }
+        }
+
+        // As in Word, a row with a paragraph that keeps with the next (keepNext, or a heading) moves to the next page
+        // together with the start of the next row; from the end, so a chain of such rows moves as one.
+        for (var index = result.Count - 2; index >= 0; index--)
+        {
+            if (!table.Rows[index].Cells.Any(cell => cell.Blocks.Any(block => block is Heading || (block is Paragraph paragraph && StyleOf(paragraph).KeepWithNext == true))))
+            {
+                continue;
+            }
+
+            var next = result[index + 1];
+            var total = result[index].NaturalHeight + (next.KeepHeight > 0 ? next.KeepHeight : Math.Min(next.NaturalHeight, FirstPieceHeight(next)));
+            if (total <= _page.ContentHeight)
+            {
+                result[index] = result[index] with { KeepHeight = Math.Max(result[index].KeepHeight, total) };
             }
         }
 
@@ -2699,7 +2724,7 @@ internal sealed class PdfBlockRenderer
 
                     // Right to left the line is mirrored inside the cell's inner box.
                     var cellMirror = atoms.Count > 0 && atoms[0].RightToLeft ? (2 * (cellX + cell.PadX)) + innerWidth : (double?)null;
-                    WriteAtoms(atoms, lineX, y - line.Before - (line.Spacing is { Rule: LineSpacingRule.Exactly } exact ? ExactLineAscent(exact) : row.Ascent) - row.ImageRise(line), justifyExtra, line.TabStops, cellMirror, cellX + cell.PadX);
+                    WriteAtoms(atoms, lineX, y - line.Before - (line.Spacing is { Rule: LineSpacingRule.Exactly } exact ? ExactLineAscent(exact) : row.Ascent + AtLeastExtra(line.Spacing, row.LineHeight)) - row.ImageRise(line), justifyExtra, line.TabStops, cellMirror, cellX + cell.PadX);
                     y -= row.HeightOf(line);
                 }
                 else
@@ -2853,6 +2878,12 @@ internal sealed class PdfBlockRenderer
     {
         public bool IsRounded => TopLeft > 0 || TopRight > 0 || BottomRight > 0 || BottomLeft > 0;
     }
+
+    /// <summary>The height of the first piece of a row that may split: its first line in every cell.</summary>
+    private static double FirstPieceHeight(RowLayout row)
+        => row.BorderTop + Math.Max(
+            Math.Max(row.MinHeight, row.LineHeight + (2 * row.PadY)),
+            row.Cells.Where(cell => !cell.Spanned && cell.Lines.Count > 0).Select(cell => row.HeightOf(cell.Lines[0]) + (2 * cell.PadY)).DefaultIfEmpty(0).Max());
 
     private sealed record CellLayout(TableCell Cell, double Width, double PadX, double PadY, List<CellLine> Lines, Color? Background, bool Continuation, bool Merged, bool LastContinuation, bool AtSpanStart = true, bool AtSpanEnd = true, TableStyleArea? Area = null, bool Spanned = false);
 
@@ -3694,12 +3725,13 @@ internal sealed class PdfBlockRenderer
 
     /// <summary>
     /// A line may break before <paramref name="index"/> after a hyphen inside a word, as Word does: "UP-|Kombination",
-    /// "A4-|Blatt", and unlike UAX #14 (HY × NU) also before a digit: "9170-|2", "12-12-|2022". Never after a hyphen
-    /// that starts a word ("-5") or in "--".
+    /// and unlike UAX #14 also before a digit or a slash: "9170-|2", "Staub-|/Putzschutz". Never after a hyphen that
+    /// starts a word ("-5"), in "--", or before a space or a mark that cannot start a line ("Staub-, Putz").
     /// </summary>
     private static bool IsBreakAfterHyphen(string text, int index)
         => index >= 2
-            && char.IsLetterOrDigit(text[index])
+            && !IsBreakingSpace(text[index])
+            && text[index] is not ('-' or '\u2010' or ',' or '.' or ';' or ':' or '!' or '?' or ')' or ']' or '}' or '"' or '\'' or '»' or '›' or '%' or '\u00AD')
             && (text[index - 1] == '\u2010' || (text[index - 1] == '-' && char.IsLetterOrDigit(text[index - 2])));
 
     private static IEnumerable<TextAtom> SplitAtSpaces(TextAtom atom)

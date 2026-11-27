@@ -18,6 +18,7 @@ internal static class MigraDocParity2Checks
             TrailingSpacesHangOverTheEdge();
             WidowControlKeepsTwoLinesOnEachPage();
             WidowControlSurvivesDocxAndOdt();
+            KeepNextRowMovesWithTheNextRow();
             FixedColumnWidthsOverflow();
             ColumnWidthsInPercent();
             HeaderDistanceAndBodyStart();
@@ -141,6 +142,24 @@ internal static class MigraDocParity2Checks
         }
     }
 
+    private static void KeepNextRowMovesWithTheNextRow()
+    {
+        // Word: a row whose paragraphs keep with the next moves to the next page with the next row when that one no
+        // longer fits; without keepNext the row stays alone at the foot of the page.
+        int PageOfTitle(bool keepNext)
+        {
+            var exact = ParagraphStyle.Default with { SpaceBefore = Length.Zero, SpaceAfter = Length.Zero };
+            var spacer = new Paragraph(new TextRun("top")) { Style = exact with { LineSpacing = LineSpacing.Exactly(Length.FromPoints(PageSize.A4.Height.Points - 144 - 20)) } };
+            TableRow Row(string text, bool keep) => new([new TableCell([new Paragraph(new TextRun(text)) { Style = exact with { KeepWithNext = keep ? true : null } }])]);
+            var table = new TableBlock([Row("TITLE", keepNext), Row("ITEM", false)]);
+            var pages = Pages(Document(new Section([spacer, table]) { Margins = new PageMargins(Length.FromPoints(72)) }));
+            return pages.FindIndex(page => page.Any(piece => piece.Text == "TITLE"));
+        }
+
+        Require(PageOfTitle(keepNext: true) == 1, "A keepNext row moves to the next page with the next row.");
+        Require(PageOfTitle(keepNext: false) == 0, "Without keepNext it stays at the foot of the page.");
+    }
+
     private static void TrailingSpacesHangOverTheEdge()
     {
         // Word: "Date: " right aligned ends with the colon at the edge, the space hangs over it; centered likewise.
@@ -178,6 +197,11 @@ internal static class MigraDocParity2Checks
         // A minus before a number and a hyphen at the start of a word stay with what follows.
         var minus = Cell("Temperatur zwischen aaaaaaaaaaaaaaaaa -5 und +5 Grad");
         Require(minus.Any(piece => piece.Text == "-5"), "'-5' is not split.");
+        // Word also breaks after a hyphen before a slash: "Staub-" / "/Putzschutzabdeckung.".
+        var slash = Cell("Kabel und weitere Staub-/Putzschutzabdeckung.");
+        var head = slash.FindIndex(piece => piece.Text == "Staub-");
+        Require(head >= 0 && slash[head + 1].Text == "/Putzschutzabdeckung." && slash[head + 1].Y < slash[head].Y - 5,
+            $"The line breaks after 'Staub-' before the slash ({string.Join(" | ", slash.Select(piece => piece.Text))}).");
         // Word also breaks after a hyphen before a digit: "DIN EN ISO 9170-" / "2", "12-12-" / "2022".
         var dates = Cell("Daten " + string.Join("-", Enumerable.Repeat("12-12-2022", 6)));
         Require(dates.Count > 2 && dates.Skip(1).All(piece => piece.Text is [.., '-'] || piece == dates[^1] || piece.Text == "Daten" || piece.Text == " ")

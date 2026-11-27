@@ -40,6 +40,7 @@ internal static class FieldAndTableFixChecks
             OtherColumnsGiveEqualShares();
             CellBorderStaysInsideAnAutomaticRow();
             ExactLinesShareTheirBaseline();
+            MinimumLineHeightAddsRoomAboveTheText();
             PageCarriesOnlyItsOwnImages();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
@@ -339,6 +340,28 @@ internal static class FieldAndTableFixChecks
         var pages = Regex.Matches(Encoding.Latin1.GetString(buffer.ToArray()), @"/Type /Page /Parent.*?/MediaBox", RegexOptions.Singleline).Select(match => match.Value).ToList();
         var images = pages.Select(page => Regex.Matches(page, @"/Im\d+").Count).ToList();
         Require(images.SequenceEqual([1, 1, 0]), $"Each page names only the images it draws ({string.Join(", ", images)}).");
+    }
+
+    private static void MinimumLineHeightAddsRoomAboveTheText()
+    {
+        // Word: a line of at least 30 pt with smaller text puts the extra room above the text; the baseline sits at
+        // the foot of the line, and the lines are 30 pt apart.
+        Dictionary<string, double> Lines(LineSpacing? spacing, bool inCell)
+        {
+            var paragraph = new Paragraph(new TextRun("LINEA\nLINEB") { Bold = true }) { Style = ParagraphStyle.Default with { LineSpacing = spacing, SpaceBefore = Length.Zero } };
+            Block block = inCell ? new TableBlock([new TableRow([new TableCell([paragraph])])]) : paragraph;
+            return Baselines(Document(new Section(block) { Margins = new PageMargins(Length.FromPoints(50)) }));
+        }
+
+        foreach (var inCell in new[] { false, true })
+        {
+            var plain = Lines(null, inCell);
+            var natural = plain["LINEA"] - plain["LINEB"];
+            var atLeast = Lines(LineSpacing.AtLeast(Length.FromPoints(30)), inCell);
+            Require(Math.Abs(plain["LINEA"] - atLeast["LINEA"] - (30 - natural)) < 0.01,
+                $"In a cell {inCell}: the first baseline moves down by the extra room ({plain["LINEA"] - atLeast["LINEA"]} / {30 - natural}).");
+            Require(Math.Abs(atLeast["LINEA"] - atLeast["LINEB"] - 30) < 0.01, $"In a cell {inCell}: the lines are 30 pt apart.");
+        }
     }
 
     private static void RowLineHeightComesFromTheRuns()
