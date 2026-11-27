@@ -1539,7 +1539,7 @@ internal sealed class PdfPageRenderer
             page.WriteName("Parent");
             page.WriteReference(_pagesObject);
             page.WriteName("Resources");
-            page.WriteReference(_resourcesObject);
+            _resources.WritePage(page, contentBytes);
             page.WriteName("MediaBox");
             page.WriteArray(mediaBox =>
             {

@@ -614,7 +614,7 @@ internal static class LayoutFidelityChecks
 
     private static double Number(string text) => double.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
 
-    private static byte[] Png(byte red, byte green, byte blue)
+    internal static byte[] Png(byte red, byte green, byte blue)
     {
         using var output = new MemoryStream();
         void Chunk(string type, byte[] data)

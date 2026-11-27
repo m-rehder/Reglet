@@ -40,6 +40,7 @@ internal static class FieldAndTableFixChecks
             OtherColumnsGiveEqualShares();
             CellBorderStaysInsideAnAutomaticRow();
             ExactLinesShareTheirBaseline();
+            PageCarriesOnlyItsOwnImages();
             Console.WriteLine("Field and table fixes: all checks passed.");
             return 0;
         }
@@ -327,6 +328,17 @@ internal static class FieldAndTableFixChecks
             $"The baselines are 21 pt apart ({page["LINEA"]}, {page["LINEB"]}, {page["LINEC"]}).");
         var cell = Baselines(Document(new Section(new TableBlock([new TableRow([new TableCell([Address()])])])) { Margins = margins }));
         Require(Math.Abs(cell["LINEA"] - cell["LINEB"] - 21) < 0.01, $"In a cell as well ({cell["LINEA"]}, {cell["LINEB"]}).");
+    }
+
+    private static void PageCarriesOnlyItsOwnImages()
+    {
+        byte[] Png(byte red) => LayoutFidelityChecks.Png(red, 0, 0);
+        var document = Document(new Section([new ImageBlock(Png(10), ImageMediaType.Png), new PageBreak(), new ImageBlock(Png(200), ImageMediaType.Png), new PageBreak(), new Paragraph(new TextRun("none"))]));
+        using var buffer = new MemoryStream();
+        new PdfDocumentWriter().WriteAsync(document, buffer).GetAwaiter().GetResult();
+        var pages = Regex.Matches(Encoding.Latin1.GetString(buffer.ToArray()), @"/Type /Page /Parent.*?/MediaBox", RegexOptions.Singleline).Select(match => match.Value).ToList();
+        var images = pages.Select(page => Regex.Matches(page, @"/Im\d+").Count).ToList();
+        Require(images.SequenceEqual([1, 1, 0]), $"Each page names only the images it draws ({string.Join(", ", images)}).");
     }
 
     private static void RowLineHeightComesFromTheRuns()
