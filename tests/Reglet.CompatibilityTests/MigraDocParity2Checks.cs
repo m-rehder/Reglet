@@ -15,6 +15,7 @@ internal static class MigraDocParity2Checks
         {
             RowKeptOnOnePage();
             LineBreaksAfterHyphen();
+            TrailingSpacesHangOverTheEdge();
             FixedColumnWidthsOverflow();
             ColumnWidthsInPercent();
             HeaderDistanceAndBodyStart();
@@ -79,6 +80,27 @@ internal static class MigraDocParity2Checks
             buffer.Position = 0;
             var rows = reader.Read(buffer).Document.Sections[0].Blocks.OfType<TableBlock>().Single().Rows;
             Require(rows[^1].KeepTogether && !rows[1].KeepTogether, name + ": KeepTogether survives on its row only.");
+        }
+    }
+
+    private static void TrailingSpacesHangOverTheEdge()
+    {
+        // Word: "Date: " right aligned ends with the colon at the edge, the space hangs over it; centered likewise.
+        double X(string text, TextAlignment alignment, bool inCell)
+        {
+            var paragraph = new Paragraph(new TextRun(text) { Bold = true }) { Style = ParagraphStyle.Default with { Alignment = alignment } };
+            Block block = inCell ? new TableBlock([new TableRow([new TableCell([paragraph])])]) : paragraph;
+            return Pages(Document(new Section(block)))[0].First(piece => piece.Text == "Date:").X;
+        }
+
+        foreach (var alignment in new[] { TextAlignment.Right, TextAlignment.Center })
+        {
+            foreach (var inCell in new[] { false, true })
+            {
+                var trailing = X("Date: ", alignment, inCell);
+                var plain = X("Date:", alignment, inCell);
+                Require(Math.Abs(trailing - plain) < 0.01, $"{alignment}, in a cell {inCell}: the trailing space does not count ({trailing} / {plain}).");
+            }
         }
     }
 

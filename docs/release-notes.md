@@ -14,6 +14,8 @@
   Before, Reglet followed UAX #14 (no break between a hyphen and a number) and moved the whole word to the next line.
   A hyphen that starts a word (`-5`) still stays with what follows. Within a line, the parts of such a word remain one
   piece of text in the page.
+- Spaces at the end of a line no longer count when the line is aligned right, centered or justified; they hang over
+  the edge, as in Word. A right-aligned `Date: ` ends with the colon at the edge instead of 3 pt before it.
 
 ## 1.7.10
 

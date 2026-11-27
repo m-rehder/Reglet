@@ -3714,16 +3714,28 @@ internal sealed class PdfBlockRenderer
         return beforeSeparator ?? width;
     }
 
-    private static double LineWidth(List<TextAtom> line)
-        => line.Sum(MeasureAtom);
-
     /// <summary>
-    /// number of word gaps of a line. Due to the wrap, a line contains
-    /// no leading/trailing spaces, therefore every whitespace atom is a
-    /// gap.
+    /// The width a line takes for its alignment: as in Word, the spaces at its end hang over the edge, so "Date: " right
+    /// aligned ends with the colon at the edge.
     /// </summary>
+    private static double LineWidth(List<TextAtom> line)
+        => line.Take(TextEnd(line)).Sum(MeasureAtom);
+
+    /// <summary>The number of word gaps of a line: its spaces before the trailing ones.</summary>
     private static int CountSpaceGaps(IReadOnlyList<TextAtom> line)
-        => line.Count(atom => atom.Text.Length > 0 && IsWhiteSpace(atom.Text));
+        => line.Take(TextEnd(line)).Count(atom => atom.Text.Length > 0 && IsWhiteSpace(atom.Text));
+
+    /// <summary>The index after the last atom of a line that is not a trailing space.</summary>
+    private static int TextEnd(IReadOnlyList<TextAtom> line)
+    {
+        var end = line.Count;
+        while (end > 0 && line[end - 1] is { IsTab: false, Image: null, Note: null } atom && IsWhiteSpace(atom.Text))
+        {
+            end--;
+        }
+
+        return end;
+    }
 
     /// <summary>
     /// The logical text of a line that mixes right-to-left and Latin letters, or null otherwise.
