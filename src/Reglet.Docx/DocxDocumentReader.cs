@@ -223,6 +223,7 @@ public sealed class DocxDocumentReader : IDocumentReader
             defaults = defaults with
             {
                 FontFamily = run.FontFamily ?? defaults.FontFamily,
+                EastAsianFontFamily = run.EastAsianFontFamily,
                 FontSize = run.FontSize ?? defaults.FontSize,
                 TextColor = run.Color ?? defaults.TextColor,
             };
@@ -2583,6 +2584,10 @@ public sealed class DocxDocumentReader : IDocumentReader
         FontFamily = rPr?.Element(W + "rFonts")?.Attribute(W + "ascii") is { } ascii
             && !string.IsNullOrWhiteSpace(ascii.Value)
                 ? ascii.Value
+                : null,
+        EastAsianFontFamily = rPr?.Element(W + "rFonts")?.Attribute(W + "eastAsia") is { } eastAsia
+            && !string.IsNullOrWhiteSpace(eastAsia.Value)
+                ? eastAsia.Value
                 : null,
         CharacterStyleName = rPr?.Element(W + "rStyle")?.Attribute(W + "val")?.Value,
     };

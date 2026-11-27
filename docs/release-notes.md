@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### East Asian text
+
+- `TextRun.EastAsianFontFamily` and `DocumentDefaults.EastAsianFontFamily` name the font for East Asian characters
+  (Han, kana, Hangul, Bopomofo, CJK punctuation and full-width forms). DOCX writes and reads them as
+  `w:rFonts/@w:eastAsia` (on the run and in `w:docDefaults`), ODT as `style:font-name-asian`; HTML lists the font after
+  the run's own in `font-family`.
+- `FontCollection.AddFallback(face)` adds a font and makes its family a fallback (`FontCollection.FallbackFamilies`).
+- The PDF draws an East Asian character with the run's East Asian font, then the document's; a character the chosen
+  font does not have takes the first of the run's font, its East Asian font and the fallback fonts that has it, as Word
+  falls back to a font of the character's script. Before, a run in Arial with Chinese or Japanese text stopped the PDF
+  with "the embedded font does not contain all required glyphs" (or showed `?` with the standard fonts).
+
 ### PDF
 
 - When the automatic table layout widens a column to its longest word, every other column gives up an equal share of

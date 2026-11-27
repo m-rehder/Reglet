@@ -2925,7 +2925,7 @@ internal sealed class PdfBlockRenderer
     {
         var atoms = new List<TextAtom>();
 
-        foreach (var inline in inlines)
+        foreach (var inline in inlines.SelectMany<Inline, Inline>(inline => inline is TextRun run ? SplitByFont(run, headingSize, paragraphStyle) : [inline]))
         {
             if (inline is Bookmark bookmark)
             {
@@ -3541,6 +3541,74 @@ internal sealed class PdfBlockRenderer
     }
 
     /// <summary>
+    /// A run in parts by the font that draws them, as Word does: an East Asian character takes the run's East Asian font
+    /// (<see cref="TextRun.EastAsianFontFamily"/>, then <see cref="DocumentDefaults.EastAsianFontFamily"/>); a character
+    /// the chosen font does not have takes the first of the run's font, its East Asian font and the fallback fonts
+    /// (<see cref="FontCollection.FallbackFamilies"/>) that has it. A run that one font draws stays as it is.
+    /// </summary>
+    private IEnumerable<TextRun> SplitByFont(TextRun raw, double? headingSize, ParagraphStyle? paragraphStyle)
+    {
+        var eastAsian = raw.EastAsianFontFamily ?? _defaults.EastAsianFontFamily;
+        var fallbacks = _page.Fonts.FallbackFamilies;
+        if ((eastAsian is null && fallbacks.Count == 0) || raw.Text.Length == 0)
+        {
+            return [raw];
+        }
+
+        var run = RunFormatResolver.Resolve(raw, paragraphStyle, RunFormatResolver.Find(_characterStyles, raw.CharacterStyleName));
+        var bold = run.Bold == true || headingSize is not null;
+        var italic = run.Italic == true;
+        var fonts = new Dictionary<string, PdfFontHandle>(StringComparer.Ordinal);
+        PdfFontHandle Font(string? family) => fonts.TryGetValue(family ?? string.Empty, out var font)
+            ? font
+            : fonts[family ?? string.Empty] = _page.Fonts.GetFont(family, bold, italic);
+        string?[] candidates = [run.FontFamily, eastAsian, .. fallbacks];
+
+        // Each part's start and family; Own marks the run's own family, which the part then keeps as the run names it.
+        var parts = new List<(int Start, string? Family, bool Own)>();
+        var position = 0;
+        foreach (var rune in raw.Text.EnumerateRunes())
+        {
+            var text = rune.ToString();
+            (string? Family, bool Own) choice;
+            if (Rune.IsControl(rune) || Rune.IsWhiteSpace(rune))
+            {
+                choice = parts.Count > 0 ? (parts[^1].Family, parts[^1].Own) : (run.FontFamily, true);
+            }
+            else
+            {
+                var preferred = IsEastAsian(rune.Value) && eastAsian is not null ? eastAsian : run.FontFamily;
+                var family = Font(preferred).CanEncode(text)
+                    ? preferred
+                    : candidates.FirstOrDefault(candidate => Font(candidate) is { IsEmbedded: true } font && font.CanEncode(text), preferred);
+                choice = (family, family == run.FontFamily);
+            }
+
+            if (parts.Count == 0 || parts[^1].Family != choice.Family || parts[^1].Own != choice.Own)
+            {
+                parts.Add((position, choice.Family, choice.Own));
+            }
+
+            position += rune.Utf16SequenceLength;
+        }
+
+        if (parts.Count == 1 && parts[0].Own)
+        {
+            return [raw];
+        }
+
+        return parts.Select((part, index) => raw.With(
+            raw.Text[part.Start..(index + 1 < parts.Count ? parts[index + 1].Start : raw.Text.Length)],
+            part.Own ? raw.FontFamily : part.Family));
+    }
+
+    /// <summary>Whether a character belongs to an East Asian script: Han, kana, Hangul, Bopomofo, CJK punctuation and full-width forms.</summary>
+    private static bool IsEastAsian(int codePoint) => codePoint is
+        (>= 0x1100 and <= 0x11FF) or (>= 0x2E80 and <= 0x2FFF) or (>= 0x3000 and <= 0x4DBF) or (>= 0x4E00 and <= 0x9FFF)
+        or (>= 0xA960 and <= 0xA97F) or (>= 0xAC00 and <= 0xD7FF) or (>= 0xF900 and <= 0xFAFF) or (>= 0xFE30 and <= 0xFE4F)
+        or (>= 0xFF00 and <= 0xFFEF) or (>= 0x20000 and <= 0x3FFFF);
+
+    /// <summary>
     /// The parts of a word split at its hyphens for wrapping (<see cref="IsBreakAfterHyphen"/>) are one piece of text
     /// again where they share a line: "2026-09-25" stays one text run in the page.
     /// </summary>
@@ -4072,6 +4140,7 @@ internal sealed class PdfBlockRenderer
                 HorizontalScaling = run.HorizontalScaling,
                 Position = run.Position,
                 FontFamily = run.FontFamily,
+                EastAsianFontFamily = run.EastAsianFontFamily,
                 FontSize = run.FontSize,
                 Hidden = run.Hidden,
                 Border = run.Border,

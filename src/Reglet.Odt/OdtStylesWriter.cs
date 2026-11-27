@@ -41,7 +41,8 @@ internal static class OdtStylesWriter
 
         OdtFontFaces.Write(
             writer,
-            bandStyles.TextStyles.Keys.Select(key => key.FontFamily).OfType<string>().Prepend(document.Defaults.FontFamily),
+            bandStyles.TextStyles.Keys.SelectMany(key => new[] { key.FontFamily, key.EastAsianFontFamily }).OfType<string>()
+                .Prepend(document.Defaults.EastAsianFontFamily).OfType<string>().Prepend(document.Defaults.FontFamily),
             xmlBehavior,
             embeddedFonts);
 
@@ -66,6 +67,10 @@ internal static class OdtStylesWriter
         writer.WriteEndElement();
         writer.WriteStartElement("style", "text-properties", OdtNamespaces.Style);
         writer.WriteAttributeString("style", "font-name", OdtNamespaces.Style, OdtFontFaces.Name(document.Defaults.FontFamily, xmlBehavior));
+        if (document.Defaults.EastAsianFontFamily is { } eastAsian)
+        {
+            writer.WriteAttributeString("style", "font-name-asian", OdtNamespaces.Style, OdtFontFaces.Name(eastAsian, xmlBehavior));
+        }
         writer.WriteAttributeString("fo", "font-size", OdtNamespaces.Fo, PointsText(document.Defaults.FontSize));
         if (document.Defaults.TextColor != Color.Black)
         {

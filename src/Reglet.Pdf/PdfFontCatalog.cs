@@ -29,6 +29,9 @@ internal sealed class PdfFontCatalog
         _requireEmbeddedFonts = requireEmbeddedFonts;
     }
 
+    /// <summary>The fallback families of the embedded fonts (<see cref="FontCollection.FallbackFamilies"/>).</summary>
+    public IReadOnlyList<string> FallbackFamilies => _embeddedFonts is not null ? _embeddedSources?.FallbackFamilies ?? [] : [];
+
     public PdfFontHandle GetFont(string? family, bool bold, bool italic)
     {
         if (_embeddedFonts is not null && _embeddedSources is not null)

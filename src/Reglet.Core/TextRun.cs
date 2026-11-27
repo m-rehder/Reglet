@@ -4,6 +4,7 @@ namespace Reglet;
 public sealed class TextRun : Inline
 {
     private string? _fontFamily;
+    private string? _eastAsianFontFamily;
     private Length? _fontSize;
     private TextBaseline? _baseline;
     private TextStrikethrough? _strikethrough;
@@ -161,6 +162,25 @@ public sealed class TextRun : Inline
         }
     }
 
+    /// <summary>
+    /// The font for East Asian characters (Han, kana, Hangul, CJK punctuation and full-width forms); null means
+    /// <see cref="DocumentDefaults.EastAsianFontFamily"/>, then <see cref="FontFamily"/>. DOCX writes it as
+    /// <c>w:rFonts/@w:eastAsia</c>, ODT as <c>style:font-name-asian</c>; the PDF draws those characters with it.
+    /// </summary>
+    public string? EastAsianFontFamily
+    {
+        get => _eastAsianFontFamily;
+        init
+        {
+            if (value is not null && string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException("Font family must not be empty.", nameof(EastAsianFontFamily));
+            }
+
+            _eastAsianFontFamily = value;
+        }
+    }
+
     /// <summary>Font size; null means the document default.</summary>
     public Length? FontSize
     {
@@ -199,4 +219,32 @@ public sealed class TextRun : Inline
     public bool IsUnderlined => UnderlineStyle is { } style
         ? style != TextUnderlineStyle.None
         : Underline == true;
+
+    /// <summary>A copy of the run with other text and font family, all other formatting kept.</summary>
+    internal TextRun With(string text, string? fontFamily) => new(text)
+    {
+        Bold = Bold,
+        Italic = Italic,
+        Underline = Underline,
+        UnderlineStyle = UnderlineStyle,
+        UnderlineColor = UnderlineColor,
+        Strikethrough = Strikethrough,
+        Baseline = Baseline,
+        AllCaps = AllCaps,
+        SmallCaps = SmallCaps,
+        Effects = Effects,
+        Background = Background,
+        Highlight = Highlight,
+        Kerning = Kerning,
+        CharacterSpacing = CharacterSpacing,
+        HorizontalScaling = HorizontalScaling,
+        Position = Position,
+        FontFamily = fontFamily,
+        EastAsianFontFamily = EastAsianFontFamily,
+        FontSize = FontSize,
+        Hidden = Hidden,
+        Border = Border,
+        Color = Color,
+        CharacterStyleName = CharacterStyleName,
+    };
 }

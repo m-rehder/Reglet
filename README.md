@@ -87,7 +87,7 @@ silently.
 | Graphics | Pictures (PNG, JPEG, SVG; in the flow, floating or in a line of text), shapes and text boxes (floating, anchored to the page, margin or paragraph), editable charts, barcodes and QR codes, flow diagrams, formulas |
 | Collaboration | Comments with replies, tracked changes |
 | Automation | Find and replace, templates with placeholders and repeating rows, mail merge from CSV, JSON, XML or Excel |
-| PDF | Embedded fonts, PDF/A, encryption, digital signatures (incl. PAdES), form fields, watermarks, merge and split, text extraction, structure recovery (PDF to DOCX), pages drawn at fixed coordinates with text measurement (`PdfCanvas`), inspection of fonts and images for tests |
+| PDF | Embedded fonts with an East Asian font and fallback fonts for characters the named font lacks, PDF/A, encryption, digital signatures (incl. PAdES), form fields, watermarks, merge and split, text extraction, structure recovery (PDF to DOCX), pages drawn at fixed coordinates with text measurement (`PdfCanvas`), inspection of fonts and images for tests |
 | HTML | Simple editable HTML in and out; a page-faithful preview with the PDF's layout and embedded fonts, as a page or a fragment for a host page |
 | Security | Encrypted DOCX and ODT, signed DOCX and ODT, limits against malicious input |
 | Validation | `DocumentValidator` checks DOCX, XLSX, ODT/ODS and PDF files for what Word, Excel, LibreOffice and PDF readers reject: package structure, content types and relationships, the ECMA-376 schemas with Office's markup compatibility, ODF mimetype, manifest and the ODF 1.3/1.4 RELAX NG schemas, PDF cross-references, page tree, content streams and fonts; findings with part and line (`Reglet.Validation`) |

@@ -433,6 +433,7 @@ public static class DocumentSearch
             HorizontalScaling = run.HorizontalScaling,
             Position = run.Position,
             FontFamily = run.FontFamily,
+            EastAsianFontFamily = run.EastAsianFontFamily,
             FontSize = run.FontSize,
             Hidden = run.Hidden,
             Border = run.Border,

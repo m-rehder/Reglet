@@ -23,10 +23,12 @@ public sealed record FontMatch(FontFace Face, bool SyntheticBold, bool Synthetic
 public sealed class FontCollection
 {
     private readonly Dictionary<string, Dictionary<(bool Bold, bool Italic), FontFace>> _families;
+    private readonly string[] _fallbacks;
 
-    private FontCollection(Dictionary<string, Dictionary<(bool Bold, bool Italic), FontFace>> families)
+    private FontCollection(Dictionary<string, Dictionary<(bool Bold, bool Italic), FontFace>> families, string[]? fallbacks = null)
     {
         _families = families;
+        _fallbacks = fallbacks ?? [];
     }
 
     /// <summary>An empty collection.</summary>
@@ -34,6 +36,13 @@ public sealed class FontCollection
 
     /// <summary>The family names of the collection (the empty name stands for the default font).</summary>
     public IReadOnlyCollection<string> Families => _families.Keys;
+
+    /// <summary>
+    /// The fallback families in the order they were added (<see cref="AddFallback(FontFace)"/>): for a character the
+    /// requested font does not have, the PDF takes the first of them that has it, as Word falls back to a font of the
+    /// character's script.
+    /// </summary>
+    public IReadOnlyList<string> FallbackFamilies => _fallbacks;
 
     /// <summary>Number of styles across all families.</summary>
     public int Count => _families.Values.Sum(faces => faces.Count);
@@ -185,7 +194,7 @@ public sealed class FontCollection
         }
 
         families[family] = updated;
-        return new FontCollection(families);
+        return new FontCollection(families, _fallbacks);
     }
 
     /// <summary>A collection with only the faces that satisfy <paramref name="predicate"/>.</summary>
@@ -203,7 +212,22 @@ public sealed class FontCollection
             }
         }
 
-        return new FontCollection(families);
+        return new FontCollection(families, _fallbacks.Where(families.ContainsKey).ToArray());
+    }
+
+    /// <summary>
+    /// Adds a style under its own family name and makes the family a fallback (<see cref="FallbackFamilies"/>), for
+    /// example a Japanese or Chinese font for text whose font has no East Asian characters. Adding a further style of a
+    /// family that is a fallback already keeps its place.
+    /// </summary>
+    /// <exception cref="DocumentValidationException">The style is already taken in the family.</exception>
+    public FontCollection AddFallback(FontFace face)
+    {
+        ArgumentNullException.ThrowIfNull(face);
+        var added = Add(face);
+        return _fallbacks.Contains(face.FamilyName, StringComparer.OrdinalIgnoreCase)
+            ? added
+            : new FontCollection(added._families, [.. _fallbacks, face.FamilyName]);
     }
 
     /// <summary>Sets the default font for text without its own family (family name "").</summary>

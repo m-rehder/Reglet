@@ -396,6 +396,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `new DocumentDefaults()`
 - `static DocumentDefaults Default { get; }` — Documented initial values.
 - `string FontFamily { get; init; }` — Default font family.
+- `string? EastAsianFontFamily { get; init; }` — The default font for East Asian characters (`TextRun.EastAsianFontFamily`); null means `DocumentDefaults.FontFamily`. DOCX writes it to `w:docDefaults`, ODT to the default style.
 - `Length FontSize { get; init; }` — Default font size.
 - `Color TextColor { get; init; }` — Default text color.
 - `ParagraphStyle ParagraphStyle { get; init; }` — Default paragraph style. Readers fill it from `w:docDefaults/w:pPrDefault` or the ODT default style; DOCX and ODT write it and the PDF layout applies it to a document built from the model.
@@ -1760,6 +1761,7 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 - `double? HorizontalScaling { get; init; }` — Horizontal scaling in per cent (100 = normal).
 - `Length? Position { get; init; }` — Baseline shift (positive = up).
 - `string? FontFamily { get; init; }` — Font family; null means the document default.
+- `string? EastAsianFontFamily { get; init; }` — The font for East Asian characters (Han, kana, Hangul, CJK punctuation and full-width forms); null means `DocumentDefaults.EastAsianFontFamily`, then `TextRun.FontFamily`. DOCX writes it as `w:rFonts/@w:eastAsia`, ODT as `style:font-name-asian`; the PDF draws those characters with it.
 - `Length? FontSize { get; init; }` — Font size; null means the document default.
 - `bool? Hidden { get; init; }` — hidden text; `null` means "not set" (see `TextRun.Bold`).
 - `ParagraphBorder? Border { get; init; }` — Border around the run (character border); null means none.
@@ -2550,11 +2552,13 @@ build documents with `PortableDocument.Create()` (a `PortableDocumentBuilder`). 
 
 - `static FontCollection Empty { get; }` — An empty collection.
 - `IReadOnlyCollection<string> Families { get; }` — The family names of the collection (the empty name stands for the default font).
+- `IReadOnlyList<string> FallbackFamilies { get; }` — The fallback families in the order they were added (`FontCollection.AddFallback`): for a character the requested font does not have, the PDF takes the first of them that has it, as Word falls back to a font of the character's script.
 - `int Count { get; }` — Number of styles across all families.
 - `FontCollection Add(FontFace face)` — Adds a style under its own family name.
 - `FontCollection Add(string family, FontFace face)` — Adds a style under a freely chosen family name (e.g. the name used in the document).
 - `FontCollection Add(string family, FontFace face, bool bold, bool italic)` — adds a style with an explicitly specified style, for example when the information in the font file do not match.
 - `FontCollection AddDefault(FontFace face)` — Sets the default font for text without its own family (family name "").
+- `FontCollection AddFallback(FontFace face)` — Adds a style under its own family name and makes the family a fallback (`FontCollection.FallbackFamilies`), for example a Japanese or Chinese font for text whose font has no East Asian characters. Adding a further style of a family that is a fallback already keeps its place.
 - `bool Contains(string family)` — Whether the family is contained in the collection.
 - `static FontCollection FromDirectory(string directory)` — Loads all `.ttf` files of a directory (non-recursive) under their family name.
 - `static FontCollection FromSystem()` — Loads the installed TrueType fonts from the standard font directories of the platform. Files that are not TrueType outlines, are corrupted or repeat an existing family/style are skipped; directories that cannot be read are ignored.

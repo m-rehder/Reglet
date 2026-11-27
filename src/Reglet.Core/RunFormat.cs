@@ -27,6 +27,7 @@ internal sealed record RunFormat
     public Color? Background { get; init; }
     public Color? Highlight { get; init; }
     public string? FontFamily { get; init; }
+    public string? EastAsianFontFamily { get; init; }
     public Length? FontSize { get; init; }
     public ParagraphBorder? Border { get; init; }
     public Length? Kerning { get; init; }
@@ -55,6 +56,7 @@ internal sealed record RunFormat
             Background = run.Background,
             Highlight = run.Highlight,
             FontFamily = run.FontFamily,
+            EastAsianFontFamily = run.EastAsianFontFamily,
             FontSize = run.FontSize,
             Border = run.Border,
             Kerning = run.Kerning,
@@ -149,6 +151,7 @@ internal sealed record RunFormat
             Background = Own(Background, inherited.Background),
             Highlight = Own(Highlight, inherited.Highlight),
             FontFamily = Own(FontFamily, inherited.FontFamily),
+            EastAsianFontFamily = Own(EastAsianFontFamily, inherited.EastAsianFontFamily),
             FontSize = Own(FontSize, inherited.FontSize),
             Border = Own(Border, inherited.Border),
             Kerning = Own(Kerning, inherited.Kerning),
@@ -209,7 +212,7 @@ internal sealed record RunFormat
             || run.Strikethrough is not null || run.Baseline is not null
             || run.AllCaps is not null || run.SmallCaps is not null || run.Effects is not null || run.Hidden is not null
             || run.Color is not null || run.Background is not null || run.Highlight is not null
-            || run.FontFamily is not null || run.FontSize is not null || run.Kerning is not null
+            || run.FontFamily is not null || run.EastAsianFontFamily is not null || run.FontSize is not null || run.Kerning is not null
             || run.CharacterSpacing is not null || run.HorizontalScaling is not null
             || run.Position is not null || run.Border is not null;
     }
@@ -235,6 +238,7 @@ internal sealed record RunFormat
             Background = Background,
             Highlight = Highlight,
             FontFamily = FontFamily,
+            EastAsianFontFamily = EastAsianFontFamily,
             FontSize = FontSize,
             Border = Border,
             Kerning = Kerning,
@@ -296,7 +300,7 @@ internal sealed record RunFormat
             && UnderlineColor is null && Strikethrough is null && Baseline is null
             && AllCaps is null && SmallCaps is null && Effects is null && Hidden is null
             && Color is null && Background is null && Highlight is null
-            && FontFamily is null && FontSize is null && Border is null
+            && FontFamily is null && EastAsianFontFamily is null && FontSize is null && Border is null
             && Kerning is null && CharacterSpacing is null && HorizontalScaling is null
             && Position is null;
 }

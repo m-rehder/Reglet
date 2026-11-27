@@ -473,6 +473,11 @@ public sealed class OdtDocumentReader : IDocumentReader
             defaults = defaults with { FontFamily = family };
         }
 
+        if (EastAsianFont(textProperties) is { } eastAsian)
+        {
+            defaults = defaults with { EastAsianFontFamily = eastAsian };
+        }
+
         if (format.FontSize is { } size)
         {
             defaults = defaults with { FontSize = size };
@@ -499,6 +504,7 @@ public sealed class OdtDocumentReader : IDocumentReader
 
         var properties = new XElement(textProperties);
         properties.Attribute(Style + "font-name")?.Remove();
+        properties.Attribute(Style + "font-name-asian")?.Remove();
         properties.Attribute(Fo + "font-family")?.Remove();
         properties.Attribute(Fo + "font-size")?.Remove();
         properties.Attribute(Fo + "color")?.Remove();
@@ -831,9 +837,14 @@ public sealed class OdtDocumentReader : IDocumentReader
     /// <summary>The value of an attribute, or null when the style does not set it.</summary>
     private static string? Attribute(XElement? properties, XName name) => properties?.Attribute(name)?.Value;
 
+    /// <summary>The font of a text style for East Asian characters (<c>style:font-name-asian</c>), if any.</summary>
+    private static string? EastAsianFont(XElement? properties)
+        => Attribute(properties, Style + "font-name-asian") is { } family && !string.IsNullOrWhiteSpace(family) ? family : null;
+
     /// <summary>The formatting of a text style as run formatting.</summary>
-    private static TextRun RunOf(CharacterStyle style, string? characterStyleName) => new(string.Empty)
+    private static TextRun RunOf(CharacterStyle style, string? characterStyleName, string? eastAsianFontFamily = null) => new(string.Empty)
     {
+        EastAsianFontFamily = eastAsianFontFamily,
         Bold = style.Bold,
         Italic = style.Italic,
         Underline = style.Underline,
@@ -1813,7 +1824,7 @@ public sealed class OdtDocumentReader : IDocumentReader
                 continue;
             }
 
-            result[name] = RunOf(ReadCharacterStyle(name, properties[name], defaultFontSize), null);
+            result[name] = RunOf(ReadCharacterStyle(name, properties[name], defaultFontSize), null, EastAsianFont(properties[name]));
         }
 
         return result;
@@ -3329,7 +3340,7 @@ public sealed class OdtDocumentReader : IDocumentReader
         var fontSize = ParseLength(Attribute(style.Properties, Fo + "font-size"))
             ?? style.NamedFontSize
             ?? inheritedFontSize;
-        return RunOf(ReadCharacterStyle("span", style.Properties, fontSize), style.NamedName);
+        return RunOf(ReadCharacterStyle("span", style.Properties, fontSize), style.NamedName, EastAsianFont(style.Properties));
     }
 
 

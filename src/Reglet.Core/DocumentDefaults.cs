@@ -4,6 +4,7 @@ namespace Reglet;
 public sealed record DocumentDefaults
 {
     private string _fontFamily = "Calibri";
+    private string? _eastAsianFontFamily;
     private Length _fontSize = Length.FromPoints(11);
     private ParagraphStyle _paragraphStyle = ParagraphStyle.Default;
 
@@ -17,6 +18,18 @@ public sealed record DocumentDefaults
         init => _fontFamily = !string.IsNullOrWhiteSpace(value)
             ? value
             : throw new ArgumentException("Font family must not be empty.", nameof(FontFamily));
+    }
+
+    /// <summary>
+    /// The default font for East Asian characters (<see cref="TextRun.EastAsianFontFamily"/>); null means
+    /// <see cref="FontFamily"/>. DOCX writes it to <c>w:docDefaults</c>, ODT to the default style.
+    /// </summary>
+    public string? EastAsianFontFamily
+    {
+        get => _eastAsianFontFamily;
+        init => _eastAsianFontFamily = value is null || !string.IsNullOrWhiteSpace(value)
+            ? value
+            : throw new ArgumentException("Font family must not be empty.", nameof(EastAsianFontFamily));
     }
 
     /// <summary>Default font size.</summary>

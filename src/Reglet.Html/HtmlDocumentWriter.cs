@@ -221,7 +221,15 @@ internal sealed class HtmlBuilder(PortableDocument document, HtmlWriteOptions op
         {
             // A font name comes from foreign files: only name characters, so neither a quote nor a character
             // reference (&#39) can end the CSS string.
-            css.Append("font-family:'").Append(string.Concat(family.Where(character => char.IsLetterOrDigit(character) || character is ' ' or '-' or '_' or '.'))).Append("';");
+            static string Name(string name) => string.Concat(name.Where(character => char.IsLetterOrDigit(character) || character is ' ' or '-' or '_' or '.'));
+            css.Append("font-family:'").Append(Name(family)).Append('\'');
+            // The East Asian font follows as the browser's fallback for the characters the first one lacks.
+            if (run.EastAsianFontFamily is { Length: > 0 } eastAsian)
+            {
+                css.Append(",'").Append(Name(eastAsian)).Append('\'');
+            }
+
+            css.Append(';');
         }
 
         if (run.FontSize is { } size)

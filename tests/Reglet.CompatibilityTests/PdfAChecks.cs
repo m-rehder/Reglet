@@ -345,7 +345,10 @@ internal static class PdfAChecks
     }
 
     /// <summary>Small synthetic font for "Hello" (glyphs 3–6).</summary>
-    internal static byte[] Font()
+    internal static byte[] Font() => Font("PdfATest", ('H', 3), ('a', 4), ('e', 4), ('l', 5), ('o', 6));
+
+    /// <summary>A small TrueType font with its own name and character map (glyph ids 1 to 6).</summary>
+    internal static byte[] Font(string name, params (int Code, ushort Glyph)[] characters)
     {
         const int count = 7;
         var glyf = new List<byte>();
@@ -377,8 +380,8 @@ internal static class PdfAChecks
             ("hhea", SyntheticTrueTypeFont.Hhea(800, -200, 0, count)),
             ("maxp", SyntheticTrueTypeFont.Maxp(count)),
             ("hmtx", SyntheticTrueTypeFont.Hmtx(metrics)),
-            ("name", SyntheticTrueTypeFont.Name("PdfATest")),
-            ("cmap", SyntheticTrueTypeFont.Cmap12(('H', 3), ('a', 4), ('e', 4), ('l', 5), ('o', 6))),
+            ("name", SyntheticTrueTypeFont.Name(name)),
+            ("cmap", SyntheticTrueTypeFont.Cmap12(characters)),
             ("glyf", glyf.ToArray()),
             ("loca", loca),
         };

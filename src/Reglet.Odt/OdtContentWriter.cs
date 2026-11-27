@@ -74,7 +74,7 @@ internal static class OdtContentWriter
 
         OdtFontFaces.Write(
             writer,
-            textStyles.Keys.Select(key => key.FontFamily).OfType<string>(),
+            textStyles.Keys.SelectMany(key => new[] { key.FontFamily, key.EastAsianFontFamily }).OfType<string>(),
             xmlBehavior,
             embeddedFonts);
 
@@ -438,6 +438,11 @@ internal static class OdtContentWriter
             if (key.FontFamily is not null)
             {
                 writer.WriteAttributeString("style", "font-name", OdtNamespaces.Style, OdtFontFaces.Name(key.FontFamily, xmlBehavior));
+            }
+
+            if (key.EastAsianFontFamily is not null)
+            {
+                writer.WriteAttributeString("style", "font-name-asian", OdtNamespaces.Style, OdtFontFaces.Name(key.EastAsianFontFamily, xmlBehavior));
             }
 
             if (key.FontSizePoints is { } size)

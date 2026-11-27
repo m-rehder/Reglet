@@ -73,6 +73,7 @@ internal static class RunFormatResolver
                 ?? paragraphStyle?.HorizontalScaling,
             Position = run.Position ?? characterStyle?.Position ?? paragraphStyle?.Position,
             FontFamily = run.FontFamily ?? FontName(characterStyle?.FontFamily) ?? FontName(paragraphStyle?.FontFamily),
+            EastAsianFontFamily = run.EastAsianFontFamily,
             FontSize = run.FontSize ?? characterStyle?.FontSize ?? paragraphStyle?.FontSize,
             Border = run.Border ?? characterStyle?.Border ?? paragraphStyle?.TextBorder,
             Color = run.Color ?? characterStyle?.Color ?? paragraphStyle?.TextColor,

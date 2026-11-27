@@ -19,6 +19,7 @@ internal readonly record struct OdtTextStyleKey(
     double? CharacterSpacingPoints,
     double? HorizontalScaling,
     string? FontFamily,
+    string? EastAsianFontFamily,
     double? FontSizePoints,
     string? ColorHex,
     bool? Hidden,
@@ -160,7 +161,7 @@ internal static class OdtAutomaticStyles
             && run.CharacterSpacing is null && run.HorizontalScaling is null
             && run.UnderlineColor is null
             && run.Hidden is null && run.Border is null
-            && run.FontFamily is null && run.FontSize is null && run.Color is null
+            && run.FontFamily is null && run.EastAsianFontFamily is null && run.FontSize is null && run.Color is null
             && run.CharacterStyleName is null)
         {
             return null;
@@ -185,6 +186,7 @@ internal static class OdtAutomaticStyles
             run.CharacterSpacing?.Points,
             run.HorizontalScaling,
             run.FontFamily,
+            run.EastAsianFontFamily,
             run.FontSize?.Points,
             run.Color?.ToString(),
             run.Hidden,

@@ -3329,9 +3329,12 @@ internal static class DocxPackageBuilder
     /// </summary>
     private static void WriteRunFormat(XmlWriter writer, RunFormat format, InvalidXmlCharacterBehavior xmlBehavior, UnsupportedFeatureHandler? handler = null)
     {
-        if (format.FontFamily is not null)
+        if (format.FontFamily is not null || format.EastAsianFontFamily is not null)
         {
-            WriteFonts(writer, XmlText.Clean(FontFamilies.Resolve(format.FontFamily).Name, xmlBehavior));
+            WriteFonts(
+                writer,
+                format.FontFamily is { } family ? XmlText.Clean(FontFamilies.Resolve(family).Name, xmlBehavior) : null,
+                format.EastAsianFontFamily is { } eastAsian ? XmlText.Clean(eastAsian, xmlBehavior) : null);
         }
 
         WriteToggle(writer, "b", format.Bold);
@@ -4978,7 +4981,10 @@ internal static class DocxPackageBuilder
 
         writer.WriteStartElement("w", "rPrDefault", DocxConstants.WordprocessingML);
         writer.WriteStartElement("w", "rPr", DocxConstants.WordprocessingML);
-        WriteFonts(writer, XmlText.Clean(FontFamilies.Resolve(defaults.FontFamily).Name, xmlBehavior));
+        WriteFonts(
+            writer,
+            XmlText.Clean(FontFamilies.Resolve(defaults.FontFamily).Name, xmlBehavior),
+            defaults.EastAsianFontFamily is { } eastAsian ? XmlText.Clean(eastAsian, xmlBehavior) : null);
         if (defaults.TextColor != Color.Black)
         {
             WriteValElement(writer, "color", HexColor(defaults.TextColor));
@@ -5055,12 +5061,27 @@ internal static class DocxPackageBuilder
         writer.WriteEndElement();
     }
 
-    private static void WriteFonts(XmlWriter writer, string fontFamily)
+    private static void WriteFonts(XmlWriter writer, string fontFamily) => WriteFonts(writer, fontFamily, null);
+
+    private static void WriteFonts(XmlWriter writer, string? fontFamily, string? eastAsian)
     {
         writer.WriteStartElement("w", "rFonts", DocxConstants.WordprocessingML);
-        WriteWAttribute(writer, "ascii", fontFamily);
-        WriteWAttribute(writer, "hAnsi", fontFamily);
-        WriteWAttribute(writer, "cs", fontFamily);
+        if (fontFamily is not null)
+        {
+            WriteWAttribute(writer, "ascii", fontFamily);
+            WriteWAttribute(writer, "hAnsi", fontFamily);
+        }
+
+        if (eastAsian is not null)
+        {
+            WriteWAttribute(writer, "eastAsia", eastAsian);
+        }
+
+        if (fontFamily is not null)
+        {
+            WriteWAttribute(writer, "cs", fontFamily);
+        }
+
         writer.WriteEndElement();
     }
 
