@@ -2648,6 +2648,13 @@ internal static class DocxPackageBuilder
             WriteToggle(writer, "pageBreakBefore", pageBreakBefore);
         }
 
+        // Word takes a missing w:widowControl as on: only an explicit off is written.
+        if (style.WidowControl is { } widowControl
+            && Overrides(widowControl, inheritedBase?.WidowControl ?? true))
+        {
+            WriteToggle(writer, "widowControl", widowControl);
+        }
+
         if (numbering is { } number)
         {
             writer.WriteStartElement("w", "numPr", DocxConstants.WordprocessingML);

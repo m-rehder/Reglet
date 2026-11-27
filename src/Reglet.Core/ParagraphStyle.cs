@@ -82,6 +82,14 @@ public sealed record ParagraphStyle
     /// <summary>Keep the whole paragraph on one page (do not split across pages); <c>null</c> means "not set".</summary>
     public bool? KeepTogether { get; init; }
 
+    /// <summary>
+    /// Widow and orphan control: a paragraph split across pages keeps at least two lines on each, in the text and in a
+    /// table row (the row moves whole when its paragraph may not split there). <c>null</c> means on, as in Word, where a
+    /// missing <c>w:widowControl</c> is on; <c>false</c> splits a paragraph exactly where the room ends. DOCX writes it as
+    /// <c>w:widowControl</c>, ODT as <c>fo:widows</c>/<c>fo:orphans</c>.
+    /// </summary>
+    public bool? WidowControl { get; init; }
+
     /// <summary>Start a new page before the paragraph; <c>null</c> means "not set".</summary>
     public bool? PageBreakBefore { get; init; }
 

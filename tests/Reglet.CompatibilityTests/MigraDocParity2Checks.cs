@@ -16,7 +16,8 @@ internal static class MigraDocParity2Checks
             RowKeptOnOnePage();
             LineBreaksAfterHyphen();
             TrailingSpacesHangOverTheEdge();
-            FirstLineOfAParagraphMovesWithTheRow();
+            WidowControlKeepsTwoLinesOnEachPage();
+            WidowControlSurvivesDocxAndOdt();
             FixedColumnWidthsOverflow();
             ColumnWidthsInPercent();
             HeaderDistanceAndBodyStart();
@@ -84,22 +85,60 @@ internal static class MigraDocParity2Checks
         }
     }
 
-    private static void FirstLineOfAParagraphMovesWithTheRow()
+    private static void WidowControlKeepsTwoLinesOnEachPage()
     {
-        // Word (no widow control): with room for one line of the row at the foot of the page, a row whose cells open
-        // with a paragraph of several lines moves whole to the next page; one of single-line paragraphs is split.
-        int LinesOnFirstPage(Func<string, TableCell> cell)
+        // Word 16, measured: a paragraph of N lines (line breaks) with room for k of them at the foot of the page keeps
+        // at least two lines on each page, in the text and in a table row, also without w:widowControl; with
+        // w:widowControl="0" it splits where the room ends.
+        int LinesOnFirstPage(int lines, int room, bool inCell, bool? widowControl)
         {
-            var style = ParagraphStyle.Default with { FontFamily = "Arial", FontSize = Length.FromPoints(10) };
-            var spacer = new Paragraph(new TextRun("top")) { Style = style with { LineSpacing = LineSpacing.Exactly(Length.FromPoints(PageSize.A4.Height.Points - 144 - 24)) } };
-            var document = Document(new Section([spacer, new TableBlock([new TableRow([cell("a"), cell("b")])])]) { Margins = new PageMargins(Length.FromPoints(72)) });
-            return Pages(document)[0].Count(piece => piece.Text.StartsWith('a'));
+            var exact = ParagraphStyle.Default with { LineSpacing = LineSpacing.Exactly(Length.FromPoints(12)), SpaceBefore = Length.Zero, SpaceAfter = Length.Zero };
+            var spacer = new Paragraph(new TextRun("top")) { Style = exact with { LineSpacing = LineSpacing.Exactly(Length.FromPoints(PageSize.A4.Height.Points - 144 - (room * 12) - 2)) } };
+            var paragraph = new Paragraph(new TextRun(string.Join("\n", Enumerable.Range(1, lines).Select(line => $"L{line}")))) { Style = exact with { WidowControl = widowControl } };
+            Block block = inCell ? new TableBlock([new TableRow([new TableCell([paragraph]) { PaddingVertical = Length.Zero }])]) : paragraph;
+            var document = Document(new Section([spacer, block]) { Margins = new PageMargins(Length.FromPoints(72)) });
+            return Pages(document)[0].Count(piece => piece.Text.StartsWith('L'));
         }
 
-        var breaks = LinesOnFirstPage(id => new TableCell([new Paragraph(new TextRun(string.Join("\n", Enumerable.Range(1, 5).Select(line => $"{id}{line}"))))]));
-        Require(breaks == 0, $"A paragraph's first line does not stay alone; the row moves ({breaks}).");
-        var single = LinesOnFirstPage(id => new TableCell(Enumerable.Range(1, 5).Select(line => (Block)new Paragraph(new TextRun($"{id}{line}"))).ToList()));
-        Require(single == 1, $"A row of single-line paragraphs is split after the first ({single}).");
+        (int Lines, int Room, int First)[] word = [(2, 1, 0), (3, 1, 0), (3, 2, 0), (4, 1, 0), (4, 2, 2), (4, 3, 2), (5, 1, 0), (5, 2, 2), (5, 3, 3), (5, 4, 3)];
+        foreach (var inCell in new[] { false, true })
+        {
+            foreach (var (lines, room, first) in word)
+            {
+                var on = LinesOnFirstPage(lines, room, inCell, widowControl: null);
+                Require(on == first, $"{lines} lines, room for {room}, in a cell {inCell}: {first} on the first page, as in Word ({on}).");
+                var off = LinesOnFirstPage(lines, room, inCell, widowControl: false);
+                Require(off == room, $"{lines} lines, room for {room}, in a cell {inCell}, widow control off: split where the room ends ({off}).");
+            }
+        }
+    }
+
+    private static void WidowControlSurvivesDocxAndOdt()
+    {
+        var document = Document(new Section([
+            new Paragraph(new TextRun("off")) { Style = ParagraphStyle.Default with { WidowControl = false } },
+            new Paragraph(new TextRun("default")),
+        ]));
+        foreach (var format in new[] { DocumentFormat.Docx, DocumentFormat.Odt })
+        {
+            var package = TestPackages.Write(document, format);
+            var paragraphs = TestPackages.Read(package, format).Sections[0].Blocks.OfType<Paragraph>().ToList();
+            Require(paragraphs[0].Style.WidowControl == false && paragraphs[1].Style.WidowControl is null,
+                $"{format}: an explicit off is read back, the default stays unset ({paragraphs[0].Style.WidowControl}, {paragraphs[1].Style.WidowControl}).");
+            using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(package));
+            string Part(string name) => new StreamReader(zip.GetEntry(name)!.Open()).ReadToEnd();
+            if (format == DocumentFormat.Docx)
+            {
+                var body = Part("word/document.xml");
+                Require(body.Contains("<w:widowControl w:val=\"0\" />", StringComparison.Ordinal) && body.Split("widowControl").Length == 2,
+                    "DOCX: only the explicit off is written (Word takes a missing w:widowControl as on).");
+            }
+            else
+            {
+                Require(Part("styles.xml").Contains("fo:widows=\"2\"", StringComparison.Ordinal) && Part("content.xml").Contains("fo:widows=\"0\"", StringComparison.Ordinal),
+                    "ODT: the default style keeps two lines (LibreOffice takes none as off), the paragraph switches it off.");
+            }
+        }
     }
 
     private static void TrailingSpacesHangOverTheEdge()

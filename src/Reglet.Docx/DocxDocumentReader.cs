@@ -2813,6 +2813,12 @@ public sealed class DocxDocumentReader : IDocumentReader
             style = style with { KeepTogether = IsOn(keepLines) };
         }
 
+        // Word takes a missing w:widowControl as on; the model keeps only an explicit off (or on below an off).
+        if (pPr.Element(W + "widowControl") is { } widowControl)
+        {
+            style = style with { WidowControl = IsOn(widowControl) };
+        }
+
         if (pPr.Element(W + "pageBreakBefore") is { } pageBreakBefore)
         {
             style = style with { PageBreakBefore = IsOn(pageBreakBefore) };

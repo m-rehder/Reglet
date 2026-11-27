@@ -69,6 +69,7 @@ internal static class NamedStyleComparer
         style.KeepWithNext.ToString(),
         style.KeepTogether.ToString(),
         style.PageBreakBefore.ToString(),
+        style.WidowControl.ToString(),
         style.RightToLeft.ToString(),
         TabStopsKey(style.TabStops),
         // ADR-0010: the run formatting of the style belongs to its definition.

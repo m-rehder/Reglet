@@ -59,6 +59,11 @@ internal static class OdtStylesWriter
         }
 
         OdtContentWriter.WriteParagraphFormat(writer, paragraphDefaults);
+        if (paragraphDefaults.WidowControl is null)
+        {
+            // On unless switched off, as in Word; LibreOffice takes missing fo:widows/fo:orphans as none.
+            OdtContentWriter.WriteWidowControl(writer, on: true);
+        }
         if (autoHyphenation)
         {
             writer.WriteAttributeString("fo", "hyphenate", OdtNamespaces.Fo, "true");

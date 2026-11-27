@@ -529,6 +529,12 @@ public sealed class OdtDocumentReader : IDocumentReader
             return ParagraphFormat.Empty;
         }
 
+        // On is the model's default: only an explicit off stays.
+        if (format.WidowControl == true)
+        {
+            format = format with { WidowControl = null };
+        }
+
         if (format.SpaceAfter is { } after
             && Math.Abs(after.Points - Typography.ParagraphSpaceAfter.Points) < 1e-9)
         {
@@ -1430,7 +1436,8 @@ public sealed class OdtDocumentReader : IDocumentReader
         bool? KeepWithNext = null,
         bool? KeepTogether = null,
         IReadOnlyList<TabStop>? TabStops = null,
-        ParagraphBorders? Borders = null)
+        ParagraphBorders? Borders = null,
+        bool? WidowControl = null)
     {
         public static ParagraphFormat Empty { get; } = new(null, null, null, null, null, null, null, null, null);
 
@@ -1448,7 +1455,8 @@ public sealed class OdtDocumentReader : IDocumentReader
             child.KeepWithNext ?? parent.KeepWithNext,
             child.KeepTogether ?? parent.KeepTogether,
             child.TabStops ?? parent.TabStops,
-            child.Borders ?? parent.Borders);
+            child.Borders ?? parent.Borders,
+            child.WidowControl ?? parent.WidowControl);
 
         public ParagraphStyle ToStyle()
         {
@@ -1514,6 +1522,11 @@ public sealed class OdtDocumentReader : IDocumentReader
                 style = style with { KeepTogether = keepTogether };
             }
 
+            if (WidowControl is { } widowControl)
+            {
+                style = style with { WidowControl = widowControl };
+            }
+
             if (TabStops is { } tabStops)
             {
                 // ODF counts from the paragraph indent, the model from the margin.
@@ -1576,8 +1589,17 @@ public sealed class OdtDocumentReader : IDocumentReader
                 _ => null,
             },
             ReadTabStops(properties.Element(Style + "tab-stops")),
-            ReadParagraphBorders(properties));
+            ReadParagraphBorders(properties),
+            ReadWidowControl(properties));
         return format == ParagraphFormat.Empty ? null : format;
+    }
+
+    /// <summary>Widow and orphan control: on when either keeps lines, off when those stated are 0, else not stated.</summary>
+    private static bool? ReadWidowControl(XElement properties)
+    {
+        int? Lines(string name) => int.TryParse(properties.Attribute(Fo + name)?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lines) ? lines : null;
+        var (widows, orphans) = (Lines("widows"), Lines("orphans"));
+        return widows > 0 || orphans > 0 ? true : widows is not null || orphans is not null ? false : null;
     }
 
     private static ParagraphBorders? ReadParagraphBorders(XElement properties)

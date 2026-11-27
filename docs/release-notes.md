@@ -1,5 +1,18 @@
 # Reglet – Release notes
 
+## Unreleased
+
+### Widow and orphan control
+
+- `ParagraphStyle.WidowControl`: null (the default) is on, as in Word, where a missing `w:widowControl` is on; `false`
+  switches it off. DOCX reads and writes `w:widowControl` (only an explicit off is written), ODT `fo:widows` and
+  `fo:orphans` (the default style states 2, since LibreOffice takes missing values as none).
+- The PDF keeps at least two lines of a split paragraph on each page in a table row as well, as in the text: a row
+  whose paragraph may not split where the page ends moves whole. Measured in Word 16 for paragraphs of 2 to 5 lines
+  with room for 1 to 4 (4 lines with room for 3: 2 + 2, not 3 + 1); LibreOffice lays out Reglet's DOCX and ODT the
+  same way. This replaces the 1.7.11 rule that only kept a paragraph's first line from standing alone.
+- With `WidowControl = false` a paragraph splits exactly where the room ends, in the text and in a table row.
+
 ## 1.7.11
 
 ### East Asian text

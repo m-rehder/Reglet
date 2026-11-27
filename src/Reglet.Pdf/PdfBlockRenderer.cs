@@ -1356,11 +1356,11 @@ internal sealed class PdfBlockRenderer
             segmentHeight = 0;
         }
 
-        // Widow and orphan control (ADR-0033, as Word and LibreOffice do by default): a paragraph that has to
-        // split leaves at least two lines on each page; a short one moves as a whole.
+        // Widow and orphan control (ADR-0033, as Word and LibreOffice do by default, ParagraphStyle.WidowControl): a
+        // paragraph that has to split leaves at least two lines on each page; a short one moves as a whole.
         int PlanBreak(int start)
         {
-            if (_band || lines.Count < 2 || lines.Skip(start).Any(row => row.Any(atom => atom.Note is not null)))
+            if (_band || style.WidowControl == false || lines.Count < 2 || lines.Skip(start).Any(row => row.Any(atom => atom.Note is not null)))
             {
                 return -1;
             }
@@ -2093,6 +2093,7 @@ internal sealed class PdfBlockRenderer
                     TableLayout.CellParagraphStyle(style, cell));
                 var segmentStart = 0;
                 var firstSegment = true;
+                var paragraphStart = lines.Count;
                 for (var index = 0; index <= atoms.Count; index++)
                 {
                     if (index < atoms.Count && !atoms[index].IsHardBreak)
@@ -2113,7 +2114,6 @@ internal sealed class PdfBlockRenderer
                             tabStops: style.TabStops) with
                         {
                             Heading = first && block is Heading h2 && title.Length > 0 ? ((int)h2.Level, title, headingIndex) : null,
-                            OpensLongParagraph = first && !(index == atoms.Count && line == wrapped.Count - 1),
                             Before = first ? spaceBefore : 0,
                             After = index == atoms.Count && line == wrapped.Count - 1 ? spaceAfter : 0,
                             Spacing = style.LineSpacing,
@@ -2123,6 +2123,15 @@ internal sealed class PdfBlockRenderer
 
                     segmentStart = index + 1;
                     firstSegment = false;
+                }
+
+                // Widow and orphan control: the lines of the paragraph know it, so a page break keeps two on each side.
+                if (style.WidowControl != false && lines.Count - paragraphStart > 1)
+                {
+                    for (var line = paragraphStart; line < lines.Count; line++)
+                    {
+                        lines[line] = lines[line] with { KeptParagraph = (paragraphStart, lines.Count) };
+                    }
                 }
             }
 
@@ -2394,12 +2403,29 @@ internal sealed class PdfBlockRenderer
                         target++;
                     }
 
-                    // As Word does, also without widow control: the first line of a paragraph with more lines does not
-                    // stay alone at the foot of the page; it moves on with the rest (and the row with it, if it is all).
-                    if (target < cell.Lines.Count && target > offsets[index] && cell.Lines[target - 1].OpensLongParagraph)
+                    // Widow and orphan control, as in the text: a paragraph split here keeps two lines on each page, a
+                    // short one moves on whole (and the row with it, if nothing else of it stays).
+                    if (target < cell.Lines.Count && target > offsets[index] && !freshPage && !_page.IsAtPageTop
+                        && cell.Lines[target].KeptParagraph is { } kept && kept.Start < target)
                     {
-                        target--;
-                        height -= row.HeightOf(cell.Lines[target]);
+                        var start = Math.Max(kept.Start, offsets[index]);
+                        var fit = target - start;
+                        var remaining = kept.End - start;
+                        var split = remaining - fit < 2 ? remaining - 2 : fit;
+                        if (start == kept.Start && split < 2)
+                        {
+                            split = 0;
+                        }
+
+                        if (split > 0 || start == kept.Start)
+                        {
+                            for (var moved = start + Math.Max(0, split); moved < target; moved++)
+                            {
+                                height -= row.HeightOf(cell.Lines[moved]);
+                            }
+
+                            target = start + Math.Max(0, split);
+                        }
                     }
 
                     if (target == offsets[index] && target < cell.Lines.Count)
@@ -2846,8 +2872,8 @@ internal sealed class PdfBlockRenderer
     {
         public (int Level, string Title, int? Index)? Heading { get; init; }
 
-        /// <summary>The first line of a paragraph that has more lines (after a wrap or a line break).</summary>
-        public bool OpensLongParagraph { get; init; }
+        /// <summary>The lines (start, end) of a paragraph of several lines under widow and orphan control.</summary>
+        public (int Start, int End)? KeptParagraph { get; init; }
 
         public IReadOnlyList<(int Number, string Text)>? Notes { get; init; }
 

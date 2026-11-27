@@ -66,6 +66,7 @@ internal static class ParagraphStyleResolver
             KeepWithNext = paragraph.KeepWithNext is null ? inheritedBase.KeepWithNext : effective.KeepWithNext,
             KeepTogether = paragraph.KeepTogether is null ? inheritedBase.KeepTogether : effective.KeepTogether,
             PageBreakBefore = paragraph.PageBreakBefore is null ? inheritedBase.PageBreakBefore : effective.PageBreakBefore,
+            WidowControl = paragraph.WidowControl is null ? inheritedBase.WidowControl : effective.WidowControl,
         };
         return true;
     }
@@ -142,6 +143,11 @@ internal static class ParagraphStyleResolver
         if (style.KeepTogether is null && defaults.KeepTogether is { } keepTogether)
         {
             result = result with { KeepTogether = keepTogether };
+        }
+
+        if (style.WidowControl is null && defaults.WidowControl is { } widowControl)
+        {
+            result = result with { WidowControl = widowControl };
         }
 
         if (style.PageBreakBefore is null && defaults.PageBreakBefore is { } pageBreakBefore)
@@ -247,6 +253,11 @@ internal static class ParagraphStyleResolver
         if (Inherited(paragraph.KeepTogether, sourceBase.KeepTogether) && !Equals(current.KeepTogether, source.KeepTogether))
         {
             result = result with { KeepTogether = current.KeepTogether };
+        }
+
+        if (Inherited(paragraph.WidowControl, sourceBase.WidowControl) && !Equals(current.WidowControl, source.WidowControl))
+        {
+            result = result with { WidowControl = current.WidowControl };
         }
 
         if (Inherited(paragraph.PageBreakBefore, sourceBase.PageBreakBefore)
@@ -395,6 +406,7 @@ internal static class ParagraphStyleResolver
             && left.KeepWithNext == right.KeepWithNext
             && left.KeepTogether == right.KeepTogether
             && left.PageBreakBefore == right.PageBreakBefore
+            && left.WidowControl == right.WidowControl
             && SameTabStops(left.TabStops, right.TabStops)
             && left.RightToLeft == right.RightToLeft;
 

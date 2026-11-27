@@ -579,6 +579,12 @@ internal static class OdtContentWriter
             writer.WriteAttributeString("fo", "keep-together", OdtNamespaces.Fo, keepTogether ? "always" : "auto");
         }
 
+        if (style.WidowControl is { } widowControl
+            && (parent is null || (parent.WidowControl ?? true) != widowControl))
+        {
+            WriteWidowControl(writer, widowControl);
+        }
+
         if (style.PageBreakBefore is { } pageBreakBefore
             && !breakWritten
             && (parent is null || parent.PageBreakBefore != pageBreakBefore))
@@ -741,6 +747,13 @@ internal static class OdtContentWriter
             writer.WriteAttributeString("fo", name, OdtNamespaces.Fo,
                 length.Points.ToString("0.##", CultureInfo.InvariantCulture) + "pt");
         }
+    }
+
+    /// <summary>Widow and orphan control as ODF states it: two lines, or none.</summary>
+    internal static void WriteWidowControl(XmlWriter writer, bool on)
+    {
+        writer.WriteAttributeString("fo", "widows", OdtNamespaces.Fo, on ? "2" : "0");
+        writer.WriteAttributeString("fo", "orphans", OdtNamespaces.Fo, on ? "2" : "0");
     }
 
     internal static void WriteNullableLengthIfDifferent(XmlWriter writer, string name, Length? length, Length? parent)
